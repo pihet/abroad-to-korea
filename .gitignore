@@ -1,0 +1,155 @@
+# =============================================================
+# .gitignore
+# 여기 적힌 파일은 Git이 무시한다(커밋되지 않는다).
+# 규칙을 바꾸기 전에 조장과 먼저 이야기한다.
+#
+# 무시 대상인데 꼭 올려야 하는 작은 파일이 있으면:
+#   git add -f <파일경로>
+# =============================================================
+
+# ---------------- 비밀정보 (절대 커밋 금지) ----------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+serviceAccount*.json
+
+# ---------------- Python ----------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 가상환경
+.venv/
+venv/
+ENV/
+env/
+.conda/
+conda-env/
+
+# 패키지 빌드 산출물 (루트에서만 무시)
+/build/
+/dist/
+/sdist/
+/wheels/
+/eggs/
+/.eggs/
+*.egg-info/
+*.egg
+
+# 테스트 / 린트 캐시
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# ---------------- Jupyter Notebook ----------------
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# ---------------- Node.js / 프론트엔드 ----------------
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 프론트엔드 빌드 결과
+front/build/
+front/dist/
+front/.next/
+front/.nuxt/
+front/.svelte-kit/
+front/.vite/
+.parcel-cache/
+
+# ---------------- 데이터 (대용량 · 원본) ----------------
+# 폴더 구조는 남기고 내용만 무시한다.
+data/raw/*
+data/processed/*
+data/external/*
+data/interim/*
+!data/**/.gitkeep
+!data/**/README.md
+
+# 데이터 파일 형식 (실수로 큰 파일을 올리는 사고 방지)
+# 꼭 필요한 작은 파일은 git add -f 로 올린다.
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.parquet
+*.feather
+*.db
+*.sqlite
+*.sqlite3
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# ---------------- 모델 / 학습 산출물 ----------------
+models/*
+!models/.gitkeep
+!models/README.md
+*.pkl
+*.p
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pb
+mlruns/
+wandb/
+runs/
+lightning_logs/
+checkpoints/
+
+# ---------------- 로그 / 임시 파일 ----------------
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.orig
+
+# ---------------- 편집기 / IDE ----------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# ---------------- OS 생성 파일 ----------------
+# Windows에서 받은 파일을 WSL로 옮길 때 생기는 부산물
+*:Zone.Identifier
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
