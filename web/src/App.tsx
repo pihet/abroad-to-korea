@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, PRIORITY_LABEL, type AnalyzeResponse, type Candidate, type Crop, type RecommendResponse } from './api'
+import { api, PRIORITY_LABEL, regionsApi, type AnalyzeResponse, type Candidate, type Crop, type FilterKey, type Filters, type RecommendResponse, type RegionRow, type RegionsResponse } from './api'
+import { BrowseStep } from './components/BrowseStep'
+import { FilterBar } from './components/FilterBar'
 import { CandidateCard } from './components/CandidateCard'
 import { Conditions, type Cond } from './components/Conditions'
 import { CropStep } from './components/CropStep'
 import { PhotoStep, type Source } from './components/PhotoStep'
 import { TagChips } from './components/TagChips'
 
-type Step = 'photo' | 'crop' | 'scene' | 'result'
+type Step = 'photo' | 'browse' | 'crop' | 'scene' | 'result'
 type Saved = { key: string; name: string; sigungu: string; image_url: string; license: string }
 const PAGE = 5
 const STEPS: [Step, string][] = [['photo', '사진'], ['crop', '영역'], ['scene', '장면·조건'], ['result', '추천']]
@@ -34,6 +36,10 @@ export default function App() {
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null)
   const [kept, setKept] = useState<string[]>([])
   const [cond, setCond] = useState<Cond>({ month: 10, priority: 'visual', origin: null })
+  const [fsel, setFsel] = useState<{ sido: string | null; keys: FilterKey[] }>({ sido: null, keys: [] })
+  const [regions, setRegions] = useState<RegionsResponse | null>(null)
+  const filters: Filters = { month: cond.month, ...fsel }
+  const setFilters = (f: Filters) => { setFsel({ sido: f.sido, keys: f.keys }); if (f.month !== cond.month) setCond({ ...cond, month: f.month }) }
   const [result, setResult] = useState<RecommendResponse | null>(null)
   const [extra, setExtra] = useState<Candidate[]>([])
   const [busy, setBusy] = useState(false)
@@ -44,6 +50,7 @@ export default function App() {
   const [wide] = useState(() => window.matchMedia('(min-width: 821px)').matches)
 
   useEffect(() => { try { localStorage.setItem('saved-places', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
+  useEffect(() => { regionsApi(cond.month, cond.origin).then(setRegions).catch(e => setErr(e.message)) }, [cond.month, cond.origin])
 
   const pick = (s: Source) => { setSource(s); setErr(null); setStep('crop'); window.scrollTo(0, 0) }
 
@@ -65,25 +72,26 @@ export default function App() {
     setBusy(true); setErr(null)
     try {
       const r = await api.recommend({ query_id: analysis.query_id, travel_month: c.month, priority: c.priority,
-                                      origin: c.origin, kept_tags: tags, limit: PAGE, offset: 0 })
+                                      origin: c.origin, kept_tags: tags, limit: PAGE, offset: 0, filters: fsel.keys, sido: fsel.sido })
       setResult(r); setExtra([]); setStep('result')
     } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
-  }, [analysis])
+  }, [analysis, fsel])
 
   // 결과 화면에서 조건·태그를 바꾸면 사진을 다시 분석하지 않고 다시 정렬만 한다
-  useEffect(() => { if (step === 'result') recommend(cond, kept) }, [cond, kept]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (step === 'result') recommend(cond, kept) }, [cond, kept, fsel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const more = async () => {
     if (!analysis || !result) return
     setBusy(true)
     try {
       const r = await api.recommend({ query_id: analysis.query_id, travel_month: cond.month, priority: cond.priority,
-                                      origin: cond.origin, kept_tags: kept, limit: PAGE, offset: PAGE + extra.length })
+                                      origin: cond.origin, kept_tags: kept, limit: PAGE, offset: PAGE + extra.length,
+                                      filters: fsel.keys, sido: fsel.sido })
       setExtra([...extra, ...r.candidates])
     } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
 
-  const searchFrom = async (c: Candidate) => {
+  const searchFrom = async (c: { attraction: { image_url: string } }) => {
     try {
       const blob = await fetch(c.attraction.image_url).then(r => r.blob())
       const s: Source = { kind: 'file', file: blob, url: URL.createObjectURL(blob) }
@@ -115,14 +123,27 @@ export default function App() {
       <header className="topbar">
         <button type="button" className="logo" onClick={() => { setStep('photo'); setResult(null) }}>닮은꼴<i>.</i></button>
         <ol className="stepper" aria-label="진행 단계">
-          {STEPS.map(([s, l], i) => <li key={s} className={s === step ? 'on' : STEPS.findIndex(x => x[0] === step) > i ? 'done' : ''}>{l}</li>)}
+          {STEPS.map(([s, l], i) => <li key={s} className={s === step ? 'on' : STEPS.findIndex(x => x[0] === (step === 'browse' ? 'photo' : step)) > i ? 'done' : ''}>{l}</li>)}
         </ol>
         {saved.length > 0 && <a className="saved-link" href="#saved">저장 {saved.length}</a>}
       </header>
 
       <main className="main">
         {err && <p className="error" role="alert">{err}</p>}
-        {step === 'photo' && <PhotoStep onPick={pick} />}
+        {step === 'photo' && (
+          <PhotoStep onPick={pick} onBrowse={() => { setStep('browse'); window.scrollTo(0, 0) }}
+                     filterBar={<FilterBar value={filters} onChange={setFilters} regions={regions} />} />
+        )}
+        {step === 'browse' && (
+          <section className="step">
+            <div className="browse-top">
+              <button type="button" className="ghost" onClick={() => setStep('photo')}>← 처음으로</button>
+              <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
+            </div>
+            <BrowseStep filters={filters} regions={regions} origin={cond.origin} onOrigin={o => setCond({ ...cond, origin: o })}
+                        onSearchPhoto={(r: RegionRow) => searchFrom({ attraction: { image_url: r.photo!.image_url } })} />
+          </section>
+        )}
         {step === 'crop' && source && <CropStep url={source.url} busy={busy} onBack={() => setStep('photo')} onDone={c => analyze(c)} />}
 
         {step === 'scene' && analysis && (
@@ -133,6 +154,7 @@ export default function App() {
               <p className="sub">설명에 쓰지 않을 태그는 눌러서 빼 주세요. (CLIP 자동 분석)</p>
               <TagChips tags={analysis.scene_tags} kept={kept} onChange={setKept} />
               <h2>조건</h2>
+              <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
               <Conditions value={cond} onChange={setCond} />
               <div className="actions">
                 <button type="button" className="ghost" onClick={() => setStep('crop')}>영역 다시 고르기</button>
@@ -151,6 +173,7 @@ export default function App() {
               {/* 좁은 화면에서는 조건을 접어 추천 카드가 먼저 보이게 한다 */}
               <details className="cond-box" open={wide}>
                 <summary>조건 바꾸기 · {cond.month}월 · {PRIORITY_LABEL[cond.priority]}</summary>
+                <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
                 <Conditions value={cond} onChange={setCond} />
                 <button type="button" className="ghost wide" onClick={() => setStep('photo')}>새 사진으로 찾기</button>
               </details>
@@ -160,9 +183,11 @@ export default function App() {
                 <h1>분위기가 닮은 국내 여행지</h1>
                 <p>
                   <span className={result.is_example ? 'badge warn' : 'badge'}>{result.is_example ? '예시 데이터' : '모델 추천 결과'}</span>
+                  {result.query.allowed_regions != null && <>조건에 맞는 {result.query.allowed_regions}곳 안에서 </>}
                   사진이 닮은 {result.total_candidates}곳 중 <b>{PRIORITY_LABEL[cond.priority]}</b> 기준 · {cond.month}월
                 </p>
               </div>
+              {result.total_candidates === 0 && <p className="error">조건에 맞는 시군구가 없습니다. 조건을 하나 빼 보세요.</p>}
               <div className={busy ? 'cards busy' : 'cards'}>
                 {list.map(c => (
                   <CandidateCard key={c.sigungu.key} c={c} originUrl={preview} month={cond.month} priority={cond.priority}

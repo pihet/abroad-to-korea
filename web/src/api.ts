@@ -47,7 +47,8 @@ export interface Candidate {
 
 export interface RecommendResponse {
   is_example: boolean
-  query: { query_id: string; scene_tags: string[]; kept_tags: string[] | null; month: number; priority: Priority; origin: Origin | null }
+  query: { query_id: string; scene_tags: string[]; kept_tags: string[] | null; month: number; priority: Priority; origin: Origin | null
+           filters: FilterKey[]; sido: string | null; allowed_regions: number | null }
   model: { visual: string; rerank: string; priorities: Priority[] }
   total_candidates: number
   candidates: Candidate[]
@@ -77,7 +78,7 @@ export const api = {
   },
 
   recommend: (body: { query_id: string; travel_month: number; priority: Priority; origin?: Origin | null;
-                      kept_tags?: string[]; limit?: number; offset?: number }) =>
+                      kept_tags?: string[]; limit?: number; offset?: number; filters?: FilterKey[]; sido?: string | null }) =>
     fetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => json<RecommendResponse>(r)),
 
@@ -111,3 +112,21 @@ export const activitiesApi = (sigunguKey: string, month: number, attractionId?: 
   if (attractionId) q.set('attraction_id', attractionId)
   return fetch(`/api/activities?${q}`).then(r => json<ActivitiesResponse>(r))
 }
+
+export type FilterKey = 'sea' | 'mountain' | 'calm' | 'mild'
+export interface RegionRow {
+  key: string; name: string; sido: string; coast_km: number | null; mountain_n: number
+  visitors: number | null; congestion_index: number | null; temp_c: number | null; rain_days: number | null
+  flags: Record<FilterKey, boolean>; distance_km: number | null
+  photo: { attraction_id: string; name: string; image_url: string; license: string } | null
+}
+export interface RegionsResponse {
+  is_example: boolean; month: number
+  filters: { key: FilterKey; label: string; basis: string }[]
+  sidos: string[]; regions: RegionRow[]
+}
+export const regionsApi = (month: number, origin?: Origin | null) =>
+  fetch(`/api/regions?month=${month}${origin ? `&origin=${encodeURIComponent(origin)}` : ''}`).then(r => json<RegionsResponse>(r))
+
+export interface Filters { month: number; sido: string | null; keys: FilterKey[] }
+export const matches = (r: RegionRow, f: Filters) => f.keys.every(k => r.flags[k]) && (!f.sido || r.sido === f.sido)

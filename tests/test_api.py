@@ -157,3 +157,32 @@ def test_activities_rejects(client):
     assert client.get("/api/activities", params={"sigungu_key": "99_없는곳", "month": 10}).status_code == 404
     assert client.get("/api/activities", params={"sigungu_key": "51_양양군", "month": 13}).status_code == 422
     assert client.get("/images/tour/0000").status_code == 404
+
+
+def test_regions_table(client):
+    d = client.get("/api/regions", params={"month": 10, "origin": "부산"}).json()
+    assert d["is_example"] is False and len(d["regions"]) == 230
+    assert {f["key"] for f in d["filters"]} == {"sea", "mountain", "calm", "mild"} and all(f["basis"] for f in d["filters"])
+    by = {r["key"]: r for r in d["regions"]}
+    assert by["26_수영구"]["flags"]["sea"] and not by["11_서초구"]["flags"]["sea"]  # 해안선 기준
+    assert all(r["distance_km"] is not None for r in d["regions"])
+    assert all(r["photo"] for r in d["regions"])
+    assert client.get("/api/regions", params={"month": 10, "origin": "평양"}).status_code == 400
+
+
+def test_filters_restrict_candidates(client, qid):
+    d = client.get("/api/regions", params={"month": 10}).json()
+    ok = {r["key"] for r in d["regions"] if r["flags"]["sea"] and r["flags"]["calm"]}
+    r = rec(client, qid, filters=["sea", "calm"], limit=30)
+    assert r["query"]["allowed_regions"] == len(ok) and r["total_candidates"] == min(30, len(ok))
+    assert {c["sigungu"]["key"] for c in r["candidates"]} <= ok
+    assert [c["visual_rank"] for c in r["candidates"]] == list(range(1, len(r["candidates"]) + 1))
+    gw = rec(client, qid, sido="강원특별자치도", limit=30)["candidates"]
+    assert gw and all(c["sigungu"]["sido"] == "강원특별자치도" for c in gw)
+    assert client.post("/api/recommend", json={"query_id": qid, "travel_month": 10, "filters": ["beach"]}).status_code == 422
+    assert client.post("/api/recommend", json={"query_id": qid, "travel_month": 10, "sido": "없는도"}).status_code == 400
+
+
+def test_empty_filter_result(client, qid):
+    r = rec(client, qid, travel_month=1, filters=["mild"])  # 1월 평균기온 15~24°C 인 시군구는 없다
+    assert r["query"]["allowed_regions"] == 0 and r["total_candidates"] == 0 and r["candidates"] == []

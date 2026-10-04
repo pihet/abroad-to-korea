@@ -75,9 +75,13 @@ class Engine:
         return qid, self.cache[qid]["tags"]
 
     # ---------------- Stage A
-    def stage_a(self, v):
+    def stage_a(self, v, allowed=None):
+        """allowed: 조건 필터를 통과한 시군구 인덱스 집합 (None 이면 전체). 필터는 후보를 고르기 전에 건다."""
         sims = self.I["kv"] @ v
-        idx = np.where(self.ok)[0]
+        ok = self.ok if allowed is None else self.ok & np.isin(self.I["img_region"], list(allowed))
+        idx = np.where(ok)[0]
+        if not len(idx):
+            return []
         # 관광지 단위 통합: 유사도 내림차순으로 놓고 관광지마다 처음 나온 사진(= 최고 1장)만 남긴다
         o = idx[np.argsort(-sims[idx], kind="stable")]
         _, first = np.unique(self.cid[o], return_index=True)
@@ -87,11 +91,16 @@ class Engine:
         top = np.argsort(-best, kind="stable")[:VOTE_K]
         vote = np.bincount(reg[top], weights=best[top], minlength=len(self.I["regions"]))
         vote = vote + 1e-3 * (self.I["reg_mean"] @ v)  # 표 없는 시군구 순서 (기존 vote100 과 같은 처리)
+        if allowed is not None:
+            vote[[i for i in range(len(vote)) if i not in allowed]] = -np.inf
+        n = N_CAND if allowed is None else min(N_CAND, len(allowed))
         out = []
-        for rank, ri in enumerate(np.argsort(-vote, kind="stable")[:N_CAND], 1):
+        for ri in np.argsort(-vote, kind="stable")[:n]:
             in_reg = np.where(reg == ri)[0]
+            if not len(in_reg):  # 필터 안의 시군구 중 사진이 덜 닮아 상위 관광지가 없는 곳
+                continue
             a = in_reg[np.argmax(best[in_reg])]  # 이 시군구에서 가장 닮은 관광지
-            out.append({"ri": int(ri), "visual_rank": rank, "vote": float(vote[ri]),
+            out.append({"ri": int(ri), "visual_rank": len(out) + 1, "vote": float(vote[ri]),
                         "img_index": int(best_img[a]), "similarity": float(best[a])})
         return out
 
@@ -115,7 +124,7 @@ class Engine:
             return (sum(y < x for y in ok) + 0.5 * (sum(y == x for y in ok) - 1)) / (len(ok) - 1)
         scored = []
         for c, x in zip(cands, vals):
-            vis = 1 - (c["visual_rank"] - 1) / (n - 1)
+            vis = 1 - (c["visual_rank"] - 1) / max(n - 1, 1)
             if priority == "visual":
                 score, cond = vis, None
             else:
@@ -127,9 +136,12 @@ class Engine:
                  "condition_value": x} for _, _, c, vis, cond, x in scored]
 
     # ---------------- 응답 조립
-    def recommend(self, qid, month, priority, origin, kept_tags, limit, offset):
+    def recommend(self, qid, month, priority, origin, kept_tags, limit, offset, allowed=None):
         q = self.cache[qid]
-        ranked = self.stage_b(q["stage_a"], month, priority, origin)
+        cands = q["stage_a"] if allowed is None else self.stage_a(q["vec"], allowed)
+        if not cands:
+            return {"total": 0, "candidates": []}
+        ranked = self.stage_b(cands, month, priority, origin)
         out = []
         for rank, c in enumerate(ranked[offset:offset + limit], offset + 1):
             sido, sgg = self.region_keys[c["ri"]].split("_", 1)
@@ -154,6 +166,22 @@ class Engine:
                            "condition_value": c["condition_value"]},
             })
         return {"total": len(ranked), "candidates": out}
+
+    # ---------------- 시군구 대표 사진 (그 시군구 사진 평균에 가장 가까운 관광지 = 가장 그 지역다운 사진)
+    def region_photo(self, ri):
+        if not hasattr(self, "_rep"):
+            self._rep = {}
+            sims = self.I["kv"] @ self.I["reg_mean"].T
+            for i in range(len(self.I["regions"])):
+                ix = np.where((self.I["img_region"] == i) & self.ok)[0]
+                if len(ix):
+                    self._rep[i] = int(ix[np.argmax(sims[ix, i])])
+        k = self._rep.get(ri)
+        if k is None:
+            return None
+        it = self.I["items"][self.cid[k]]
+        return {"attraction_id": it["contentid"], "name": it["title"], "image_url": f"/images/kr/{it['contentid']}",
+                "license": KOGL.get(it["cpyrhtDivCd"], it["cpyrhtDivCd"])}
 
     # ---------------- 데모 사진 (카탈로그 장면당 첫 사진)
     def demo_photos(self):

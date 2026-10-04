@@ -3,7 +3,7 @@ import { api, type DemoPhoto } from '../api'
 
 export type Source = { kind: 'file'; file: Blob; url: string } | { kind: 'demo'; photo: DemoPhoto; url: string }
 
-export function PhotoStep({ onPick }: { onPick: (s: Source) => void }) {
+export function PhotoStep({ onPick, onBrowse, filterBar }: { onPick: (s: Source) => void; onBrowse: () => void; filterBar: React.ReactNode }) {
   const [demos, setDemos] = useState<DemoPhoto[]>([])
   const [q, setQ] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -27,6 +27,7 @@ export function PhotoStep({ onPick }: { onPick: (s: Source) => void }) {
         <h1>가고 싶은 해외 풍경, 국내에서 찾아보세요</h1>
         <p>해외 여행지 사진을 올리면 분위기가 비슷한 국내 관광지를 찾고, 고른 달에 얼마나 붐비는지까지 함께 보여 드립니다.</p>
       </div>
+      <div className="start-filters">{filterBar}</div>
       <div className="upload-row">
         <label className="upload">
           <input type="file" accept="image/*" onChange={onFile} />
@@ -36,10 +37,13 @@ export function PhotoStep({ onPick }: { onPick: (s: Source) => void }) {
           <input type="file" accept="image/*" capture="environment" onChange={onFile} />
           <strong>사진 찍기</strong><span>휴대폰에서 바로 촬영</span>
         </label>
+        <button type="button" className="upload browse-entry" onClick={onBrowse}>
+          <strong>사진 없이 둘러보기</strong><span>조건에 맞는 곳을 사진으로 훑어보기</span>
+        </button>
       </div>
       {err && <p className="error" role="alert">{err}</p>}
       <div className="demo-head">
-        <h2>또는 예시 사진으로 시작하기</h2>
+        <h2>예시 사진으로 해 보기</h2>
         <input className="search" placeholder="여행지 검색 (교토, 해변…)" value={q} onChange={e => setQ(e.target.value)} aria-label="예시 사진 검색" />
       </div>
       <div className="demo-grid">

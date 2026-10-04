@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 Priority = Literal["visual", "crowd", "near", "season"]
 Origin = Literal["서울", "부산", "대구", "광주", "대전"]
+FilterKey = Literal["sea", "mountain", "calm", "mild"]
 
 
 class Crop(BaseModel):
@@ -35,6 +36,8 @@ class RecommendRequest(BaseModel):
     kept_tags: Optional[list[str]] = None
     limit: int = Field(default=5, ge=1, le=30)
     offset: int = Field(default=0, ge=0, le=29)
+    filters: list[FilterKey] = []
+    sido: Optional[str] = None
 
 
 class MonthPoint(BaseModel):

@@ -129,3 +129,11 @@
 
 ## 8. 후순위 (P1 이후)
 가족 여행 적합도, 텍스트 조건(태그 검색 반영 포함), 지도 임베드, 당일 코스 생성, 로그인·장기 개인화, 무드보드, 실시간 카메라, 국내 사진 확대 반영(11-8 수집 완료 후)
+
+
+## 추가된 API (2026-10-04)
+
+- `POST /api/recommend` 에 `filters: ("sea"|"mountain"|"calm"|"mild")[]`, `sido?: string` 추가. 응답 `query.allowed_regions` = 조건을 통과한 시군구 수 (필터 없으면 null)
+- `GET /api/regions?month=&origin=` — 시군구 230곳의 조건 값(`coast_km`, `mountain_n`, `visitors`, `congestion_index`, `temp_c`, `rain_days`), `flags`, 대표 사진, 출발지 거리. `filters[]`에 이름과 기준 문구
+- `GET /api/activities?sigungu_key=&month=&attraction_id=` — 지역 활동 목록과 묶음별 개수, 기준 관광지(★)
+- `GET /images/tour/{id}` — 활동 목록의 공공누리 1·3유형 썸네일 (목록에 있는 id만)

@@ -18,7 +18,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .activities import Activities
-from .context import DATA_SOURCES, ROOT
+from .regions import FILTERS, Regions
+from .context import DATA_SOURCES, ORIGINS, ROOT
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 
@@ -31,15 +32,17 @@ WEB_DIST = ROOT / "web/dist"
 
 engine: Optional[Engine] = None
 acts: Optional[Activities] = None
+regions: Optional[Regions] = None
 MISSING_PHOTOS: set[str] = set()
 
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts
+    global engine, acts, regions
     t = time.time()
     engine = Engine()
     acts = Activities()
+    regions = Regions(engine, acts)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
@@ -89,11 +92,16 @@ async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optio
 def recommend(req: RecommendRequest):
     if req.query_id not in engine.cache:
         raise HTTPException(404, "분석 결과가 만료됐습니다. 사진을 다시 분석해 주세요.")
-    r = engine.recommend(req.query_id, req.travel_month, req.priority, req.origin, req.kept_tags, req.limit, req.offset)
+    if req.sido and req.sido not in {s["sido"] for s in regions.static.values()}:
+        raise HTTPException(400, "시도 이름이 올바르지 않습니다.")
+    allowed = regions.allowed(req.travel_month, req.filters, req.sido)
+    r = engine.recommend(req.query_id, req.travel_month, req.priority, req.origin, req.kept_tags, req.limit, req.offset,
+                         allowed)
     q = engine.cache[req.query_id]
     return {
         "query": {"query_id": req.query_id, "scene_tags": [t["tag"] for t in q["tags"]], "kept_tags": req.kept_tags,
-                  "month": req.travel_month, "priority": req.priority, "origin": req.origin},
+                  "month": req.travel_month, "priority": req.priority, "origin": req.origin,
+                  "filters": req.filters, "sido": req.sido, "allowed_regions": None if allowed is None else len(allowed)},
         "model": {"visual": "CLIP ViT-B/32 (frozen) · 관광지별 최고 1장 → 시군구 vote100 → 상위 30곳",
                   "rerank": "30곳 안에서만 재정렬 · 시각 가중치 0.5 이상 · 단일 종합점수 없음",
                   "priorities": list(PRIORITIES)},
@@ -125,6 +133,21 @@ def kr_image(cid: str):
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/regions")
+def region_table(month: int = Query(ge=1, le=12), origin: Optional[str] = None):
+    """시군구별 조건 값·필터 통과 여부·대표 사진. 조건 칩의 곳 수와 '사진 없이 둘러보기'에 쓴다."""
+    if origin is not None and origin not in ORIGINS:
+        raise HTTPException(400, "출발지가 올바르지 않습니다.")
+    rows = []
+    for r in regions.month_table(month):
+        k = tuple(r["key"].split("_", 1))
+        rows.append({**{x: v for x, v in r.items() if x != "ri"}, "photo": engine.region_photo(r["ri"]),
+                     "distance_km": engine.ctx.distance(k, origin) if origin else None})
+    return {"is_example": False, "month": month,
+            "filters": [{"key": k, "label": v[0], "basis": v[1]} for k, v in FILTERS.items()],
+            "sidos": sorted({r["sido"] for r in rows}), "regions": rows}
 
 
 @app.get("/api/activities", response_model=ActivitiesResponse)

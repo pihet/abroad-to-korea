@@ -8,7 +8,7 @@
 ```mermaid
 flowchart LR
   subgraph Browser["브라우저 (web/, React + TS)"]
-    UI["① 사진 올리기·찍기·예시\n② 영역 자르기\n③ 장면 태그·조건\n④ 추천 카드·비교·저장\n⑤ 지역 활동 지도 (Leaflet + OSM)"]
+    UI["⓪ 조건 고르기 · 사진 없이 둘러보기\n① 사진 올리기·찍기·예시\n② 영역 자르기\n③ 장면 태그·조건\n④ 추천 카드·비교·저장\n⑤ 지역 활동 지도 (Leaflet + OSM)"]
     LS[("localStorage\n저장한 곳")]
   end
 
@@ -18,6 +18,7 @@ flowchart LR
     TAG["tags.py Tagger\n장면 태그 39종"]
     CTX["context.py Context\n혼잡도 · 날씨 · 거리"]
     ACT["activities.py\n지역 활동 (관광지·레포츠·축제)"]
+    REG["regions.py\n조건 필터 (바다·산·방문객·날씨·시도)"]
     CACHE[("질의 캐시\n최근 200건 (메모리)")]
   end
 
@@ -53,6 +54,9 @@ flowchart LR
   ENG --> CTX
   ENG <--> CACHE
   API --> ACT
+  API --> REG
+  REG --> ENG
+  REG --- CTX
   ACT --- TL
   TAG --> CLIP
   IDX --- EMB
@@ -105,7 +109,7 @@ sequenceDiagram
 | 원칙 | 구현 |
 |---|---|
 | 화면과 모델 분리 | 화면은 `web/src/api.ts` 타입만 안다. 모델 교체 시 `app/recommender.py`만 바꾼다 |
-| 사진이 먼저 | 조건은 사진이 닮은 30곳 안에서만 순서를 바꾸고, 시각 가중치는 0.5 아래로 내리지 않는다 |
+| 조건은 거르기, 사진은 순서 | 조건 필터는 후보 풀을 줄이고(기준을 화면에 표시), 그 안에서 사진 유사도로 30곳을 고른다. 우선순위 재정렬은 그 30곳 안에서만, 시각 가중치 0.5 이상 |
 | 단일 종합점수 없음 | 카드에 시각 순위·혼잡도·날씨·거리를 따로 보여 주고, 순위가 바뀐 이유(“4위 → 2위”)를 적는다 |
 | 근거 있는 값만 | 혼잡도는 실측(예측 달은 예측이라고 표시), 자료가 없으면 “자료 없음”. 예시 데이터는 `is_example`로 표시 |
 | 이미지 라이선스 | 공공누리 1·3유형만 사용, 자르기·필터 없이 `object-fit: contain`, 출처 표시 |

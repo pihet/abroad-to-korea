@@ -9,18 +9,10 @@ const PRIORITY_HINT: Record<Priority, string> = {
   season: '고른 달 기온 15~24°C, 비 온 날이 적은 곳을 위로',
 }
 
-// 여행 월·우선순위·출발지. 사진이 닮은 30곳 안에서만 순서를 바꾼다.
+// 우선순위·출발지. 사진이 닮은 후보(최대 30곳) 안에서만 순서를 바꾼다. 여행 월은 FilterBar 에 있다.
 export function Conditions({ value, onChange }: { value: Cond; onChange: (c: Cond) => void }) {
   return (
     <div className="conditions">
-      <fieldset>
-        <legend>여행 월</legend>
-        <div className="months">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <button key={m} type="button" aria-pressed={value.month === m} onClick={() => onChange({ ...value, month: m })}>{m}월</button>
-          ))}
-        </div>
-      </fieldset>
       <fieldset>
         <legend>무엇을 우선할까요</legend>
         <div className="priorities">

@@ -20,7 +20,7 @@
 }
 * { box-sizing: border-box }
 html, body { margin: 0 }
-body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); -webkit-font-smoothing: antialiased }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere }
 img { max-width: 100%; display: block }
 a { color: var(--accent) }
 button, input, select { font: inherit; color: inherit }
@@ -54,7 +54,7 @@ h1, h2, h3 { letter-spacing: -.02em; text-wrap: balance; margin: 0 }
 /* ① 사진 */
 .hero-copy h1 { font-size: clamp(26px, 4.2vw, 40px); font-weight: 800; letter-spacing: -.035em }
 .hero-copy p { color: var(--sub); max-width: 60ch; margin: 10px 0 0 }
-.upload-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin: 24px 0 }
+.upload-row { display: grid; grid-template-columns: 2fr 1fr 1.4fr; gap: 12px; margin: 20px 0 28px }
 .upload { position: relative; border: 2px dashed var(--line); border-radius: var(--r-lg); padding: 28px 20px; display: flex; flex-direction: column;
   gap: 4px; align-items: center; justify-content: center; cursor: pointer; background: var(--soft); text-align: center }
 .upload:hover { border-color: var(--accent) }
@@ -195,6 +195,7 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
 }
 @media (max-width: 520px) {
   .upload-row { grid-template-columns: 1fr }
+  .browse-grid { grid-template-columns: 1fr }
   .priorities, .query .priorities { grid-template-columns: 1fr }
 .cond-box summary { display: none }
 .cond-box[open] { display: flex; flex-direction: column; gap: 12px }
@@ -237,3 +238,53 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
 .acts-list .fest.past { color: var(--sub) }
 .acts-notes { margin: 0; padding-left: 16px; font-size: 11px; color: var(--sub) }
 @media (max-width: 520px) { .acts-map { height: 260px } .acts, .acts-toggle { padding-inline: 12px } }
+
+/* 조건 막대 */
+.start-filters { margin-top: 24px; background: var(--soft); border-radius: var(--r-lg); padding: 18px 20px }
+.filterbar { display: flex; flex-direction: column; gap: 14px }
+.filterbar fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.filterbar legend { font-size: 13px; font-weight: 700; color: var(--sub); margin-bottom: 6px }
+.filterbar legend small { font-weight: 500 }
+.filterbar:not(.compact) .months { grid-template-columns: repeat(12, 1fr) }
+.fchips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.fchips button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 14px; font-size: 14px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center }
+.fchips button .n { font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums }
+.fchips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700 }
+.fchips button[aria-pressed="true"] .n { color: var(--accent-ink) }
+.fchips button:disabled { opacity: .45; cursor: not-allowed }
+.fchips select { border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; background: var(--bg) }
+.fleft { margin: 0; font-size: 14px }
+.fleft b { color: var(--accent); font-size: 17px }
+.fleft.none { color: var(--err) }
+.fbasis { margin: 0; padding-left: 18px; font-size: 12px; color: var(--sub) }
+.fbasis b { color: var(--ink); font-weight: 500 }
+.filterbar.compact { gap: 10px }
+.filterbar.compact .fchips button { padding: 5px 11px; font-size: 13px }
+button.upload { font: inherit; color: inherit; background: var(--accent-soft); border-style: solid; border-color: transparent }
+button.upload strong { color: var(--same-ink) }
+
+/* 사진 없이 둘러보기 */
+.browse-top { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; margin-bottom: 20px }
+.browse-top .filterbar { width: 100%; background: var(--soft); border-radius: var(--r-lg); padding: 14px 16px }
+.browse-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap }
+.browse-head h2 { font-size: 22px; font-weight: 800 }
+.browse-sort { display: flex; gap: 8px }
+.browse-sort select { border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; background: var(--bg) }
+.browse-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin: 12px 0 }
+.bcard { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column }
+.bcard .ph { aspect-ratio: 3/2; background: var(--soft); display: flex; align-items: center; justify-content: center }
+.bcard .ph img { max-height: 100%; object-fit: contain }
+.bbody { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px }
+.bbody h3 { font-size: 18px; font-weight: 800 }
+.bbody h3 small { font-size: 12px; color: var(--sub); font-weight: 500 }
+.bphoto { margin: -4px 0 0; font-size: 13px; color: var(--sub) }
+.bfacts { display: flex; flex-wrap: wrap; gap: 6px }
+.bfacts span { font-size: 12px; background: var(--soft); border-radius: 999px; padding: 2px 9px; font-variant-numeric: tabular-nums }
+.bfacts .badge-sea { background: color-mix(in srgb, var(--g-water) 14%, var(--bg)); color: var(--g-water) }
+.bfacts .badge-mt { background: color-mix(in srgb, var(--g-mountain) 14%, var(--bg)); color: var(--g-mountain) }
+.bactions { display: flex; gap: 8px; flex-wrap: wrap }
+.bactions .primary, .bactions .ghost { padding: 8px 14px; font-size: 13px }
+.bcard:has(.bacts) { grid-column: 1 / -1 }
+.bacts { border-top: 1px solid var(--line) }
+@media (max-width: 820px) { .filterbar:not(.compact) .months { grid-template-columns: repeat(6, 1fr) } }
+@media (max-width: 520px) { .filterbar:not(.compact) .months { grid-template-columns: repeat(4, 1fr) } .start-filters { padding: 14px } }
