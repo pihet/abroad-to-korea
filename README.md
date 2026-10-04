@@ -22,12 +22,17 @@
 ## 구성
 
 ```
+app/           웹서비스 백엔드 (FastAPI: 추천 API, 사진 제공)
+web/           웹서비스 화면 (React + TypeScript, Vite)
+tests/         API 테스트 (pytest)
 src/
-  collect/     공공데이터 수집 (관광지 목록, 관광지 추가 이미지, 방문자 수)
+  collect/     공공데이터 수집 (관광지 목록, 관광지 추가 이미지, 방문자 수, 지역 날씨)
   forecast/    혼잡도 예측 (p1_spec: 기준 재현, p1_holiday: 연휴 예측 개선)
   prototype/   CLIP 분위기 유사도 (장면 카탈로그 추천, 평가, 쏠림 보정 실험)
 docs/
   HANDOFF.md   진행 기록·평가 결과
+  MVP_PLAN.md  웹서비스 화면 흐름·API 계약
+  ARCHITECTURE.md  시스템 구성도
 data/          (파일 본체는 Git 제외)
 ```
 
@@ -48,6 +53,27 @@ python src/forecast/p1_spec.py kasi         # 혼잡도 예측 기준 재현
 
 LightGBM 은 Linux/WSL 에서 `sudo apt install -y libgomp1` 이 먼저 필요하다.
 검증에 쓴 버전: Python 3.12, pandas 2.2.3, numpy 2.1.3, scikit-learn 1.5.2, holidays 0.105, lightgbm 4.7.0, torch 2.14.1(CPU), transformers 5.18.0.
+
+## 웹서비스 실행 (MVP)
+
+해외 여행지 사진 → 분위기가 닮은 국내 시군구·관광지 3~5곳 → 고른 달의 혼잡도·날씨·거리로 30곳 안에서 재정렬.
+화면 흐름과 API 계약은 [docs/MVP_PLAN.md](docs/MVP_PLAN.md), 구성도는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+먼저 위 "실행"의 수집·임베딩이 끝나 있어야 한다 (국내 관광지 사진 임베딩, 방문자 수, 혼잡도 예측). 날씨는 따로 받는다.
+
+```bash
+python src/collect/region_context.py climate 10            # 10월 날씨 (다른 달: climate 1 2 3 ...)
+pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20
+
+cd web && npm install && npm run build && cd ..            # 화면 빌드 → web/dist
+uvicorn app.main:app --port 8000                           # 첫 실행 때 CLIP 로딩 20~30초
+# → http://localhost:8000  (API 문서: http://localhost:8000/docs)
+```
+
+화면을 고치면서 볼 때는 서버를 띄운 채로 `cd web && npm run dev` (http://localhost:5173, API는 8000으로 넘어간다).
+
+테스트: `pip install pytest httpx && python -m pytest tests -q`
+기존 평가 결과·임베딩·코드가 바뀌지 않았는지(`data/interim/app/baseline_hashes.txt`)도 함께 검사한다.
 
 ## 현재 수치 (요약, 자세한 조건은 HANDOFF 참고)
 

@@ -1,0 +1,126 @@
+"""추천 API 테스트. 실행: .venv/bin/python -m pytest tests -q  (모델 로딩 때문에 30초 안팎 걸린다)"""
+
+import hashlib
+import io
+import json
+from pathlib import Path
+
+import numpy as np
+import pytest
+from fastapi.testclient import TestClient
+from PIL import Image
+
+import app.main as main
+
+ROOT = Path(__file__).resolve().parents[1]
+DEMO = "kyoto__fushimi__1.jpg"
+KOGL_OK = {"공공누리 제1유형 (출처표시)", "공공누리 제3유형 (출처표시·변경금지)"}
+
+
+@pytest.fixture(scope="module")
+def client(tmp_path_factory):
+    main.FEEDBACK = tmp_path_factory.mktemp("fb") / "feedback.jsonl"  # 실제 피드백 파일을 건드리지 않는다
+    with TestClient(main.app) as c:
+        yield c
+
+
+@pytest.fixture(scope="module")
+def qid(client):
+    r = client.post("/api/analyze", data={"demo_photo_id": DEMO})
+    assert r.status_code == 200, r.text
+    return r.json()["query_id"]
+
+
+def rec(client, qid, **kw):
+    body = {"query_id": qid, "travel_month": 10, "priority": "visual", **kw}
+    r = client.post("/api/recommend", json=body)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_health_and_demo_photos(client):
+    assert client.get("/api/health").json()["ok"]
+    photos = client.get("/api/demo-photos").json()["photos"]
+    assert len(photos) >= 100
+    assert all(p["artist"] and p["license"] and p["source_page"] for p in photos)
+    assert any(p["photo_id"] == DEMO for p in photos)
+
+
+def test_analyze_returns_tags(client):
+    r = client.post("/api/analyze", data={"demo_photo_id": DEMO}).json()
+    assert r["is_example"] is False and len(r["query_id"]) == 12
+    assert len(r["scene_tags"]) == 6 and all(0 <= t["score"] <= 1 for t in r["scene_tags"])
+    assert r["image"]["cropped"] is False
+
+
+def test_recommend_contract(client, qid):
+    r = rec(client, qid)
+    assert r["is_example"] is False and r["total_candidates"] == 30 and len(r["candidates"]) == 5
+    assert r["data_sources"]
+    for k, c in enumerate(r["candidates"], 1):
+        assert c["rank"] == k == c["visual_rank"]  # visual 은 Stage A 순서 그대로
+        assert c["attraction"]["license"] in KOGL_OK
+        assert c["attraction"]["source"] == "한국관광공사 TourAPI"
+        assert c["attraction"]["image_url"].startswith("/images/kr/")
+        cg = c["congestion"]
+        if cg is not None:
+            assert len(cg["monthly"]) == 12 and cg["basis"] == "forecast" and cg["basis_month"] == "2026-10"
+
+
+def test_visual_matches_existing_vote100(client, qid):
+    """대표사진 풀에서 Stage A(관광지 최고 1장 → vote100)는 기존 평가 코드의 vote100 과 같은 순위여야 한다."""
+    import scene_catalog as sc
+    e = main.engine
+    v = e.cache[qid]["vec"]
+    old = np.argsort(-sc.vote_scores(e.I, v)[0], kind="stable")[:30].tolist()
+    new = [c["ri"] for c in e.cache[qid]["stage_a"]]
+    assert new == old
+
+
+def test_priorities_stay_within_stage_a(client, qid):
+    for pr in ("crowd", "near", "season"):
+        r = rec(client, qid, priority=pr, origin="부산", limit=30)
+        assert len(r["candidates"]) == 30
+        assert all(1 <= c["visual_rank"] <= 30 for c in r["candidates"])
+        assert all(c["rerank"]["condition_component"] is not None or c["rerank"]["condition_value"] is None for c in r["candidates"])
+    near = rec(client, qid, priority="near", origin="부산", limit=30)["candidates"]
+    assert all(c["distance_km"] is not None for c in near)
+
+
+def test_month_changes_basis(client, qid):
+    mar = rec(client, qid, travel_month=3)["candidates"]
+    cg = [c["congestion"] for c in mar if c["congestion"]]
+    assert cg and all(x["basis"] == "actual" and x["basis_month"] == "2026-03" for x in cg)
+
+
+def test_crop_and_upload(client):
+    img = Image.open(ROOT / "data/interim/clip/scenes" / DEMO)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG")
+    full = client.post("/api/analyze", files={"image": ("a.jpg", buf.getvalue(), "image/jpeg")}).json()
+    crop = json.dumps({"x": 0, "y": 0, "w": img.width // 2, "h": img.height // 2})
+    part = client.post("/api/analyze", files={"image": ("a.jpg", buf.getvalue(), "image/jpeg")}, data={"crop": crop}).json()
+    assert part["image"]["cropped"] is True and full["image"]["cropped"] is False
+    e = main.engine
+    assert float(e.cache[full["query_id"]]["vec"] @ e.cache[part["query_id"]]["vec"]) < 0.999
+
+
+def test_rejects_bad_input(client):
+    assert client.post("/api/analyze", files={"image": ("a.jpg", b"not an image", "image/jpeg")}).status_code == 400
+    assert client.post("/api/analyze", data={"demo_photo_id": "../../.env"}).status_code == 404
+    assert client.post("/api/recommend", json={"query_id": "nope", "travel_month": 10}).status_code == 404
+    assert client.post("/api/recommend", json={"query_id": "x", "travel_month": 13}).status_code == 422
+    assert client.get("/images/kr/../../.env").status_code == 404
+
+
+def test_feedback(client, qid):
+    r = client.post("/api/feedback", json={"query_id": qid, "sigungu_key": "11_종로구", "attraction_id": "1", "value": 1})
+    assert r.json()["ok"] and main.FEEDBACK.read_text().count("\n") == 1
+
+
+def test_existing_results_unchanged():
+    """기존 평가 결과·임베딩·코드가 작업 전 해시와 같아야 한다."""
+    base = ROOT / "data/interim/app/baseline_hashes.txt"
+    for line in base.read_text().splitlines():
+        h, f = line.split(maxsplit=1)
+        assert hashlib.sha256((ROOT / f).read_bytes()).hexdigest() == h, f
