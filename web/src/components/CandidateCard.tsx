@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { Candidate, Priority } from '../api'
+import { ActivityMap } from './ActivityMap'
 import { MonthlyChart } from './MonthlyChart'
 
 export function CandidateCard({ c, originUrl, month, priority, saved, comparing, onSave, onCompare, onFeedback, onSearchSimilar, voted }: {
@@ -8,6 +10,7 @@ export function CandidateCard({ c, originUrl, month, priority, saved, comparing,
 }) {
   const cg = c.congestion, cl = c.climate
   const moved = c.rank !== c.visual_rank
+  const [acts, setActs] = useState(false)
   return (
     <article className="card">
       <div className="pair">
@@ -71,6 +74,12 @@ export function CandidateCard({ c, originUrl, month, priority, saved, comparing,
           <button type="button" aria-pressed={voted === -1} onClick={() => onFeedback(-1)}>별로예요</button>
           <button type="button" onClick={onSearchSimilar}>이 사진으로 다시 찾기</button>
         </div>
+      </div>
+      <div className="acts-panel">
+        <button type="button" className="acts-toggle" aria-expanded={acts} onClick={() => setActs(!acts)}>
+          {c.sigungu.name}에서 할 만한 것 · {month}월 <span aria-hidden="true">{acts ? '▲' : '▼'}</span>
+        </button>
+        {acts && <ActivityMap sigunguKey={c.sigungu.key} sigunguName={c.sigungu.name} month={month} attractionId={c.attraction.id} />}
       </div>
     </article>
   )

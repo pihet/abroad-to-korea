@@ -99,3 +99,34 @@ class Feedback(BaseModel):
     sigungu_key: str
     attraction_id: str
     value: Literal[1, -1]
+
+
+class ActivityGroup(BaseModel):
+    key: str
+    label: str
+    count: int
+
+
+class ActivityItem(BaseModel):
+    id: str
+    name: str
+    group: str
+    kind: str
+    lat: float
+    lon: float
+    address: Optional[str]
+    image_url: Optional[str]
+    license: Optional[str]
+    distance_km: Optional[float]
+    period: Optional[str] = None
+    schedule: Optional[str] = None
+
+
+class ActivitiesResponse(BaseModel):
+    is_example: bool = False
+    sigungu_key: str
+    month: int
+    anchor: Optional[dict]
+    groups: list[ActivityGroup]
+    items: list[ActivityItem]
+    notes: list[str]

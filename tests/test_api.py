@@ -124,3 +124,36 @@ def test_existing_results_unchanged():
     for line in base.read_text().splitlines():
         h, f = line.split(maxsplit=1)
         assert hashlib.sha256((ROOT / f).read_bytes()).hexdigest() == h, f
+
+
+def test_activities(client, qid):
+    c = rec(client, qid)["candidates"][0]
+    r = client.get("/api/activities", params={"sigungu_key": c["sigungu"]["key"], "month": 10,
+                                               "attraction_id": c["attraction"]["id"]})
+    assert r.status_code == 200, r.text
+    a = r.json()
+    assert a["is_example"] is False and a["anchor"]["id"] == c["attraction"]["id"]
+    assert sum(g["count"] for g in a["groups"]) == len(a["items"])
+    d = [i["distance_km"] for i in a["items"]]
+    assert d == sorted(d)  # 닮은 관광지에서 가까운 순
+    for i in a["items"]:
+        assert (i["image_url"] is None) == (i["license"] is None)
+        assert i["license"] in (None, *KOGL_OK)
+        if i["group"] == "festival":
+            assert i["period"] and i["schedule"] in ("예정", "지난 개최 기록")
+
+
+def test_activities_festival_month():
+    from app.activities import Activities
+    A = Activities()
+    for m in (3, 10):
+        _, items = A.for_region("51_양양군", m)
+        for f in (i for i in items if i["group"] == "festival"):
+            s, e = f["period"].replace(".", "").split(" ~ ")
+            assert s[:6] <= f"2026{m:02d}" <= e[:6]
+
+
+def test_activities_rejects(client):
+    assert client.get("/api/activities", params={"sigungu_key": "99_없는곳", "month": 10}).status_code == 404
+    assert client.get("/api/activities", params={"sigungu_key": "51_양양군", "month": 13}).status_code == 422
+    assert client.get("/images/tour/0000").status_code == 404

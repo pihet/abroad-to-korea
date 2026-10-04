@@ -93,3 +93,21 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
   season: '고른 달에 가기 좋은 곳',
 }
 export const ORIGINS: Origin[] = ['서울', '부산', '대구', '광주', '대전']
+
+export interface ActivityGroup { key: string; label: string; count: number }
+export interface ActivityItem {
+  id: string; name: string; group: string; kind: string; lat: number; lon: number
+  address: string | null; image_url: string | null; license: string | null; distance_km: number | null
+  period?: string | null; schedule?: string | null
+}
+export interface ActivitiesResponse {
+  is_example: boolean; sigungu_key: string; month: number
+  anchor: { id: string; name: string; lat: number; lon: number } | null
+  groups: ActivityGroup[]; items: ActivityItem[]; notes: string[]
+}
+
+export const activitiesApi = (sigunguKey: string, month: number, attractionId?: string) => {
+  const q = new URLSearchParams({ sigungu_key: sigunguKey, month: String(month) })
+  if (attractionId) q.set('attraction_id', attractionId)
+  return fetch(`/api/activities?${q}`).then(r => json<ActivitiesResponse>(r))
+}

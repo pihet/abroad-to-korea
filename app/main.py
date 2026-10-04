@@ -8,33 +8,40 @@
 import json
 import time
 from contextlib import asynccontextmanager
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .activities import Activities
 from .context import DATA_SOURCES, ROOT
 from .recommender import PRIORITIES, Engine, cp, sc
-from .schemas import AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
+from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 
 MAX_UPLOAD = 15 * 1024 * 1024
 APP_DATA = ROOT / "data/interim/app"
 KR_FULL = APP_DATA / "kr_full"       # TourAPI 원본 사진 캐시 (처음 요청 때 받는다)
+TOUR_THUMB = APP_DATA / "tour_thumb"  # 활동 목록 썸네일 캐시
 FEEDBACK = APP_DATA / "feedback.jsonl"
 WEB_DIST = ROOT / "web/dist"
 
 engine: Optional[Engine] = None
+acts: Optional[Activities] = None
+MISSING_PHOTOS: set[str] = set()
 
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine
+    global engine, acts
     t = time.time()
     engine = Engine()
+    acts = Activities()
     KR_FULL.mkdir(parents=True, exist_ok=True)
+    TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
     yield
 
@@ -118,6 +125,48 @@ def kr_image(cid: str):
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/activities", response_model=ActivitiesResponse)
+def activities(sigungu_key: str, month: int = Query(ge=1, le=12), attraction_id: Optional[str] = None):
+    if sigungu_key not in engine.region_keys:
+        raise HTTPException(404, "시군구를 찾을 수 없습니다.")
+    origin = None
+    it = engine.I["items"].get(attraction_id) if attraction_id else None
+    if it:
+        try:
+            origin = (float(it["mapy"]), float(it["mapx"]))
+        except (KeyError, ValueError):
+            origin = None
+    groups, items = acts.for_region(sigungu_key, month, origin)
+    return {"sigungu_key": sigungu_key, "month": month,
+            "anchor": {"id": it["contentid"], "name": it["title"], "lat": origin[0], "lon": origin[1]} if origin else None,
+            "groups": groups, "items": items,
+            "notes": ["묶음은 한국관광공사 TourAPI 분류(관광지·레포츠·축제)로 나눴습니다.",
+                      "정렬은 사진이 닮은 관광지에서 가까운 순(직선거리)입니다.",
+                      "축제는 2026년 일정입니다. 이미 끝난 축제는 지난 개최 기록이며 다음 일정은 미정입니다."]}
+
+
+@app.get("/images/tour/{cid}")
+def tour_image(cid: str):
+    url = acts.photo_url(cid)  # 활동 목록에 있는 공공누리 1·3유형 사진만
+    if not url:
+        raise HTTPException(404)
+    cached = TOUR_THUMB / f"{cid}.jpg"
+    if cid in MISSING_PHOTOS:
+        raise HTTPException(404)
+    if not cached.exists():
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": cp.UA})
+            cached.write_bytes(urllib.request.urlopen(req, timeout=15).read())
+        except urllib.error.HTTPError as e:
+            if e.code == 404:  # 목록에는 있지만 원본이 지워진 사진 — 다시 묻지 않는다
+                MISSING_PHOTOS.add(cid)
+                raise HTTPException(404)
+            raise HTTPException(502, "사진을 받지 못했습니다.")
+        except Exception:
+            raise HTTPException(502, "사진을 받지 못했습니다.")
+    return FileResponse(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/images/overseas/{name}")

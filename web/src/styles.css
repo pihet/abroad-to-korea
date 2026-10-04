@@ -203,3 +203,37 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
   .demo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+
+/* 지역 활동 지도 */
+:root { --g-water: #1f78b4; --g-mountain: #2e8b47; --g-leisure: #d9661f; --g-camping: #8a6d1f; --g-experience: #8e44ad; --g-festival: #c2185b }
+.acts-panel { grid-column: 1 / -1; border-top: 1px solid var(--line) }
+.acts-toggle { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; padding: 12px 18px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between }
+.acts-toggle:hover { background: var(--soft) }
+.acts-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px }
+.acts { padding: 4px 18px 18px; display: flex; flex-direction: column; gap: 12px }
+.acts-chips { display: flex; flex-wrap: wrap; gap: 6px }
+.acts-chips button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums }
+.acts-chips button i { width: 9px; height: 9px; border-radius: 50%; background: var(--g) }
+.acts-chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+.acts-chips button:disabled { opacity: .4; cursor: default }
+.g-water { --g: var(--g-water) } .g-mountain { --g: var(--g-mountain) } .g-leisure { --g: var(--g-leisure) }
+.g-camping { --g: var(--g-camping) } .g-experience { --g: var(--g-experience) } .g-festival { --g: var(--g-festival) }
+.acts-map { height: 340px; border-radius: var(--r); overflow: hidden; background: var(--soft); z-index: 0 }
+.pin { display: flex !important; align-items: center; justify-content: center }
+.pin span { width: 100%; height: 100%; border-radius: 50%; background: var(--g); color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; font: 700 12px/1 var(--font) }
+.pin.on span { transform: scale(1.3); outline: 3px solid var(--ink) }
+.pin.anchor span { background: var(--ink); color: var(--bg); font-size: 14px }
+.acts-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px }
+.acts-list button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 24px 56px 1fr; gap: 10px; align-items: center; padding: 6px; border-radius: var(--r); border: 1px solid transparent }
+.acts-list button:hover, .acts-list li.on button { border-color: var(--line); background: var(--soft) }
+.acts-list button:focus-visible { outline: 2px solid var(--accent) }
+.acts-list .num { width: 24px; height: 24px; border-radius: 50%; background: var(--g); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700 }
+.acts-list img, .acts-list .noimg { width: 56px; height: 42px; object-fit: contain; background: var(--soft); border-radius: 6px }
+.acts-list .txt { display: flex; flex-direction: column; min-width: 0 }
+.acts-list b { font-size: 14px; overflow-wrap: anywhere }
+.acts-list small { font-size: 12px; color: var(--sub) }
+.acts-list .fest { color: var(--g-festival) }
+.acts-list .fest.past { color: var(--sub) }
+.acts-notes { margin: 0; padding-left: 16px; font-size: 11px; color: var(--sub) }
+@media (max-width: 520px) { .acts-map { height: 260px } .acts, .acts-toggle { padding-inline: 12px } }

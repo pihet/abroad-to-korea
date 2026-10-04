@@ -8,7 +8,7 @@
 ```mermaid
 flowchart LR
   subgraph Browser["브라우저 (web/, React + TS)"]
-    UI["① 사진 올리기·찍기·예시\n② 영역 자르기\n③ 장면 태그·조건\n④ 추천 카드·비교·저장"]
+    UI["① 사진 올리기·찍기·예시\n② 영역 자르기\n③ 장면 태그·조건\n④ 추천 카드·비교·저장\n⑤ 지역 활동 지도 (Leaflet + OSM)"]
     LS[("localStorage\n저장한 곳")]
   end
 
@@ -17,6 +17,7 @@ flowchart LR
     ENG["recommender.py Engine\nStage A 시각 후보 30곳\nStage B 조건 재정렬"]
     TAG["tags.py Tagger\n장면 태그 39종"]
     CTX["context.py Context\n혼잡도 · 날씨 · 거리"]
+    ACT["activities.py\n지역 활동 (관광지·레포츠·축제)"]
     CACHE[("질의 캐시\n최근 200건 (메모리)")]
   end
 
@@ -32,6 +33,7 @@ flowchart LR
     WX[("월별 날씨\n2021~2025")]
     FB[("feedback.jsonl")]
     IMGC[("원본 사진 캐시\nkr_full/")]
+    TL[("레포츠·축제 목록\n분류 코드표")]
   end
 
   subgraph External["외부 (수집 시점에만 호출)"]
@@ -50,6 +52,8 @@ flowchart LR
   ENG --> TAG
   ENG --> CTX
   ENG <--> CACHE
+  API --> ACT
+  ACT --- TL
   TAG --> CLIP
   IDX --- EMB
   CTX --- VIS
@@ -60,6 +64,7 @@ flowchart LR
   API --- IMGC
 
   TOUR -. "src/collect" .-> EMB
+  TOUR -. "tour_attractions.py 28 · festivals" .-> TL
   DL -. "src/collect" .-> VIS
   VIS -. "src/forecast (ridge)" .-> FC
   OM -. "region_context.py" .-> WX

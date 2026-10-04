@@ -1,7 +1,8 @@
 """TourAPI(KorService2) 관광지(contentTypeId=12) 전체 목록을 내려받아 data/raw/에 원본 그대로 저장한다.
 
 실행:
-    python src/collect/tour_attractions.py
+    python src/collect/tour_attractions.py        # 관광지(12)
+    python src/collect/tour_attractions.py 28     # 다른 콘텐츠 유형 (28 레포츠, 14 문화시설 ...)
 
 필요:
     .env 또는 환경변수에 TOUR_API_KEY (공공데이터포털에 표시된 인증키를 그대로. 다시 인코딩하지 않는다)
@@ -25,7 +26,7 @@ from datetime import datetime
 from pathlib import Path
 
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2/areaBasedList2"
-CONTENT_TYPE_ID = 12  # 관광지
+CONTENT_TYPE_ID = 12  # 기본 관광지. 실행 인자로 바꾼다 (28 레포츠)
 ROWS_PER_PAGE = 1000
 REQUEST_INTERVAL_SEC = 0.5
 MAX_RETRIES = 3
@@ -47,7 +48,7 @@ def load_api_key() -> str:
     return key
 
 
-def build_url(key: str, page_no: int) -> str:
+def build_url(key: str, page_no: int, content_type: int = CONTENT_TYPE_ID) -> str:
     """인증키는 포털 표시값이 이미 인코딩된 형태이므로 그대로 붙이고, 나머지 파라미터만 인코딩한다."""
     params = urllib.parse.urlencode(
         {
@@ -56,15 +57,15 @@ def build_url(key: str, page_no: int) -> str:
             "_type": "json",
             "numOfRows": ROWS_PER_PAGE,
             "pageNo": page_no,
-            "contentTypeId": CONTENT_TYPE_ID,
+            "contentTypeId": content_type,
         }
     )
     return f"{BASE_URL}?serviceKey={key}&{params}"
 
 
-def fetch_page(key: str, page_no: int) -> dict:
+def fetch_page(key: str, page_no: int, content_type: int = CONTENT_TYPE_ID) -> dict:
     """한 페이지를 받아 JSON으로 돌려준다. API 오류 응답이면 원인을 담아 예외를 낸다."""
-    url = build_url(key, page_no)
+    url = build_url(key, page_no, content_type)
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -93,13 +94,14 @@ def fetch_page(key: str, page_no: int) -> dict:
 
 
 def main() -> None:
+    ct = int(sys.argv[1]) if len(sys.argv) > 1 else CONTENT_TYPE_ID
     key = load_api_key()
     today = datetime.now().strftime("%Y%m%d")
-    out_dir = PROJECT_ROOT / "data" / "raw" / "tourapi" / f"areaBasedList2_ct{CONTENT_TYPE_ID}_{today}"
+    out_dir = PROJECT_ROOT / "data" / "raw" / "tourapi" / f"areaBasedList2_ct{ct}_{today}"
     if out_dir.exists():
         sys.exit(f"이미 수집된 폴더가 있습니다: {out_dir}\n원본은 덮어쓰지 않습니다. 다시 받으려면 폴더를 직접 옮긴 뒤 실행하세요.")
 
-    first = fetch_page(key, 1)  # 인증 오류면 여기서 멈추므로 빈 폴더가 남지 않는다
+    first = fetch_page(key, 1, ct)  # 인증 오류면 여기서 멈추므로 빈 폴더가 남지 않는다
     out_dir.mkdir(parents=True)
     body = first["response"]["body"]
     total = int(body["totalCount"])
@@ -108,7 +110,7 @@ def main() -> None:
 
     n_items = 0
     for page_no in range(1, pages + 1):
-        data = first if page_no == 1 else fetch_page(key, page_no)
+        data = first if page_no == 1 else fetch_page(key, page_no, ct)
         items = data["response"]["body"]["items"]
         n = len(items["item"]) if items else 0
         n_items += n
@@ -118,7 +120,7 @@ def main() -> None:
 
     manifest = {
         "endpoint": BASE_URL,
-        "contentTypeId": CONTENT_TYPE_ID,
+        "contentTypeId": content_type,
         "numOfRows": ROWS_PER_PAGE,
         "totalCount": total,
         "pages": pages,
