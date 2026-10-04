@@ -226,3 +226,22 @@ def test_search_from_domestic_photo_excludes_source(client):
         assert r["candidates"] and all(c["sigungu"]["key"] != "47_울릉군" for c in r["candidates"])
     bad = client.post("/api/analyze", files={"image": ("a.jpg", img, "image/jpeg")}, data={"source_attraction_id": "0"})
     assert bad.status_code == 404
+
+
+def _heic_bytes():
+    import pillow_heif  # 전역 등록(register_heif_opener) 없이 만든다. 등록하면 서버 쪽 지원 여부를 가린다
+    b = io.BytesIO()
+    pillow_heif.from_pillow(Image.open(ROOT / "data/interim/clip/scenes" / DEMO)).save(b)
+    return b.getvalue()
+
+
+def test_heic_upload(client):
+    """#4: 아이폰 HEIC 사진을 분석하고, 화면 미리보기용 JPEG 로 바꿀 수 있어야 한다."""
+    heic = _heic_bytes()
+    a = client.post("/api/analyze", files={"image": ("IMG_0001.HEIC", heic, "image/heic")})
+    assert a.status_code == 200, a.text
+    assert a.json()["image"]["width"] == 960
+    c = client.post("/api/convert", files={"image": ("IMG_0001.HEIC", heic, "image/heic")})
+    assert c.status_code == 200 and c.headers["content-type"] == "image/jpeg"
+    assert Image.open(io.BytesIO(c.content)).size == (960, 640)
+    assert client.post("/api/convert", files={"image": ("x.heic", b"nope", "image/heic")}).status_code == 400

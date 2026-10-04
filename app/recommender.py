@@ -14,11 +14,14 @@ from collections import OrderedDict
 
 import numpy as np
 from PIL import Image, ImageOps
+from pillow_heif import register_heif_opener
 
 from .context import Context, ORIGINS, cp  # noqa: F401  (cp: clip_proto)
 from .tags import Tagger
 
 import scene_catalog as sc  # noqa: E402  (context 가 sys.path 를 맞춘다)
+
+register_heif_opener()  # 아이폰 HEIC 사진 (#4)
 
 VOTE_K = 100
 N_CAND = 30

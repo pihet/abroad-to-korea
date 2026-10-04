@@ -13,12 +13,19 @@ export function PhotoStep({ onPick, onBrowse, filterBar }: { onPick: (s: Source)
     return demos.filter(d => !f || `${d.place_name} ${d.scene_label}`.toLowerCase().includes(f)).slice(0, 48)
   }, [demos, q])
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('image/')) { setErr('사진 파일만 올릴 수 있습니다.'); return }
+    // HEIC 는 브라우저가 type 을 비워 두기도 해서 확장자로도 본다
+    const heic = /^image\/hei[cf]/.test(f.type) || /\.hei[cf]$/i.test(f.name)
+    if (!f.type.startsWith('image/') && !heic) { setErr('사진 파일만 올릴 수 있습니다.'); return }
     if (f.size > 15 * 1024 * 1024) { setErr('15MB보다 작은 사진을 골라 주세요.'); return }
-    onPick({ kind: 'file', file: f, url: URL.createObjectURL(f) })
+    setErr(null)
+    try {
+      // 크롬 등은 HEIC 를 화면에 못 띄우므로 서버에서 JPEG 로 바꿔 미리보기·자르기·분석에 쓴다
+      const file = heic ? await api.convert(f) : f
+      onPick({ kind: 'file', file, url: URL.createObjectURL(file) })
+    } catch (x) { setErr((x as Error).message) }
   }
 
   return (
@@ -30,8 +37,8 @@ export function PhotoStep({ onPick, onBrowse, filterBar }: { onPick: (s: Source)
       <div className="start-filters">{filterBar}</div>
       <div className="upload-row">
         <label className="upload">
-          <input type="file" accept="image/*" onChange={onFile} />
-          <strong>사진 올리기</strong><span>JPG·PNG·WEBP, 15MB 이하</span>
+          <input type="file" accept="image/*,.heic,.heif" onChange={onFile} />
+          <strong>사진 올리기</strong><span>JPG·PNG·WEBP·HEIC, 15MB 이하</span>
         </label>
         <label className="upload camera">
           <input type="file" accept="image/*" capture="environment" onChange={onFile} />

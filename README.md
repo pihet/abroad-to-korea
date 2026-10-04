@@ -63,7 +63,7 @@ LightGBM 은 Linux/WSL 에서 `sudo apt install -y libgomp1` 이 먼저 필요�
 
 ```bash
 python src/collect/region_context.py climate 10            # 10월 날씨 (다른 달: climate 1 2 3 ...)
-pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20
+pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0
 
 cd web && npm install && npm run build && cd ..            # 화면 빌드 → web/dist
 uvicorn app.main:app --port 8000                           # 첫 실행 때 CLIP 로딩 20~30초

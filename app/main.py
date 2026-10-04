@@ -5,6 +5,7 @@
     → http://localhost:8000  (web/dist 가 있으면 화면, 없으면 /docs 에서 API 확인)
 """
 
+import io
 import json
 import time
 from contextlib import asynccontextmanager
@@ -14,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .activities import Activities
@@ -24,6 +25,7 @@ from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 
 MAX_UPLOAD = 15 * 1024 * 1024
+BAD_IMAGE = "사진 파일을 열 수 없습니다. JPG·PNG·WEBP·HEIC 사진인지 확인해 주세요."
 APP_DATA = ROOT / "data/interim/app"
 KR_FULL = APP_DATA / "kr_full"       # TourAPI 원본 사진 캐시 (처음 요청 때 받는다)
 TOUR_THUMB = APP_DATA / "tour_thumb"  # 활동 목록 썸네일 캐시
@@ -83,7 +85,7 @@ async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optio
     try:
         img, meta = engine.open_image(data, c)
     except Exception:
-        raise HTTPException(400, "사진 파일을 열 수 없습니다. JPG·PNG·WEBP 사진인지 확인해 주세요 (아이폰 HEIC는 아직 지원하지 않습니다).")
+        raise HTTPException(400, BAD_IMAGE)
     exclude = None
     if source_attraction_id:  # 국내 관광지 사진으로 다시 찾기: 그 시군구는 후보에서 뺀다
         exclude = engine.region_of(source_attraction_id)
@@ -98,6 +100,21 @@ def _sigungu(ri):
         return None
     key = engine.region_keys[ri]
     return {"key": key, "name": key.split("_", 1)[1]}
+
+
+@app.post("/api/convert")
+async def convert(image: UploadFile = File(...)):
+    """브라우저가 못 띄우는 사진(HEIC)을 미리보기용 JPEG 로 바꾼다. 분석은 원본으로 한다."""
+    data = await image.read()
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(413, "사진이 15MB보다 큽니다. 더 작은 사진을 골라 주세요.")
+    try:
+        img, _ = engine.open_image(data)
+    except Exception:
+        raise HTTPException(400, BAD_IMAGE)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=90)
+    return Response(buf.getvalue(), media_type="image/jpeg")
 
 
 @app.post("/api/recommend", response_model=RecommendResponse)

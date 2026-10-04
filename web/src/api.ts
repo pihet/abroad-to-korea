@@ -80,6 +80,14 @@ export const api = {
     return fetch('/api/analyze', { method: 'POST', body: fd }).then(r => json<AnalyzeResponse>(r))
   },
 
+  convert: async (file: Blob) => {
+    const fd = new FormData()
+    fd.append('image', file, 'upload.heic')
+    const r = await fetch('/api/convert', { method: 'POST', body: fd })
+    if (!r.ok) await json(r)  // 오류 문구를 그대로 던진다
+    return r.blob()
+  },
+
   recommend: (body: { query_id: string; travel_month: number; priority: Priority; origin?: Origin | null;
                       kept_tags?: string[]; limit?: number; offset?: number; filters?: FilterKey[]; sido?: string | null }) =>
     fetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
