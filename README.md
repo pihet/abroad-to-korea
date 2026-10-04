@@ -63,6 +63,9 @@ LightGBM 은 Linux/WSL 에서 `sudo apt install -y libgomp1` 이 먼저 필요�
 
 ```bash
 python src/collect/region_context.py climate 10            # 10월 날씨 (다른 달: climate 1 2 3 ...)
+python src/collect/tour_attractions.py 28                  # 레포츠 목록 (지역 활동 지도)
+python src/collect/region_context.py festivals 20251001 20261231   # 축제
+python src/collect/population.py                           # 도시/시골 (행정동 주민등록 인구, 별도 활용신청)
 pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0
 
 cd web && npm install && npm run build && cd ..            # 화면 빌드 → web/dist

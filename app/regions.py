@@ -15,11 +15,15 @@ COAST_SRC = ROOT / "data/raw/naturalearth/ne_10m_coastline.geojson"   # Natural 
 COAST_CACHE = ROOT / "data/interim/app/region_coast_km.json"
 COAST_KM = 3.0
 MOUNTAIN_MIN = 8
+POP_DIR = ROOT / "data/raw/mois_population/202609"   # 행정안전부 주민등록 인구 (src/collect/population.py)
+URBAN_MIN = 0.5  # 시군구 인구 중 '동' 지역 거주 비율. 이 이상이면 도시
 
 FILTERS = {
     "sea": ("바다 가까운 곳", f"관광지가 해안선 {COAST_KM:g}km 안에 있는 시군구 (Natural Earth 해안선)"),
     "mountain": ("산·숲이 많은 곳", f"산·계곡·숲·자연공원 관광지 {MOUNTAIN_MIN}곳 이상 (TourAPI 분류)"),
     "calm": ("방문객이 적은 곳", "그 달 외지인 방문자 수가 전국 시군구 중앙값 이하 (절대량. 카드의 혼잡도는 그 지역 평소 대비라 다를 수 있음)"),
+    "city": ("도시", f"주민의 {URBAN_MIN:.0%} 이상이 '동' 지역에 사는 시군구 (2026-09 주민등록, 통계청 동부·읍면부 구분)"),
+    "rural": ("시골·소도시", f"주민의 {URBAN_MIN:.0%} 넘게 '읍·면' 지역에 사는 시군구 (2026-09 주민등록)"),
     "mild": ("날씨가 쾌적한 곳", f"그 달 평균기온 {COMFORT[0]}~{COMFORT[1]}°C (2021~2025년)"),  # 달마다 바뀜: weather_rule
 }
 
@@ -67,6 +71,24 @@ def coast_distance(acts):
     return out
 
 
+def urban_share(sido_code):
+    """시군구 키 → '동' 지역 인구 비율. sido_code: {시도 이름: 우리 시도 코드}."""
+    tot, dong = {}, {}
+    for f in POP_DIR.glob("dong_*.json"):
+        it = json.loads(f.read_text(encoding="utf-8"))["Response"].get("items") or {}
+        rows = it.get("item") or []
+        for r in [rows] if isinstance(rows, dict) else rows:
+            code = sido_code.get(r["ctpvNm"])
+            if code is None or not r["dongNm"]:
+                continue
+            key = f"{code}_{(r.get('sggNm') or r['ctpvNm']).split()[0]}"  # 세종은 시군구 이름이 없다
+            n = int(r["totNmprCnt"])
+            tot[key] = tot.get(key, 0) + n
+            if r["dongNm"].endswith("동"):
+                dong[key] = dong.get(key, 0) + n
+    return {k: round(dong.get(k, 0) / v, 3) for k, v in tot.items() if v}
+
+
 class Regions:
     def __init__(self, engine, acts):
         self.e, self.ctx = engine, engine.ctx
@@ -78,6 +100,9 @@ class Regions:
             self.static[key] = {"key": key, "name": key.split("_", 1)[1], "sido": sido_name, "ri": i,
                                 "coast_km": coast.get(key),
                                 "mountain_n": sum(r["group"] == "mountain" for r in items)}
+        urban = urban_share({s["sido"]: s["key"].split("_")[0] for s in self.static.values()})
+        for key, s in self.static.items():
+            s["urban_share"] = urban.get(key)
         self._month, self._rule = {}, {}
 
     def month_table(self, month):
@@ -100,6 +125,8 @@ class Regions:
             r["flags"] = {
                 "sea": r["coast_km"] is not None and r["coast_km"] <= COAST_KM,
                 "mountain": r["mountain_n"] >= MOUNTAIN_MIN,
+                "city": r["urban_share"] is not None and r["urban_share"] >= URBAN_MIN,
+                "rural": r["urban_share"] is not None and r["urban_share"] < URBAN_MIN,
                 "calm": med is not None and r["visitors"] is not None and r["visitors"] <= med,
                 "mild": r["temp_c"] is not None and _weather_ok(rule[0], r["temp_c"], t_med),
             }

@@ -162,7 +162,8 @@ def test_activities_rejects(client):
 def test_regions_table(client):
     d = client.get("/api/regions", params={"month": 10, "origin": "부산"}).json()
     assert d["is_example"] is False and len(d["regions"]) == 230
-    assert {f["key"] for f in d["filters"]} == {"sea", "mountain", "calm", "mild"} and all(f["basis"] for f in d["filters"])
+    assert {f["key"] for f in d["filters"]} == {"sea", "mountain", "calm", "city", "rural", "mild"}
+    assert all(f["basis"] for f in d["filters"])
     by = {r["key"]: r for r in d["regions"]}
     assert by["26_수영구"]["flags"]["sea"] and not by["11_서초구"]["flags"]["sea"]  # 해안선 기준
     assert all(r["distance_km"] is not None for r in d["regions"])
@@ -245,3 +246,16 @@ def test_heic_upload(client):
     assert c.status_code == 200 and c.headers["content-type"] == "image/jpeg"
     assert Image.open(io.BytesIO(c.content)).size == (960, 640)
     assert client.post("/api/convert", files={"image": ("x.heic", b"nope", "image/heic")}).status_code == 400
+
+
+
+def test_city_rural(client):
+    """#13: 주민등록 인구 중 '동' 지역 비율 50% 이상이면 도시, 아니면 시골·소도시."""
+    d = client.get("/api/regions", params={"month": 10}).json()
+    by = {r["key"]: r for r in d["regions"]}
+    assert all(r["urban_share"] is not None for r in d["regions"])  # 230곳 모두 인구 자료가 있다
+    assert all(r["flags"]["city"] != r["flags"]["rural"] for r in d["regions"])  # 둘 중 하나만
+    assert by["11_종로구"]["flags"]["city"] and by["47_울릉군"]["flags"]["rural"]
+    assert by["36110_세종특별자치시"]["urban_share"] > 0  # 시군구 이름이 없는 세종도 연결된다
+    for r in d["regions"]:
+        assert r["flags"]["city"] == (r["urban_share"] >= 0.5)

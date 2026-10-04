@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 Priority = Literal["visual", "crowd", "near", "season"]
 Origin = Literal["서울", "부산", "대구", "광주", "대전"]
-FilterKey = Literal["sea", "mountain", "calm", "mild"]
+FilterKey = Literal["sea", "mountain", "calm", "city", "rural", "mild"]
 
 
 class Crop(BaseModel):

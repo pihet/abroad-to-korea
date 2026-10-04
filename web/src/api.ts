@@ -124,9 +124,9 @@ export const activitiesApi = (sigunguKey: string, month: number, attractionId?: 
   return fetch(`/api/activities?${q}`).then(r => json<ActivitiesResponse>(r))
 }
 
-export type FilterKey = 'sea' | 'mountain' | 'calm' | 'mild'
+export type FilterKey = 'sea' | 'mountain' | 'calm' | 'city' | 'rural' | 'mild'
 export interface RegionRow {
-  key: string; name: string; sido: string; coast_km: number | null; mountain_n: number
+  key: string; name: string; sido: string; coast_km: number | null; mountain_n: number; urban_share: number | null
   visitors: number | null; congestion_index: number | null; temp_c: number | null; rain_days: number | null
   flags: Record<FilterKey, boolean>; distance_km: number | null
   photo: { attraction_id: string; name: string; image_url: string; license: string } | null
