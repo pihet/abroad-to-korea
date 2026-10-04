@@ -26,6 +26,8 @@
 | `raw/nager/KR_<연도>.json` | Nager.Date 공휴일 API / https://date.nager.at (P1 명세 재현용, Aside 원본과 같은 출처) | TODO: 데이터 라이선스 미확인 | 2026-10-02 | 10파일 (2017~2026) | 조장 |
 | `raw/tourapi/detailImage2/<contentid>.json` | 같은 TourAPI의 `detailImage2` (관광지별 추가 이미지), `src/collect/tour_images.py`. 하루 990건씩 이어받기 | 공공누리 (이미지별 `cpyrhtDivCd`) | 2026-10-02~ | 1일차 990곳 / 전체 12,603곳 | 조장 |
 | `interim/clip/kr_extra/`, `emb_kr_extra.npz` | 위 추가 이미지 중 공공누리 1·3유형, 관광지당 최대 5장, 긴 변 400px. `src/prototype/kr_extra.py`로 재생성 | 공공누리 1·3유형 | 2026-10-02 | 4,272장 (1일차) | 조장 |
+| `raw/openmeteo/archive_<시도코드>_<시군구>.json` | Open-Meteo Historical Weather API, `src/collect/region_context.py climate` (시군구 중심 좌표) | CC BY 4.0 | 2026-10-04 | 230곳 (70곳 2016~2025 전체, 160곳 2021~2025년 10월만) | 조장 |
+| `raw/tourapi/searchFestival2_20261001_20261031.json` | TourAPI `searchFestival2`, `region_context.py festivals` | 공공누리 | 2026-10-04 | 축제 257건 | 조장 |
 | `interim/p1/results.json` | P1 혼잡도 예측 평가 결과. `src/forecast/p1_congestion.py`로 재생성 | — | 2026-10-02 | 재생성 가능 | 조장 |
 | `interim/clip/` | CLIP 프로토타입 캐시 (국내 썸네일, Commons 해외 사진 원본·정리본(`overseas_curated/`), 임베딩). `src/prototype/clip_proto.py`로 재생성 | 국내: 공공누리 1·3유형 / 해외: 사진별 CC·PD (`overseas/attribution.json`) | 2026-10-02 | 재생성 가능 | 조장 |
 | `interim/clip/scenes/`, `emb_scenes.npz`, `scene_recs.csv` | 장면 카탈로그 v1(`external/overseas_scenes_v1_20261002.csv`) `qa_status=ok` 383장의 Commons 썸네일과 장면별 추천. `src/prototype/scene_catalog.py`로 재생성 | 사진별 CC BY-SA·CC BY·CC0·PD (카탈로그 CSV의 license·artist 열) | 2026-10-02 | 383장 | 조장 |
@@ -51,7 +53,6 @@
 
 | 데이터 | 출처 | 라이선스 | 비고 |
 |---|---|---|---|
-| 기후 (월별 기온·강수·습도) | Open-Meteo Historical Weather API / https://open-meteo.com/en/docs/historical-weather-api | CC BY 4.0 | 키 불필요. 호출 확인 완료 |
 | 고도 | Open-Meteo Elevation API / https://open-meteo.com/en/docs/elevation-api | CC BY 4.0 | 호출 확인 완료 |
 | 해안선 | Natural Earth 10m coastline / https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-coastline/ | 퍼블릭 도메인 | 해안 거리 계산 테스트 완료 |
 | 토지피복 (녹지 비율) | ESA WorldCover 2021 v200 / https://esa-worldcover.org | CC BY 4.0 | 타일 다운로드 가능 확인. 녹지 비율 계산은 미테스트 |

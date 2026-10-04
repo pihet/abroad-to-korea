@@ -1,0 +1,194 @@
+<title>닮은꼴 국내 여행지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Myeongjo:wght@800&display=swap">
+<style>
+/* 레이아웃: ① 풍경 갤러리(시작) → ② 결과: 조건 칩 · 1위 큰 비교(해외|국내 사진 나란히) · 2~5위 비교 카드 · 6~10위 더 보기.
+   여행지명은 명조, 수치는 tabular. 엽서 두 장을 맞대는 느낌으로 사진 짝을 중심에 둔다. */
+:root{
+  --paper:#f3f4ef; --surface:#ffffff; --ink:#1b2420; --sub:#5b665f; --rule:#dce1da;
+  --pine:#2c6a57; --pine-soft:#e2ede7; --on-pine:#ffffff; --warm:#a9532c; --warm-soft:#f5e3d8;
+  --f-display:"Nanum Myeongjo","Noto Serif KR",serif;
+  --f-body:"IBM Plex Sans KR","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+  --gut:clamp(16px,3.2vw,32px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#111513; --surface:#1a201d; --ink:#e7ece9; --sub:#9ba7a1; --rule:#2c3531;
+  --pine:#7cc2a8; --pine-soft:#1f302a; --on-pine:#0f1412; --warm:#e39a74; --warm-soft:#38241a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#111513; --surface:#1a201d; --ink:#e7ece9; --sub:#9ba7a1; --rule:#2c3531;
+  --pine:#7cc2a8; --pine-soft:#1f302a; --on-pine:#0f1412; --warm:#e39a74; --warm-soft:#38241a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--f-body)}
+a{color:var(--pine)}
+:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+button{font:inherit;color:inherit}
+.wrap{max-width:1160px;margin:0 auto;padding-inline:var(--gut);padding-block:20px 56px;display:flex;flex-direction:column;gap:20px}
+.brand{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.brand b{font:800 15px var(--f-display)}.pill{background:var(--pine);color:var(--on-pine);border-radius:999px;padding:0 9px;font-size:12px;font-weight:600}
+.brand span.note{color:var(--sub);font-size:12px}
+h1{margin:0;font:800 clamp(26px,4.5vw,40px)/1.2 var(--f-display);text-wrap:balance}
+.lead{margin:0;color:var(--sub);max-width:62ch}
+/* 갤러리 */
+.search{display:flex;gap:8px;align-items:center}
+#q{flex:1 1 auto;max-width:420px;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--rule);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.tile:hover{border-color:var(--pine)}
+.tile .ph{aspect-ratio:4/3;background:var(--paper);display:flex;align-items:center;justify-content:center}
+.tile img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.tile .nm{padding:8px 10px 10px;display:flex;flex-direction:column}
+.tile .nm b{font:800 16px/1.3 var(--f-display)}.tile .nm small{color:var(--sub);font-size:12px}
+.empty{color:var(--sub)}
+/* 결과 */
+.back{all:unset;cursor:pointer;color:var(--pine);font-size:14px}
+.rhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}.tags span{background:var(--pine-soft);color:var(--pine);border-radius:999px;padding:0 10px;font-size:12px}
+.controls{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-end;background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 14px}
+.ctl{display:flex;flex-direction:column;gap:6px}.ctl>.lab{font-size:12px;color:var(--sub);letter-spacing:.03em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:5px 12px;border-radius:999px;border:1px solid var(--rule);background:var(--paper);cursor:pointer;font-size:13px}
+.chips button[aria-pressed="true"]{background:var(--pine);border-color:var(--pine);color:var(--on-pine)}
+select{font:inherit;font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--rule);background:var(--paper);color:var(--ink)}
+.why{margin:0;color:var(--sub);font-size:13px}.why b{color:var(--ink);font-weight:600}
+/* 사진 짝 */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--rule)}
+.pair figure{margin:0;background:var(--paper);display:flex;flex-direction:column}
+.pair .ph{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pair img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.pair figcaption{font-size:12px;padding:6px 10px;background:var(--surface);display:flex;flex-direction:column;line-height:1.4}
+.pair figcaption small{color:var(--sub);font-size:11px}
+.side{font-size:11px;letter-spacing:.04em;color:var(--sub)}
+/* 1위 */
+.hero{background:var(--surface);border:1px solid var(--rule);border-radius:16px;overflow:hidden;display:grid;grid-template-columns:minmax(0,3fr) minmax(260px,2fr)}
+.hero .info{padding:18px 20px;display:flex;flex-direction:column;gap:8px}
+.rank1{font-size:12px;color:var(--pine);font-weight:600;letter-spacing:.04em}
+.hero h2{margin:0;font:800 clamp(24px,3.4vw,32px)/1.2 var(--f-display)}
+.hero h2 small{font:400 14px var(--f-body);color:var(--sub);margin-left:6px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:4px 0 0;font-variant-numeric:tabular-nums}
+.facts dt{color:var(--sub);font-size:13px}.facts dd{margin:0;font-size:14px}
+.facts dd.on{color:var(--pine);font-weight:600}
+.facts small{color:var(--sub)}
+.fest{font-size:13px;background:var(--warm-soft);color:var(--warm);border-radius:8px;padding:6px 10px}
+.moved{font-size:12px;color:var(--sub)}
+/* 2~10위 */
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.card .info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:4px}
+.card .t{display:flex;align-items:baseline;gap:8px}
+.card .n{font-weight:600;color:var(--pine);font-variant-numeric:tabular-nums}
+.card h3{margin:0;font:800 19px/1.2 var(--f-display)}.card h3 small{font:400 12px var(--f-body);color:var(--sub);margin-left:4px}
+.card .facts{grid-template-columns:auto 1fr auto 1fr;gap:2px 10px}.card .facts dt,.card .facts dd{font-size:12px}
+.more{all:unset;cursor:pointer;justify-self:start;color:var(--pine);border:1px solid var(--pine);border-radius:999px;padding:6px 16px;font-size:14px}
+footer{color:var(--sub);font-size:12px;max-width:95ch;display:flex;flex-direction:column;gap:6px}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .card .facts{grid-template-columns:auto 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+<div class="wrap" id="app"></div>
+<script>/*DATA*/</script>
+<script>
+const D = window.DATA, IMG = s => D.img[s] || "", app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const PRI = [["", "닮은 순"], ["crowd", "덜 붐비게"], ["near", "가깝게"], ["weather", "날씨 좋게"]];
+const st = {view: "gallery", q: "", place: null, pri: "", interest: "", origin: D.origins[0], more: false};
+const R = ri => D.regions[ri];
+
+// 조건 점수: 빌드 스크립트의 rerank 와 같은 식 (닮음 0.5 + 조건 0.5, 관심사까지면 0.4 / 0.3 / 0.3)
+function pct(vals) {
+  const ok = Object.values(vals).filter(v => v != null), out = {};
+  for (const [k, v] of Object.entries(vals)) out[k] = v == null ? 0.5
+    : (ok.filter(x => x < v).length + 0.5 * (ok.filter(x => x === v).length - 1)) / Math.max(1, ok.length - 1);
+  return out;
+}
+function cond(cands, p) {
+  const v = {};
+  for (const c of cands) { const f = R(c.ri);
+    v[c.ri] = p === "crowd" ? (f.congestion == null ? null : -f.congestion)
+      : p === "near" ? (f.dist[st.origin] == null ? null : -f.dist[st.origin])
+      : p === "weather" ? (f.climate ? f.climate.comfort : null) : f.interest[p]; }
+  return pct(v);
+}
+function rerank(cands) {
+  const base = cands.map((c, i) => ({...c, orig: i + 1}));
+  if (!st.pri && !st.interest) return base;
+  const n = cands.length, a = st.pri ? cond(cands, st.pri) : null, b = st.interest ? cond(cands, st.interest) : null;
+  return base.map(c => { const sim = 1 - (c.orig - 1) / (n - 1);
+    return {...c, s: a && b ? 0.4 * sim + 0.3 * a[c.ri] + 0.3 * b[c.ri] : 0.5 * sim + 0.5 * (a || b)[c.ri]}; })
+    .sort((x, y) => y.s - x.s);
+}
+
+function brand() {
+  return `<div class="brand"><b>닮은꼴 국내 여행지</b><span class="pill">프로토타입</span>
+    <span class="note">사진으로 분위기를 비교합니다 · 조건 정보는 ${esc(D.month)} 기준</span></div>`;
+}
+function gallery() {
+  const f = st.q.trim().toLowerCase();
+  const ps = D.places.filter(p => !f || (p.name + " " + p.name_en + " " + p.tags.join(" ")).toLowerCase().includes(f));
+  app.innerHTML = `${brand()}
+    <h1>어떤 풍경을 국내에서 찾아볼까요?</h1>
+    <p class="lead">가고 싶은 해외 여행지 사진을 고르면, 사진 분위기가 닮은 국내 시군구를 찾아 사진을 나란히 보여 드립니다. 덜 붐비는 곳, 가까운 곳, 날씨 좋은 곳으로 다시 정렬할 수도 있습니다.</p>
+    <div class="search"><label for="q" class="side">여행지·분위기 검색</label><input id="q" value="${esc(st.q)}" placeholder="예: 교토, 스위스, 해변, 설산"></div>
+    <div class="gallery">${ps.map(p => `<button type="button" class="tile" data-id="${p.id}">
+      <div class="ph"><img src="${IMG(p.photos[0].img)}" alt="${esc(p.name)} 풍경"></div>
+      <div class="nm"><b>${esc(p.name)}</b><small>${esc(p.name_en)} · ${p.tags.slice(0, 3).map(esc).join(", ")}</small></div></button>`).join("")
+      || `<p class="empty">"${esc(f)}"에 맞는 여행지가 없습니다. 나라 이름이나 분위기(해변, 설산)로 찾아보세요.</p>`}</div>
+    ${footer()}`;
+  const q = document.getElementById("q");
+  q.oninput = e => { st.q = e.target.value; const pos = e.target.selectionStart; gallery(); const n = document.getElementById("q"); n.focus(); n.setSelectionRange(pos, pos); };
+}
+
+function facts(f) {
+  const cl = f.climate;
+  return `${`<dt>혼잡도</dt><dd class="${st.pri === "crowd" ? "on" : ""}">${f.congestion == null ? "자료 없음" : `${f.congestion} <small>평소 100</small>`}</dd>`}
+    <dt>${esc(st.origin)}에서</dt><dd class="${st.pri === "near" ? "on" : ""}">${f.dist[st.origin] == null ? "–" : `약 ${f.dist[st.origin]}km`}</dd>
+    <dt>10월 날씨</dt><dd class="${st.pri === "weather" ? "on" : ""}">${cl ? `${cl.temp}°C · 비 ${cl.rain_days}일` : "자료 없음"}</dd>
+    ${st.interest ? `<dt>${esc(D.interests[st.interest])}</dt><dd class="on">관광지 ${f.interest[st.interest]}곳</dd>` : ""}`;
+}
+function pair(p, c, big) {
+  const o = p.photos[c.pair], f = R(c.ri), sgg = f.name.split(" ").pop();
+  return `<div class="pair">
+    <figure><div class="ph"><img src="${IMG(o.img)}" alt="${esc(p.name)} ${esc(o.scene)}"></div>
+      <figcaption><span class="side">해외</span>${esc(p.name)} · ${esc(o.scene)}${big ? `<small>${esc(o.artist)} · <a href="${esc(o.license_url)}" target="_blank" rel="noopener">${esc(o.license)}</a></small>` : ""}</figcaption></figure>
+    <figure><div class="ph"><img src="${IMG(c.img)}" alt="${esc(c.title)}"></div>
+      <figcaption><span class="side">국내</span>${esc(sgg)} · ${esc(c.title)}${big ? `<small>${esc(c.kogl)} · 한국관광공사</small>` : ""}</figcaption></figure></div>`;
+}
+function result() {
+  const p = st.place, shown = rerank(p.cands).slice(0, 10), [top, ...rest] = shown;
+  const label = [st.pri && PRI.find(x => x[0] === st.pri)[1], st.interest && D.interests[st.interest]].filter(Boolean).join(" + ");
+  const name = ri => { const parts = R(ri).name.split(" "), sgg = parts.pop(); return `${esc(sgg)}<small>${esc(parts.join(" "))}</small>`; };
+  const moved = c => c.orig !== 1 && label ? `<span class="moved">닮은 순 ${c.orig}위</span>` : "";
+  const fest = f => f.n_festivals ? `<div class="fest">10월 축제 ${f.n_festivals}건 · ${f.festivals.map(x => esc(x.title)).join(", ")}</div>` : "";
+  const list = (st.more ? rest : rest.slice(0, 4));
+  app.innerHTML = `${brand()}
+    <button type="button" class="back" id="back">← 다른 풍경 고르기</button>
+    <div class="rhead"><h1>${esc(p.name)}와 닮은 국내 여행지</h1><div class="tags">${p.tags.map(t => `<span>${esc(t)}</span>`).join("")}</div></div>
+    <section class="controls" aria-label="추천 조건">
+      <div class="ctl"><span class="lab">무엇을 우선할까요</span><div class="chips" id="pri">${PRI.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${st.pri === k}">${l}</button>`).join("")}</div></div>
+      <div class="ctl"><span class="lab">관심사 (선택)</span><div class="chips" id="int">${[["", "상관없음"], ...Object.entries(D.interests)].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${st.interest === k}">${l}</button>`).join("")}</div></div>
+      <div class="ctl"><label class="lab" for="origin">출발지</label><select id="origin">${D.origins.map(o => `<option ${o === st.origin ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+    </section>
+    <p class="why">${label ? `사진으로 닮은 20곳을 <b>${esc(label)}</b> 조건으로 다시 정렬했습니다.` : `<b>사진 분위기가 닮은 순서</b>입니다. 조건을 고르면 닮은 20곳 안에서 다시 정렬합니다.`}</p>
+    <article class="hero">${pair(p, top, true)}
+      <div class="info"><span class="rank1">가장 추천 ${moved(top)}</span><h2>${name(top.ri)}</h2>
+        <span>가장 닮은 관광지 · ${esc(top.title)}</span><dl class="facts">${facts(R(top.ri))}</dl>${fest(R(top.ri))}</div></article>
+    <section class="list" aria-label="다른 추천">${list.map((c, i) => `<article class="card">${pair(p, c, false)}
+      <div class="info"><div class="t"><span class="n">${i + 2}</span><h3>${name(c.ri)}</h3>${moved(c)}</div>
+      <dl class="facts">${facts(R(c.ri))}</dl>${fest(R(c.ri))}</div></article>`).join("")}</section>
+    ${rest.length > 4 ? `<button type="button" class="more" id="more">${st.more ? "접기" : `6~${rest.length + 1}위 더 보기`}</button>` : ""}
+    ${footer(p)}`;
+  document.getElementById("back").onclick = () => { st.view = "gallery"; st.more = false; render(); window.scrollTo(0, 0); };
+  document.getElementById("pri").onclick = e => { const b = e.target.closest("button"); if (b) { st.pri = b.dataset.k; render(); } };
+  document.getElementById("int").onclick = e => { const b = e.target.closest("button"); if (b) { st.interest = b.dataset.k; render(); } };
+  document.getElementById("origin").onchange = e => { st.origin = e.target.value; render(); };
+  const m = document.getElementById("more"); if (m) m.onclick = () => { st.more = !st.more; render(); };
+}
+function footer(p) {
+  const credits = p ? `<span>해외 사진 · ${p.photos.map(o => `${esc(o.artist)}, <a href="${esc(o.license_url)}" target="_blank" rel="noopener">${esc(o.license)}</a>, <a href="${esc(o.page)}" target="_blank" rel="noopener">Wikimedia Commons</a>`).join(" / ")}</span>` : "";
+  return `<footer>${credits}<span>닮음: CLIP ViT-B/32 사진 비교(시군구 vote100, 한국관광공사 대표사진) · 혼잡도: 외지인 방문자 월 단위 예측(최근 12개월 평균 = 100) · 날씨: Open-Meteo 2021~2025 10월 평균 · 거리: 관광지 좌표 중앙값까지 직선거리 · 관심사: 한국관광공사 관광지 분류 수 · 축제: TourAPI 2026년 10월 행사 · 사진은 비율을 유지해 축소만 했습니다.</span></footer>`;
+}
+function render() { st.view === "gallery" ? gallery() : result(); }
+app.addEventListener("click", e => { const t = e.target.closest(".tile"); if (t) { st.place = D.places.find(p => p.id === t.dataset.id); st.view = "result"; st.more = false; render(); window.scrollTo(0, 0); } });
+render();
+</script>

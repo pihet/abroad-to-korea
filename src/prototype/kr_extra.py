@@ -185,7 +185,109 @@ def step_evaluate():
         {"n_extra": n_extra, "places": places, "ranks": res}, ensure_ascii=False, indent=1))
 
 
-STEPS = {"download": step_download, "embed": step_embed, "evaluate": step_evaluate}
+def step_subset():
+    """공정 비교: detailImage2 를 받은 관광지만으로 국내 풀을 한정하고, 같은 관광지 집합에서
+    A(대표사진만) vs B(대표사진 + 추가 사진)를 비교한다. 차이는 관광지당 사진 장수뿐이다.
+    판정 기준 (결과 전에 정함): 개발셋 38곳에서 B 가 A 보다 Hit@10 +4곳 이상이고 MRR 상승이면 "효과 있음".
+    """
+    I = sc.domestic_index()
+    J, _ = enlarged_index(I)
+    fetched = {f.stem for f in RAW.glob("*.json")}
+    n_base = len(I["kv"])
+    cid_all = J["cid"]
+
+    def restrict(X, keep):
+        Y = dict(X)
+        Y["kv"], Y["cid"], Y["img_region"] = X["kv"][keep], X["cid"][keep], X["img_region"][keep]
+        n = len(X["regions"])
+        m = np.zeros((n, X["kv"].shape[1]))
+        has = np.zeros(n, bool)
+        for k in range(n):
+            sel = Y["img_region"] == k
+            if sel.any():
+                m[k], has[k] = Y["kv"][sel].mean(0), True
+        Y["reg_mean"] = m / np.maximum(np.linalg.norm(m, axis=1, keepdims=True), 1e-9)
+        Y["has_region"] = has
+        return Y
+
+    in_subset = np.isin(cid_all, list(fetched)) & (J["img_region"] >= 0)
+    A = restrict(J, in_subset & (np.arange(len(cid_all)) < n_base))   # 대표사진만
+    B = restrict(J, in_subset)                                         # 대표 + 추가
+    # 추가 사진만 있고 대표사진이 없는 관광지는 B 에서 뺀다 (두 조건의 관광지 집합을 같게)
+    keep_b = np.isin(B["cid"], list(set(A["cid"])))
+    B = restrict(B, keep_b)
+    assert set(A["cid"]) == set(B["cid"]), "두 조건의 관광지 집합이 다르다"
+
+    def vote(X, v, attraction_max):
+        sims = X["kv"] @ v
+        if attraction_max:  # 관광지마다 가장 닮은 사진 1장만 투표
+            cids, inv = np.unique(X["cid"], return_inverse=True)
+            best = np.full(len(cids), -np.inf)
+            np.maximum.at(best, inv, sims)
+            reg = np.zeros(len(cids), int)
+            reg[inv] = X["img_region"]
+            top = np.argsort(-best)[:sc.VOTE_K]
+            s = np.bincount(reg[top], weights=best[top], minlength=len(X["regions"]))
+        else:
+            top = np.argsort(-sims)[:sc.VOTE_K]
+            s = np.bincount(X["img_region"][top], weights=sims[top], minlength=len(X["regions"]))
+        s = s + 1e-3 * (X["reg_mean"] @ v)
+        return np.where(X["has_region"], s, -np.inf)
+
+    qv, by_scene = sc.scene_vectors()
+    rows = sc.ok_rows()
+    scenes_of = rows.groupby("place_id").scene_id.unique().to_dict()
+    he = np.load(hp.HOLDOUT_EMB)
+    extra = {}
+    for v, pid in zip(he["vecs"], he["place_ids"]):
+        extra.setdefault(str(pid), []).append(v)
+    gt, _ = hp.load_gt(I, rd.DEV_FILES + [hp.HOLDOUT_GT])
+    places = [p for p in gt if gt[p] and p in scenes_of]
+    n = len(I["regions"])
+    gt_covered = sum(any(A["has_region"][t] for t in gt[p]) for p in places)
+
+    res = {}
+    for label, X, am in [("A 대표사진만", A, False), ("B 대표+추가", B, False),
+                         ("A 대표사진만 · 관광지 최대값", A, True), ("B 대표+추가 · 관광지 최대값", B, True)]:
+        ranks = {}
+        for p in places:
+            vs = [v for sid in scenes_of[p] for v in by_scene.get(sid, [])] + extra.get(p, [])
+            v = np.mean(vs, 0)
+            v /= np.linalg.norm(v)
+            pos = np.empty(n, int)
+            pos[np.argsort(-vote(X, v, am), kind="stable")] = np.arange(1, n + 1)
+            ranks[p] = int(min(pos[t] for t in gt[p]))
+        res[label] = ranks
+
+    n_attr = len(set(A["cid"]))
+    print(f"[subset] 관광지 {n_attr}곳 (시군구 {int(A['has_region'].sum())}개), 사진 A {len(A['kv'])}장 / B {len(B['kv'])}장")
+    print(f"  개발셋 {len(places)}곳 중 정답 시군구에 관광지가 남아 있는 곳: {gt_covered}")
+    print("| 조건 | Hit@5 | Hit@10 | Hit@20 | MRR | 중앙 | 최악 | A 대비 좋아짐/나빠짐/같음 (p) | 판정 |")
+    print("|---|---|---|---|---|---|---|---|---|")
+    pairs = {"B 대표+추가": "A 대표사진만", "B 대표+추가 · 관광지 최대값": "A 대표사진만 · 관광지 최대값"}
+    out = {}
+    for label, ranks in res.items():
+        r = np.array([ranks[p] for p in places])
+        s = {"hit5": int((r <= 5).sum()), "hit10": int((r <= 10).sum()), "hit20": int((r <= 20).sum()),
+             "mrr": float(np.mean(1 / r)), "median": float(np.median(r)), "worst": int(r.max())}
+        cmp_, verdict = "—", "—"
+        if label in pairs:
+            b = np.array([res[pairs[label]][p] for p in places])
+            better, worse = int((r < b).sum()), int((r > b).sum())
+            k, m = min(better, worse), better + worse
+            pv = 1.0 if m == 0 else min(1.0, 2 * sum(comb(m, i) for i in range(k + 1)) / 2 ** m)
+            cmp_ = f"{better}/{worse}/{len(places) - better - worse} ({pv:.2f})"
+            verdict = "효과 있음" if s["hit10"] - int((b <= 10).sum()) >= 4 and s["mrr"] > float(np.mean(1 / b)) else "기준 미달"
+        out[label] = {**s, "verdict": verdict}
+        print(f"| {label} | {s['hit5']} | {s['hit10']} | {s['hit20']} | {s['mrr']:.3f} | {s['median']:.0f} | {s['worst']} | {cmp_} | {verdict} |")
+    print("\n| 해외지 | " + " | ".join(res) + " |\n|---|" + "---|" * len(res))
+    for p in places:
+        print(f"| {p} | " + " | ".join(str(res[l][p]) for l in res) + " |")
+    (cp.WORK / "eval_kr_extra_subset.json").write_text(json.dumps(
+        {"n_attractions": n_attr, "summary": out, "ranks": res}, ensure_ascii=False, indent=1))
+
+
+STEPS = {"download": step_download, "embed": step_embed, "evaluate": step_evaluate, "subset": step_subset}
 
 if __name__ == "__main__":
     for s in sys.argv[1:] or list(STEPS):
