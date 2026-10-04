@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, type DemoPhoto } from '../api'
 
-export type Source = { kind: 'file'; file: Blob; url: string } | { kind: 'demo'; photo: DemoPhoto; url: string }
+export type Source = { kind: 'file'; file: Blob; url: string; sourceAttractionId?: string } | { kind: 'demo'; photo: DemoPhoto; url: string }
 
 export function PhotoStep({ onPick, onBrowse, filterBar }: { onPick: (s: Source) => void; onBrowse: () => void; filterBar: React.ReactNode }) {
   const [demos, setDemos] = useState<DemoPhoto[]>([])

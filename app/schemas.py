@@ -26,6 +26,7 @@ class AnalyzeResponse(BaseModel):
     query_id: str
     scene_tags: list[Tag]
     image: dict
+    excluded_sigungu: Optional[dict] = None
 
 
 class RecommendRequest(BaseModel):

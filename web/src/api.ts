@@ -21,6 +21,7 @@ export interface AnalyzeResponse {
   query_id: string
   scene_tags: Tag[]
   image: { width: number; height: number; cropped: boolean }
+  excluded_sigungu: { key: string; name: string } | null
 }
 
 export interface MonthPoint { month: string; visitors: number; index: number }
@@ -48,7 +49,8 @@ export interface Candidate {
 export interface RecommendResponse {
   is_example: boolean
   query: { query_id: string; scene_tags: string[]; kept_tags: string[] | null; month: number; priority: Priority; origin: Origin | null
-           filters: FilterKey[]; sido: string | null; allowed_regions: number | null }
+           filters: FilterKey[]; sido: string | null; allowed_regions: number | null
+           excluded_sigungu: { key: string; name: string } | null }
   model: { visual: string; rerank: string; priorities: Priority[] }
   total_candidates: number
   candidates: Candidate[]
@@ -69,11 +71,12 @@ async function json<T>(res: Response): Promise<T> {
 export const api = {
   demoPhotos: () => fetch('/api/demo-photos').then(r => json<{ photos: DemoPhoto[] }>(r)).then(r => r.photos),
 
-  analyze: (input: { file?: Blob; demoPhotoId?: string; crop?: Crop | null }) => {
+  analyze: (input: { file?: Blob; demoPhotoId?: string; crop?: Crop | null; sourceAttractionId?: string }) => {
     const fd = new FormData()
     if (input.file) fd.append('image', input.file, 'upload.jpg')
     if (input.demoPhotoId) fd.append('demo_photo_id', input.demoPhotoId)
     if (input.crop) fd.append('crop', JSON.stringify(input.crop))
+    if (input.sourceAttractionId) fd.append('source_attraction_id', input.sourceAttractionId)
     return fetch('/api/analyze', { method: 'POST', body: fd }).then(r => json<AnalyzeResponse>(r))
   },
 

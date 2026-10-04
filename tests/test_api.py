@@ -203,3 +203,26 @@ def test_weather_chip_follows_season(client):
             assert min(temps[k] for k in on) >= max(t for k, t in temps.items() if k not in on)
         if chip["label"] == "시원한 곳":
             assert max(temps[k] for k in on) <= min(t for k, t in temps.items() if k not in on)
+
+
+def test_search_from_domestic_photo_excludes_source(client):
+    """#14: 국내 관광지 사진으로 다시 찾으면 그 시군구가 1위로 나오던 문제."""
+    d = client.get("/api/regions", params={"month": 10}).json()
+    src = next(r for r in d["regions"] if r["key"] == "47_울릉군")["photo"]
+    img = client.get(src["image_url"]).content
+
+    plain = client.post("/api/analyze", files={"image": ("a.jpg", img, "image/jpeg")}).json()
+    assert plain["excluded_sigungu"] is None
+    assert rec(client, plain["query_id"])["candidates"][0]["sigungu"]["key"] == "47_울릉군"  # 문제 재현
+
+    a = client.post("/api/analyze", files={"image": ("a.jpg", img, "image/jpeg")},
+                    data={"source_attraction_id": src["attraction_id"]}).json()
+    assert a["excluded_sigungu"]["key"] == "47_울릉군"
+    n_sea = sum(r["flags"]["sea"] for r in d["regions"])
+    assert rec(client, a["query_id"], filters=["sea"])["query"]["allowed_regions"] == n_sea - 1  # 울릉군은 바다 가까운 곳
+    for kw in ({}, {"filters": ["sea"]}):
+        r = rec(client, a["query_id"], limit=30, **kw)
+        assert r["query"]["excluded_sigungu"]["key"] == "47_울릉군"
+        assert r["candidates"] and all(c["sigungu"]["key"] != "47_울릉군" for c in r["candidates"])
+    bad = client.post("/api/analyze", files={"image": ("a.jpg", img, "image/jpeg")}, data={"source_attraction_id": "0"})
+    assert bad.status_code == 404

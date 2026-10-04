@@ -59,7 +59,8 @@ export default function App() {
     if (!s) return
     setBusy(true); setErr(null)
     try {
-      const a = await api.analyze(s.kind === 'file' ? { file: s.file, crop } : { demoPhotoId: s.photo.photo_id, crop })
+      const a = await api.analyze(s.kind === 'file' ? { file: s.file, crop, sourceAttractionId: s.sourceAttractionId }
+                                                     : { demoPhotoId: s.photo.photo_id, crop })
       setAnalysis(a); setKept(a.scene_tags.map(t => t.tag))
       setPreview(await croppedPreview(s.url, crop))
       setResult(null); setExtra([]); setCompare([])
@@ -91,10 +92,11 @@ export default function App() {
     } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
 
-  const searchFrom = async (c: { attraction: { image_url: string } }) => {
+  // 국내 관광지 사진으로 다시 찾기: 출발 관광지를 넘겨 그 시군구가 다시 1위로 나오지 않게 한다 (#14)
+  const searchFrom = async (c: { attraction: { id: string; image_url: string } }) => {
     try {
       const blob = await fetch(c.attraction.image_url).then(r => r.blob())
-      const s: Source = { kind: 'file', file: blob, url: URL.createObjectURL(blob) }
+      const s: Source = { kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: c.attraction.id }
       setSource(s)
       await analyze(null, s)
     } catch { setErr('이 사진을 불러오지 못했습니다.') }
@@ -141,7 +143,7 @@ export default function App() {
               <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
             </div>
             <BrowseStep filters={filters} regions={regions} origin={cond.origin} onOrigin={o => setCond({ ...cond, origin: o })}
-                        onSearchPhoto={(r: RegionRow) => searchFrom({ attraction: { image_url: r.photo!.image_url } })} />
+                        onSearchPhoto={(r: RegionRow) => searchFrom({ attraction: { id: r.photo!.attraction_id, image_url: r.photo!.image_url } })} />
           </section>
         )}
         {step === 'crop' && source && <CropStep url={source.url} busy={busy} onBack={() => setStep('photo')} onDone={c => analyze(c)} />}
@@ -185,6 +187,7 @@ export default function App() {
                   <span className={result.is_example ? 'badge warn' : 'badge'}>{result.is_example ? '예시 데이터' : '모델 추천 결과'}</span>
                   {result.query.allowed_regions != null && <>조건에 맞는 {result.query.allowed_regions}곳 안에서 </>}
                   사진이 닮은 {result.total_candidates}곳 중 <b>{PRIORITY_LABEL[cond.priority]}</b> 기준 · {cond.month}월
+                  {result.query.excluded_sigungu && <> · 출발한 {result.query.excluded_sigungu.name}은 제외</>}
                 </p>
               </div>
               {result.total_candidates === 0 && <p className="error">조건에 맞는 시군구가 없습니다. 조건을 하나 빼 보세요.</p>}

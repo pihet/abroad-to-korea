@@ -66,10 +66,17 @@ class Engine:
                 img, cropped = img.crop((x, y, x + cw, y + ch)), True
         return img, {"width": w, "height": h, "cropped": cropped}
 
-    def analyze(self, img):
+    def region_of(self, cid):
+        """관광지가 속한 시군구 인덱스 (사진 인덱스에 없으면 None)."""
+        ix = np.where((self.cid == str(cid)) & self.ok)[0]
+        return int(self.I["img_region"][ix[0]]) if len(ix) else None
+
+    def analyze(self, img, exclude_ri=None):
+        """exclude_ri: 국내 사진으로 다시 찾을 때 그 사진의 시군구. 자기 자신이 1위로 나오지 않게 후보에서 뺀다."""
         v = self.embed(img)
         qid = uuid.uuid4().hex[:12]
-        self.cache[qid] = {"vec": v, "tags": self.tagger.top(v), "stage_a": self.stage_a(v)}
+        allowed = None if exclude_ri is None else set(range(len(self.I["regions"]))) - {exclude_ri}
+        self.cache[qid] = {"vec": v, "tags": self.tagger.top(v), "stage_a": self.stage_a(v, allowed), "exclude": exclude_ri}
         while len(self.cache) > CACHE_SIZE:
             self.cache.popitem(last=False)
         return qid, self.cache[qid]["tags"]
