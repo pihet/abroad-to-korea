@@ -20,8 +20,26 @@ FILTERS = {
     "sea": ("바다 가까운 곳", f"관광지가 해안선 {COAST_KM:g}km 안에 있는 시군구 (Natural Earth 해안선)"),
     "mountain": ("산·숲이 많은 곳", f"산·계곡·숲·자연공원 관광지 {MOUNTAIN_MIN}곳 이상 (TourAPI 분류)"),
     "calm": ("방문객이 적은 곳", "그 달 외지인 방문자 수가 전국 시군구 중앙값 이하 (절대량. 카드의 혼잡도는 그 지역 평소 대비라 다를 수 있음)"),
-    "mild": ("날씨가 쾌적한 곳", f"그 달 평균기온 {COMFORT[0]}~{COMFORT[1]}°C (2021~2025년)"),
+    "mild": ("날씨가 쾌적한 곳", f"그 달 평균기온 {COMFORT[0]}~{COMFORT[1]}°C (2021~2025년)"),  # 달마다 바뀜: weather_rule
 }
+
+
+def weather_rule(median):
+    """그 달 전국 평균기온 중앙값으로 날씨 칩의 방향을 정한다: (방향, 이름, 기준 문구).
+    추운 달은 따뜻한 쪽, 더운 달은 시원한 쪽, 그 사이는 쾌적 구간. 고정 구간만 쓰면 1~4월·11~12월은 0곳이 된다."""
+    if median < COMFORT[0]:
+        return "warm", "따뜻한 곳", f"그 달 평균기온이 전국 시군구 중앙값({median}°C) 이상 (2021~2025년)"
+    if median > COMFORT[1]:
+        return "cool", "시원한 곳", f"그 달 평균기온이 전국 시군구 중앙값({median}°C) 이하 (2021~2025년)"
+    return "mild", FILTERS["mild"][0], FILTERS["mild"][1]
+
+
+def _weather_ok(way, t, median):
+    if way == "warm":
+        return t >= median
+    if way == "cool":
+        return t <= median
+    return COMFORT[0] <= t <= COMFORT[1]
 
 
 def coast_distance(acts):
@@ -60,7 +78,7 @@ class Regions:
             self.static[key] = {"key": key, "name": key.split("_", 1)[1], "sido": sido_name, "ri": i,
                                 "coast_km": coast.get(key),
                                 "mountain_n": sum(r["group"] == "mountain" for r in items)}
-        self._month = {}
+        self._month, self._rule = {}, {}
 
     def month_table(self, month):
         """시군구별 조건 값과 필터 통과 여부 (월마다 한 번 계산)."""
@@ -75,15 +93,26 @@ class Regions:
                          "temp_c": cl["temp_c"] if cl else None, "rain_days": cl["rain_days"] if cl else None})
         vis = sorted(r["visitors"] for r in rows if r["visitors"] is not None)
         med = vis[len(vis) // 2] if vis else None
+        temps = sorted(r["temp_c"] for r in rows if r["temp_c"] is not None)
+        t_med = temps[len(temps) // 2]
+        rule = weather_rule(t_med)
         for r in rows:
             r["flags"] = {
                 "sea": r["coast_km"] is not None and r["coast_km"] <= COAST_KM,
                 "mountain": r["mountain_n"] >= MOUNTAIN_MIN,
                 "calm": med is not None and r["visitors"] is not None and r["visitors"] <= med,
-                "mild": r["temp_c"] is not None and COMFORT[0] <= r["temp_c"] <= COMFORT[1],
+                "mild": r["temp_c"] is not None and _weather_ok(rule[0], r["temp_c"], t_med),
             }
         self._month[month] = rows
+        self._rule[month] = rule
         return rows
+
+    def filter_meta(self, month):
+        """화면에 보일 칩 이름·기준. 날씨 칩은 그 달 방향에 따라 바뀐다."""
+        self.month_table(month)
+        _, label, basis = self._rule[month]
+        return [{"key": k, "label": label if k == "mild" else v[0], "basis": basis if k == "mild" else v[1]}
+                for k, v in FILTERS.items()]
 
     def allowed(self, month, filters, sido=None):
         """조건을 모두 통과한 시군구의 인덱스 집합. 조건이 없으면 None(전체)."""

@@ -184,5 +184,22 @@ def test_filters_restrict_candidates(client, qid):
 
 
 def test_empty_filter_result(client, qid):
-    r = rec(client, qid, travel_month=1, filters=["mild"])  # 1월 평균기온 15~24°C 인 시군구는 없다
+    r = rec(client, qid, filters=["sea"], sido="충청북도")  # 내륙 도에는 바다 가까운 시군구가 없다
     assert r["query"]["allowed_regions"] == 0 and r["total_candidates"] == 0 and r["candidates"] == []
+
+
+def test_weather_chip_follows_season(client):
+    """추운 달은 따뜻한 곳, 더운 달은 시원한 곳, 그 사이는 쾌적한 곳. 어느 달이든 0곳이 아니다."""
+    expect = {1: "따뜻한 곳", 4: "따뜻한 곳", 5: "날씨가 쾌적한 곳", 7: "시원한 곳", 8: "시원한 곳", 10: "따뜻한 곳"}
+    for m in range(1, 13):
+        d = client.get("/api/regions", params={"month": m}).json()
+        chip = next(f for f in d["filters"] if f["key"] == "mild")
+        if m in expect:
+            assert chip["label"] == expect[m], (m, chip)
+        temps = {r["key"]: r["temp_c"] for r in d["regions"]}
+        on = [r["key"] for r in d["regions"] if r["flags"]["mild"]]
+        assert on, m
+        if chip["label"] == "따뜻한 곳":
+            assert min(temps[k] for k in on) >= max(t for k, t in temps.items() if k not in on)
+        if chip["label"] == "시원한 곳":
+            assert max(temps[k] for k in on) <= min(t for k, t in temps.items() if k not in on)

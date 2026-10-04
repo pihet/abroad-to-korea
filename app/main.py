@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .activities import Activities
-from .regions import FILTERS, Regions
+from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
@@ -146,7 +146,7 @@ def region_table(month: int = Query(ge=1, le=12), origin: Optional[str] = None):
         rows.append({**{x: v for x, v in r.items() if x != "ri"}, "photo": engine.region_photo(r["ri"]),
                      "distance_km": engine.ctx.distance(k, origin) if origin else None})
     return {"is_example": False, "month": month,
-            "filters": [{"key": k, "label": v[0], "basis": v[1]} for k, v in FILTERS.items()],
+            "filters": regions.filter_meta(month),
             "sidos": sorted({r["sido"] for r in rows}), "regions": rows}
 
 
