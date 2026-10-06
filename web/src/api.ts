@@ -187,5 +187,12 @@ export interface DongActivities {
 export const dongActivitiesApi = (key: string, code: string) =>
   fetch(`/api/regions/${encodeURIComponent(key)}/dongs/${code}/activities`).then(r => json<DongActivities>(r))
 
+export type RainResult = { start: string; end: string; rule: string } & (
+  | { basis: 'forecast'; rainy_days: number; days: { date: string; rain_mm: number | null; prob: number | null }[] }
+  | { basis: 'history'; years: string | null; n_years: number; years_with_rain: number; avg_rainy_days: number | null
+      days: { date: string; rainy_years: number; years: number; by_year: Record<string, number> }[] })
+export const rainApi = (key: string, start: string, end: string) =>
+  fetch(`/api/regions/${encodeURIComponent(key)}/rain?start=${start}&end=${end}`).then(r => json<RainResult>(r))
+
 export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }
 export const placePhotosApi = (cid: string) => fetch(`/api/places/${cid}/photos`).then(r => json<PlacePhotos>(r))

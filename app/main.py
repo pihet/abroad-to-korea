@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 import urllib.error
 import urllib.request
 from pathlib import Path
+from datetime import date
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -25,6 +26,7 @@ from .activities import GROUPS as ACT_GROUPS, Activities
 from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
+from .rain import Rain, RainError
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 
@@ -48,12 +50,13 @@ MISSING_PHOTOS: set[str] = set()
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions, hoods
+    global engine, acts, regions, hoods, rain
     t = time.time()
     engine = Engine()
     acts = Activities()
     regions = Regions(engine, acts)
     hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
+    rain = Rain(engine.ctx.centers)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
@@ -282,9 +285,18 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
             "region": {x: v for x, v in row.items() if x != "ri"}, "photo": engine.region_photo(row["ri"]),
             "filters": regions.filter_meta(month), "months": months,
             "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key), "food": acts.food_summary(key),
-            "notes": ["날씨: Open-Meteo 2021~2025년 같은 달 평균",
+            "notes": ["비 예보: 오늘부터 16일 안은 Open-Meteo 일기예보, 그 밖은 Open-Meteo 2021~2025년 같은 날짜 기록 (CC BY 4.0)",
                       "방문자: 한국관광공사 외지인 방문자 수. 2026-10은 월 단위 예측 모델(ridge, 2025년 검증 WAPE 5.6%) 값, 나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
+
+
+@app.get("/api/regions/{key}/rain")
+def region_rain(key: str, start: date, end: date):
+    """고른 기간(최대 14일)에 비가 올까. 오늘부터 16일 안이면 일기예보, 그 밖이면 2021~2025년 같은 날짜 기록."""
+    try:
+        return rain.check(tuple(key.split("_", 1)), start, end)
+    except RainError as e:
+        raise HTTPException(e.status, str(e))
 
 
 @app.get("/api/regions/{key}/dongs/{code}/activities")

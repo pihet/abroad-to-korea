@@ -366,3 +366,17 @@ def test_place_photos_cached():
         assert len(d["photos"]) == 3 and all("공공누리" in p["license"] for p in d["photos"])
         assert c.get("/images/extra/2844953/99").status_code == 404
         assert c.get("/api/places/0/photos").status_code == 404
+
+
+def test_region_rain_history(client):
+    """16일보다 먼 날짜는 2021~2025년 같은 날짜 기록 (네트워크 없이 확인되는 경로)."""
+    r = client.get("/api/regions/51_양양군/rain", params={"start": "2027-12-24", "end": "2027-12-27"})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["basis"] == "history" and d["n_years"] == 5 and len(d["days"]) == 4
+    assert all(0 <= x["rainy_years"] <= x["years"] == 5 for x in d["days"])
+    assert 0 <= d["years_with_rain"] <= 5
+    bad = client.get("/api/regions/51_양양군/rain", params={"start": "2027-12-27", "end": "2027-12-24"})
+    assert bad.status_code == 400 and "빠릅니다" in bad.json()["detail"]
+    assert client.get("/api/regions/51_양양군/rain", params={"start": "2027-12-01", "end": "2027-12-20"}).status_code == 400
+    assert client.get("/api/regions/99_없음/rain", params={"start": "2027-12-24", "end": "2027-12-25"}).status_code == 404

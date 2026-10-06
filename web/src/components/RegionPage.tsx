@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { profileApi, type RegionProfile } from '../api'
 import { ActivityMap } from './ActivityMap'
-import { MonthsChart } from './MonthsChart'
+import { RainCheck } from './RainCheck'
 import { DongFood } from './DongFood'
 import { NeighborhoodMap } from './NeighborhoodMap'
+
+// 평소(100) 대비 혼잡도를 말로: ±5 안은 '평소와 비슷'
+const crowdWord = (i: number) => i >= 105 ? `평소보다 ${i - 100}% 붐빌 것으로 보여요` : i <= 95 ? `평소보다 ${100 - i}% 한산할 것으로 보여요` : '평소와 비슷할 것으로 보여요'
 
 // 지역 상세: 이 지역은 어떤 곳인지 → 언제 가면 좋은지 → 어느 동네에 할 거리가 몰렸는지 → 할 만한 것 목록.
 export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: {
@@ -28,6 +31,7 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
   const label = (k: string) => d?.filters.find(f => f.key === k)?.label
   const ms = d?.months ?? []
   const quiet = ms.filter(m => m.congestion_index != null).reduce<(typeof ms)[number] | null>((a, b) => (!a || b.congestion_index! < a.congestion_index! ? b : a), null)
+  const fc = ms.find(m => m.basis === 'forecast' && m.congestion_index != null)  // 우리 예측 모델 값 (이번 달)
   const badges = r ? ([
     r.flags.sea && `바다 ${r.coast_km}km`, r.flags.mountain && `산·숲 ${r.mountain_n}곳`,
     r.flags.city ? `도시 · 동 거주 ${Math.round((r.urban_share ?? 0) * 100)}%` : `시골·소도시 · 동 거주 ${Math.round((r.urban_share ?? 0) * 100)}%`,
@@ -53,9 +57,17 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
 
           <section className="region-sec">
             <h3>언제 가면 좋을까</h3>
-            <p className="sub">달 위에 마우스를 올리면 그 달 값을 보여 줍니다. 가장 한산한 달을 표시했습니다.
-              혼잡도는 그 지역 평소(최근 12개월 평균 = 100) 대비이고, 빗금 막대는 우리가 학습한 방문자 예측 모델의 값입니다.</p>
-            <MonthsChart months={d.months} month={quiet?.month ?? null} />
+            {(fc || quiet) && (
+              <div className="crowd-line">
+                {fc && <p><span className="tag">예측</span>{fc.month}월 {r!.name}은 <b>{crowdWord(fc.congestion_index!)}</b>
+                  <small>외지인 약 {Math.round(fc.visitors! / 10000).toLocaleString()}만 명 · 평소(최근 12개월 평균) 대비 {fc.congestion_index}</small></p>}
+                {quiet && <p><span className="tag ghost">실측</span>가장 한산했던 달은 <b>{quiet.month}월</b>
+                  <small>평소의 {quiet.congestion_index}% · {quiet.basis_month}</small></p>}
+                <p className="fine">혼잡도는 시군구 전체의 외지인 방문자 수 기준입니다. 예측은 우리가 학습한 월 단위 모델(2025년 검증 오차 WAPE 5.6%) 값입니다.</p>
+              </div>
+            )}
+            <h4 className="rain-title">여행 날짜에 비가 올까</h4>
+            <RainCheck regionKey={regionKey} />
           </section>
 
           <section className="region-sec">

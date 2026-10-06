@@ -344,32 +344,27 @@ button.upload strong { color: var(--same-ink) }
 .region-sec { display: flex; flex-direction: column; gap: 6px }
 .region-sec h3 { font-size: 20px; font-weight: 800 }
 .region-sec .sub { margin: 0 0 8px }
+.crowd-line { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px }
+.crowd-line p { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 15px }
+.crowd-line p.fine { display: block; font-size: 12px }
+.crowd-line small { color: var(--sub); font-size: 12.5px }
+.crowd-line .tag { font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 6px; background: var(--accent); color: var(--accent-ink) }
+.crowd-line .tag.ghost { background: transparent; color: var(--sub); border: 1px solid var(--line) }
+.rain-title { margin: 14px 0 2px; font-size: 16px; font-weight: 800 }
+.rain { display: flex; flex-direction: column; gap: 10px }
+.rain-pick { display: flex; flex-wrap: wrap; align-items: end; gap: 8px }
+.rain-pick label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub) }
+.rain-pick input { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px }
+.rain-pick span { padding-bottom: 8px; color: var(--sub) }
+.rain-say { margin: 0; font-size: 15px }
+.rain-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px }
+.rain-days li { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 13px }
+.rain-days li b { font-size: 13px }
+.rain-days li small { color: var(--sub); font-size: 11.5px }
+.rain-days li.wet { border-color: var(--accent); background: var(--accent-soft) }
+.rain-days li.wet span { color: var(--accent); font-weight: 700 }
 
 /* 월별 그래프 (작은 그래프 셋) */
-.mchart3 { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px 10px }
-.mchart3 svg { width: 100%; height: auto; display: block; font-family: var(--font) }
-.mchart3-read { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--sub); margin-bottom: 6px; font-variant-numeric: tabular-nums; min-height: 22px }
-.mchart3-read b { color: var(--ink); font-size: 15px }
-.mchart3 .row-title { font-size: 12px; font-weight: 700; fill: var(--sub) }
-.mchart3 .axis { stroke: var(--line) }
-.mchart3 .ref { stroke: var(--sub); stroke-dasharray: 3 3; stroke-width: 1 }
-.mchart3 .tick { font-size: 10.5px; fill: var(--sub) }
-.mchart3 .bar { fill: color-mix(in srgb, var(--ink) 16%, var(--bg)) }
-.mchart3 .bar.on { fill: var(--accent) }
-.mchart3 .bar.fc { fill: url(#fc-hatch); stroke: var(--accent); stroke-width: 1.2 }
-.mchart3 .fc-bg { fill: var(--accent-soft) }
-.mchart3 .fc-line { stroke: var(--accent); stroke-width: 2 }
-.mchart3-legend { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 12px; color: var(--sub) }
-.mchart3-legend i { width: 12px; height: 10px; border-radius: 2px; display: inline-block }
-.mchart3-legend .lg-actual { background: color-mix(in srgb, var(--ink) 16%, var(--bg)) }
-.mchart3-legend .lg-fc { margin-left: 8px; border: 1.2px solid var(--accent); background: repeating-linear-gradient(45deg, var(--accent) 0 2px, var(--accent-soft) 2px 5px) }
-.mchart3 .line { fill: none; stroke: var(--accent); stroke-width: 2 }
-.mchart3 .dot { fill: var(--bg); stroke: var(--accent); stroke-width: 2 }
-.mchart3 .dot.on { fill: var(--accent) }
-.mchart3 .pick-band { fill: var(--accent-soft) }
-.mchart3 .hover-band { fill: color-mix(in srgb, var(--ink) 6%, transparent) }
-.mchart3 .mlab { font-size: 11.5px; fill: var(--sub) }
-.mchart3 .mlab.on { fill: var(--ink); font-weight: 700 }
 
 /* 동네 지도 */
 .hoods { display: flex; flex-direction: column; gap: 12px }
