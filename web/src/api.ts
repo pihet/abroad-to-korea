@@ -141,3 +141,26 @@ export const regionsApi = (month: number, origin?: Origin | null) =>
 
 export interface Filters { month: number; sido: string | null; keys: FilterKey[] }
 export const matches = (r: RegionRow, f: Filters) => f.keys.every(k => r.flags[k]) && (!f.sido || r.sido === f.sido)
+
+export interface MonthRow {
+  month: number; temp_c: number | null; rain_days: number | null
+  visitors: number | null; congestion_index: number | null; basis: 'forecast' | 'actual' | null; basis_month: string | null
+}
+export interface Neighborhood {
+  code: string; name: string; total: number; groups: Record<string, number>; rank: number | null
+  label: [number, number]; geometry: GeoJSON.Geometry
+}
+export interface RegionProfile {
+  is_example: boolean; month: number
+  region: RegionRow & { flags: Record<FilterKey, boolean> }
+  photo: RegionRow['photo']
+  filters: { key: FilterKey; label: string; basis: string }[]
+  months: MonthRow[]; neighborhoods: Neighborhood[]; focus: [number, number, number, number] | null; notes: string[]
+}
+export const profileApi = (key: string, month: number) =>
+  fetch(`/api/regions/${encodeURIComponent(key)}/profile?month=${month}`).then(r => json<RegionProfile>(r))
+
+export interface RankingItem { key: string; name: string; sido: string; value: number; unit: string; photo: RegionRow['photo'] }
+export interface RankingList { id: string; title: string; basis: string; items: RankingItem[]; empty?: string }
+export const rankingsApi = (month: number) =>
+  fetch(`/api/rankings?month=${month}`).then(r => json<{ lists: RankingList[] }>(r)).then(r => r.lists)

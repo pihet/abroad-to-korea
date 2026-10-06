@@ -6,6 +6,8 @@
   --warn: #fff4d6; --warn-ink: #7a5600; --err: #b3261e;
   --r: 12px; --r-lg: 16px; --shadow: 0 6px 20px rgba(17, 24, 22, .08);
   --font: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --display: "Gowun Batang", "Noto Serif KR", "Batang", serif;
+  --tint: #eef4f2; --card-shadow: 0 1px 2px rgba(17,24,22,.05), 0 8px 24px rgba(17,24,22,.06);
   --gut: clamp(16px, 3.4vw, 36px);
   color-scheme: light;
 }
@@ -15,6 +17,7 @@
     --accent: #5cc9b8; --accent-ink: #0b1513; --accent-soft: #18302b;
     --same: #18302b; --same-ink: #7fd8c8; --diff: #36241b; --diff-ink: #f0a982;
     --warn: #3a3015; --warn-ink: #f2d27a; --err: #f2867d; --shadow: 0 6px 20px rgba(0, 0, 0, .4);
+    --tint: #17201d; --card-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     color-scheme: dark;
   }
 }
@@ -288,3 +291,101 @@ button.upload strong { color: var(--same-ink) }
 .bacts { border-top: 1px solid var(--line) }
 @media (max-width: 820px) { .filterbar:not(.compact) .months { grid-template-columns: repeat(6, 1fr) } }
 @media (max-width: 520px) { .filterbar:not(.compact) .months { grid-template-columns: repeat(4, 1fr) } .start-filters { padding: 14px } }
+
+
+/* ===== 디자인 다듬기 (2026-10-06) ===== */
+.hero-copy h1, .result-head h1, .rankings h2, .region-head h2 { font-family: var(--display); font-weight: 700; letter-spacing: -.01em }
+.hero-copy h1 { font-size: clamp(30px, 4.8vw, 48px); line-height: 1.2 }
+.hero-copy h1::after { content: ""; display: block; width: 56px; height: 4px; border-radius: 2px; background: var(--accent); margin-top: 18px }
+.topbar { background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: saturate(1.4) blur(10px) }
+.logo { font-family: var(--display); font-size: 22px }
+.primary { box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 60%, #000); transition: transform .12s, box-shadow .12s }
+.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent) }
+.start-filters { background: var(--tint) }
+.upload { background: var(--bg); transition: border-color .15s, box-shadow .15s }
+.upload:hover { box-shadow: var(--card-shadow) }
+.card, .bcard { box-shadow: var(--card-shadow); border-color: transparent }
+.demo .ph { box-shadow: 0 1px 2px rgba(0,0,0,.06) }
+.demo:hover .ph img { transform: scale(1.03) }
+.demo .ph img { transition: transform .3s }
+.card-actions button.strong { background: var(--accent-soft); color: var(--same-ink); border-color: transparent; font-weight: 700 }
+
+/* 이달의 목록 */
+.rankings { margin: 8px 0 40px; display: flex; flex-direction: column; gap: 28px }
+.rankings h2 { font-size: clamp(24px, 3vw, 32px) }
+.rank-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px }
+.rank-head h3 { font-size: 17px; font-weight: 800 }
+.rank-head small { color: var(--sub); font-size: 12px }
+.rank-empty { margin: 0; padding: 14px 16px; background: var(--soft); border-radius: var(--r); color: var(--sub); font-size: 14px }
+.rank-row { list-style: none; margin: 0; padding: 2px 2px 8px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(168px, 1fr); gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory }
+.rank-row li { scroll-snap-align: start }
+.rank-row button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-radius: var(--r); padding-bottom: 6px }
+.rank-row button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.rank-row .ph { position: relative; aspect-ratio: 4/3; border-radius: var(--r); overflow: hidden; background: var(--soft); display: flex; align-items: center; justify-content: center; margin-bottom: 6px }
+.rank-row .ph img { max-height: 100%; object-fit: contain; transition: transform .3s }
+.rank-row button:hover .ph img { transform: scale(1.04) }
+.rank-row .ph em { position: absolute; left: 8px; top: 8px; font-style: normal; font-weight: 800; font-size: 13px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); color: var(--ink); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.2) }
+.rank-row b { font-size: 15px }
+.rank-row small { color: var(--sub); font-size: 12px }
+.rank-row .val { font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; font-size: 15px }
+.rank-row .val i { font-style: normal; font-weight: 500; font-size: 12px; color: var(--sub) }
+
+/* 지역 상세 (전체 화면 시트) */
+.region-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(12, 18, 16, .45); display: flex; justify-content: center; overflow-y: auto; padding: max(24px, env(safe-area-inset-top, 0px)) 16px 40px; animation: fadein .15s }
+@keyframes fadein { from { opacity: 0 } }
+.region-page { position: relative; width: min(1040px, 100%); background: var(--bg); border-radius: 20px; padding: clamp(18px, 3vw, 36px); display: flex; flex-direction: column; gap: 32px; box-shadow: 0 20px 60px rgba(0,0,0,.25); height: fit-content }
+.region-close { position: absolute; right: 14px; top: 12px; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); font-size: 22px; line-height: 1; cursor: pointer; z-index: 2 }
+.region-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: start }
+.region-photo { border-radius: var(--r-lg); overflow: hidden; background: var(--soft); aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center }
+.region-photo img { max-height: 100%; object-fit: contain }
+.region-head { display: flex; flex-direction: column; gap: 12px; align-items: flex-start }
+.eyebrow { margin: 0; color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: .04em }
+.region-head h2 { font-size: clamp(34px, 5vw, 52px); line-height: 1.05 }
+.region-badges { display: flex; flex-wrap: wrap; gap: 6px }
+.region-badges span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--same-ink); font-weight: 700 }
+.region-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100% }
+.region-facts div { background: var(--soft); border-radius: var(--r); padding: 10px 14px; display: flex; flex-direction: column }
+.region-facts small { color: var(--sub); font-size: 12px }
+.region-facts b { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums }
+.region-facts i { font-style: normal; font-size: 12px; font-weight: 500; color: var(--sub); margin-left: 4px }
+.region-sec { display: flex; flex-direction: column; gap: 6px }
+.region-sec h3 { font-size: 20px; font-weight: 800 }
+.region-sec .sub { margin: 0 0 8px }
+
+/* 월별 그래프 (작은 그래프 셋) */
+.mchart3 { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px 10px }
+.mchart3 svg { width: 100%; height: auto; display: block; font-family: var(--font) }
+.mchart3-read { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--sub); margin-bottom: 6px; font-variant-numeric: tabular-nums; min-height: 22px }
+.mchart3-read b { color: var(--ink); font-size: 15px }
+.mchart3 .row-title { font-size: 12px; font-weight: 700; fill: var(--sub) }
+.mchart3 .axis { stroke: var(--line) }
+.mchart3 .ref { stroke: var(--sub); stroke-dasharray: 3 3; stroke-width: 1 }
+.mchart3 .tick { font-size: 10.5px; fill: var(--sub) }
+.mchart3 .bar { fill: color-mix(in srgb, var(--ink) 16%, var(--bg)) }
+.mchart3 .bar.on { fill: var(--accent) }
+.mchart3 .line { fill: none; stroke: var(--accent); stroke-width: 2 }
+.mchart3 .dot { fill: var(--bg); stroke: var(--accent); stroke-width: 2 }
+.mchart3 .dot.on { fill: var(--accent) }
+.mchart3 .pick-band { fill: var(--accent-soft) }
+.mchart3 .hover-band { fill: color-mix(in srgb, var(--ink) 6%, transparent) }
+.mchart3 .mlab { font-size: 11.5px; fill: var(--sub) }
+.mchart3 .mlab.on { fill: var(--ink); font-weight: 700 }
+
+/* 동네 지도 */
+.hoods { display: flex; flex-direction: column; gap: 12px }
+.hoods-map { height: 380px; border-radius: var(--r-lg); overflow: hidden; background: var(--soft); z-index: 0 }
+.hood-pin { display: flex !important; align-items: center; justify-content: center }
+.hood-pin span { width: 100%; height: 100%; border-radius: 50%; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; font: 800 14px/1 var(--font) }
+.hoods-legend { list-style: none; margin: 0; padding: 12px; display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: center; border-radius: var(--r); box-shadow: var(--card-shadow) }
+.hoods-legend li { display: grid; grid-template-columns: 26px auto; column-gap: 8px; align-items: center }
+.hoods-legend .n { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px }
+.hoods-legend b { font-size: 14px }
+.hoods-legend small { font-size: 11.5px; color: var(--sub) }
+
+@media (max-width: 760px) {
+  .region-hero { grid-template-columns: 1fr }
+  .region-overlay { padding: 0 }
+  .region-page { border-radius: 0; min-height: 100%; padding-top: 56px }
+  .hoods-map { height: 300px }
+}
+@media (prefers-reduced-motion: reduce) { .region-overlay { animation: none } }

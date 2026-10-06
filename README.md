@@ -66,7 +66,8 @@ python src/collect/region_context.py climate 10            # 10월 날씨 (다�
 python src/collect/tour_attractions.py 28                  # 레포츠 목록 (지역 활동 지도)
 python src/collect/region_context.py festivals 20251001 20261231   # 축제
 python src/collect/population.py                           # 도시/시골 (행정동 주민등록 인구, 별도 활용신청)
-pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0
+# 동네 지도 경계: data/raw/admdongkor/ 에 vuski/admdongkor ver20260701 HangJeongDong_ver20260701.geojson (CC BY 4.0)
+pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0 shapely==2.1.2
 
 cd web && npm install && npm run build && cd ..            # 화면 빌드 → web/dist
 uvicorn app.main:app --port 8000                           # 첫 실행 때 CLIP 로딩 20~30초

@@ -8,9 +8,9 @@ const PAGE = 24
 
 // 사진 없이 둘러보기: 조건에 맞는 시군구를 기준 하나로 정렬해 대표 사진으로 보여 준다.
 // 사진을 고르면 그 사진으로 "닮은 곳 찾기"가 이어진다.
-export function BrowseStep({ filters, regions, origin, onOrigin, onSearchPhoto }: {
+export function BrowseStep({ filters, regions, origin, onOrigin, onSearchPhoto, onOpen }: {
   filters: Filters; regions: RegionsResponse | null; origin: Origin | null; onOrigin: (o: Origin | null) => void
-  onSearchPhoto: (r: RegionRow) => void
+  onSearchPhoto: (r: RegionRow) => void; onOpen: (key: string) => void
 }) {
   const [sort, setSort] = useState<Sort>('calm')
   const [shown, setShown] = useState(PAGE)
@@ -58,6 +58,7 @@ export function BrowseStep({ filters, regions, origin, onOrigin, onSearchPhoto }
               </div>
               <div className="bactions">
                 <button type="button" className="primary" onClick={() => onSearchPhoto(r)}>이 사진과 닮은 곳 찾기</button>
+                <button type="button" className="ghost" onClick={() => onOpen(r.key)}>지역 자세히</button>
                 <button type="button" className="ghost" aria-expanded={open === r.key} onClick={() => setOpen(open === r.key ? null : r.key)}>할 만한 것</button>
               </div>
               <p className="credit">사진 한국관광공사 TourAPI · {r.photo!.license}</p>

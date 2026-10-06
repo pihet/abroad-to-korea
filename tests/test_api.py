@@ -259,3 +259,29 @@ def test_city_rural(client):
     assert by["36110_세종특별자치시"]["urban_share"] > 0  # 시군구 이름이 없는 세종도 연결된다
     for r in d["regions"]:
         assert r["flags"]["city"] == (r["urban_share"] >= 0.5)
+
+
+def test_region_profile(client):
+    d = client.get("/api/regions/51_양양군/profile", params={"month": 10}).json()
+    assert d["is_example"] is False and d["region"]["name"] == "양양군"
+    assert [m["month"] for m in d["months"]] == list(range(1, 13))
+    assert all(m["temp_c"] is not None and m["congestion_index"] is not None for m in d["months"])
+    assert d["months"][9]["basis"] == "forecast" and d["months"][0]["basis"] == "actual"
+    ranked = sorted((h for h in d["neighborhoods"] if h["rank"]), key=lambda h: h["rank"])
+    assert [h["rank"] for h in ranked] == list(range(1, len(ranked) + 1)) and 0 < len(ranked) <= 5
+    totals = [h["total"] for h in ranked]
+    assert totals == sorted(totals, reverse=True) and all(h["geometry"]["type"].endswith("Polygon") for h in d["neighborhoods"])
+    assert any("CC BY 4.0" in n for n in d["notes"])
+    assert client.get("/api/regions/99_없음/profile", params={"month": 10}).status_code == 404
+
+
+def test_rankings(client):
+    for m in (1, 10):
+        lists = {l["id"]: l for l in client.get("/api/rankings", params={"month": m}).json()["lists"]}
+        assert all(l["basis"] for l in lists.values())
+        calm = lists["calmer-than-usual"]
+        assert all(i["value"] < 100 for i in calm["items"])  # '평소보다 한산' = 혼잡도 100 미만만
+        if not calm["items"]:
+            assert calm["empty"]
+        sea = [i["value"] for i in lists["quiet-sea"]["items"]]
+        assert sea == sorted(sea)

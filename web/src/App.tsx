@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, PRIORITY_LABEL, regionsApi, type AnalyzeResponse, type Candidate, type Crop, type FilterKey, type Filters, type RecommendResponse, type RegionRow, type RegionsResponse } from './api'
 import { BrowseStep } from './components/BrowseStep'
+import { Rankings } from './components/Rankings'
+import { RegionPage } from './components/RegionPage'
 import { FilterBar } from './components/FilterBar'
 import { CandidateCard } from './components/CandidateCard'
 import { Conditions, type Cond } from './components/Conditions'
@@ -47,6 +49,7 @@ export default function App() {
   const [saved, setSaved] = useState<Saved[]>(loadSaved)
   const [compare, setCompare] = useState<Candidate[]>([])
   const [votes, setVotes] = useState<Record<string, 1 | -1>>({})
+  const [regionKey, setRegionKey] = useState<string | null>(null)
   const [wide] = useState(() => window.matchMedia('(min-width: 821px)').matches)
 
   useEffect(() => { try { localStorage.setItem('saved-places', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
@@ -134,7 +137,8 @@ export default function App() {
         {err && <p className="error" role="alert">{err}</p>}
         {step === 'photo' && (
           <PhotoStep onPick={pick} onBrowse={() => { setStep('browse'); window.scrollTo(0, 0) }}
-                     filterBar={<FilterBar value={filters} onChange={setFilters} regions={regions} />} />
+                     filterBar={<FilterBar value={filters} onChange={setFilters} regions={regions} />}
+                     afterEntries={<Rankings month={cond.month} onOpen={setRegionKey} />} />
         )}
         {step === 'browse' && (
           <section className="step">
@@ -143,7 +147,8 @@ export default function App() {
               <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
             </div>
             <BrowseStep filters={filters} regions={regions} origin={cond.origin} onOrigin={o => setCond({ ...cond, origin: o })}
-                        onSearchPhoto={(r: RegionRow) => searchFrom({ attraction: { id: r.photo!.attraction_id, image_url: r.photo!.image_url } })} />
+                        onSearchPhoto={(r: RegionRow) => searchFrom({ attraction: { id: r.photo!.attraction_id, image_url: r.photo!.image_url } })}
+                        onOpen={setRegionKey} />
           </section>
         )}
         {step === 'crop' && source && <CropStep url={source.url} busy={busy} onBack={() => setStep('photo')} onDone={c => analyze(c)} />}
@@ -197,7 +202,7 @@ export default function App() {
                     saved={saved.some(s => s.key === `${c.sigungu.key}/${c.attraction.id}`)}
                     comparing={compare.some(x => x.sigungu.key === c.sigungu.key)} voted={votes[c.sigungu.key]}
                     onSave={() => toggleSave(c)} onCompare={() => toggleCompare(c)} onFeedback={v => feedback(c, v)}
-                    onSearchSimilar={() => searchFrom(c)} />
+                    onSearchSimilar={() => searchFrom(c)} onOpenRegion={() => setRegionKey(c.sigungu.key)} />
                 ))}
               </div>
               {list.length < result.total_candidates && (
@@ -224,6 +229,11 @@ export default function App() {
           </section>
         )}
       </main>
+      {regionKey && (
+        <RegionPage regionKey={regionKey} month={cond.month} onMonth={m => setCond({ ...cond, month: m })}
+          onClose={() => setRegionKey(null)}
+          onSearchPhoto={p => { setRegionKey(null); searchFrom({ attraction: { id: p.attraction_id, image_url: p.image_url } }) }} />
+      )}
     </div>
   )
 }

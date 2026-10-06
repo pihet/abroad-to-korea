@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .activities import Activities
+from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
 from .recommender import PRIORITIES, Engine, cp, sc
@@ -35,16 +36,18 @@ WEB_DIST = ROOT / "web/dist"
 engine: Optional[Engine] = None
 acts: Optional[Activities] = None
 regions: Optional[Regions] = None
+hoods: Optional[Neighborhoods] = None
 MISSING_PHOTOS: set[str] = set()
 
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions
+    global engine, acts, regions, hoods
     t = time.time()
     engine = Engine()
     acts = Activities()
     regions = Regions(engine, acts)
+    hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
@@ -181,6 +184,63 @@ def region_table(month: int = Query(ge=1, le=12), origin: Optional[str] = None):
     return {"is_example": False, "month": month,
             "filters": regions.filter_meta(month),
             "sidos": sorted({r["sido"] for r in rows}), "regions": rows}
+
+
+@app.get("/api/rankings")
+def rankings(month: int = Query(ge=1, le=12)):
+    """이 달의 목록. 목록마다 거르는 조건 하나 + 정렬 기준 하나, 둘 다 화면에 적는다 (종합점수 없음)."""
+    rows = regions.month_table(month)
+    meta = {f["key"]: f for f in regions.filter_meta(month)}
+    n_act = {k: sum(r["group"] != "festival" for r in v) for k, v in acts.by_region.items()}
+    n_fest = {r["key"]: sum(i["group"] == "festival" for i in acts.for_region(r["key"], month)[1]) for r in rows}
+
+    def top(pred, sort_key, value, unit, n=6):
+        sel = sorted((r for r in rows if pred(r) and sort_key(r) is not None), key=sort_key)[:n]
+        return [{"key": r["key"], "name": r["name"], "sido": r["sido"], "value": value(r), "unit": unit,
+                 "photo": engine.region_photo(r["ri"])} for r in sel]
+
+    lists = [
+        {"id": "quiet-sea", "title": f"{month}월, 방문객이 적은 바닷가",
+         "basis": "바다 가까운 곳 중 그 달 외지인 방문자 수가 적은 순",
+         "items": top(lambda r: r["flags"]["sea"], lambda r: r["visitors"], lambda r: round(r["visitors"] / 10000), "만 명")},
+        {"id": "weather-mountain", "title": f"{month}월, {meta['mild']['label']} 중 산·숲이 많은 곳",
+         "basis": f"{meta['mild']['basis']} 중 산·숲 관광지가 많은 순",
+         "items": top(lambda r: r["flags"]["mild"] and r["mountain_n"] > 0, lambda r: -r["mountain_n"], lambda r: r["mountain_n"], "곳")},
+        {"id": "calmer-than-usual", "title": f"{month}월이 평소보다 한산한 곳",
+         "basis": "그 달 방문자 ÷ 최근 12개월 평균 × 100 이 낮은 순 (100 = 평소)",
+         "items": top(lambda r: r["congestion_index"] is not None and r["congestion_index"] < 100,
+                      lambda r: r["congestion_index"], lambda r: r["congestion_index"], ""),
+         "empty": f"{month}월은 평소(100)보다 한산한 시군구가 없습니다. 전국이 평소보다 붐비는 달입니다."},
+        {"id": "rural-activities", "title": "할 거리가 많은 시골·소도시",
+         "basis": "시골·소도시 중 관광지·레포츠 수가 많은 순 (축제 제외)",
+         "items": top(lambda r: r["flags"]["rural"], lambda r: -n_act.get(r["key"], 0), lambda r: n_act.get(r["key"], 0), "곳")},
+        {"id": "festivals", "title": f"{month}월에 축제가 열리는 곳",
+         "basis": f"2026년 {month}월에 기간이 걸친 축제 수가 많은 순",
+         "items": top(lambda r: n_fest[r["key"]] > 0, lambda r: -n_fest[r["key"]], lambda r: n_fest[r["key"]], "개")},
+    ]
+    return {"is_example": False, "month": month, "lists": lists}
+
+
+@app.get("/api/regions/{key}/profile")
+def region_profile(key: str, month: int = Query(ge=1, le=12)):
+    """지역 상세: 조건 값, 12개월 날씨·방문자, 읍·면·동 경계와 활동지가 몰린 동네 Top 5."""
+    row = next((r for r in regions.month_table(month) if r["key"] == key), None)
+    if row is None:
+        raise HTTPException(404, "시군구를 찾을 수 없습니다.")
+    k = tuple(key.split("_", 1))
+    months = []
+    for m in range(1, 13):
+        cg, cl = engine.ctx.congestion(k, m), engine.ctx.climate(k, m)
+        months.append({"month": m, "temp_c": cl["temp_c"] if cl else None, "rain_days": cl["rain_days"] if cl else None,
+                       "visitors": cg["visitors"] if cg else None, "congestion_index": cg["index"] if cg else None,
+                       "basis": cg["basis"] if cg else None, "basis_month": cg["basis_month"] if cg else None})
+    return {"is_example": False, "month": month,
+            "region": {x: v for x, v in row.items() if x != "ri"}, "photo": engine.region_photo(row["ri"]),
+            "filters": regions.filter_meta(month), "months": months,
+            "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key),
+            "notes": ["날씨: Open-Meteo 2021~2025년 같은 달 평균",
+                      "방문자: 한국관광공사 외지인 방문자 수, 2026-10은 예측·나머지 달은 2025-09~2026-08 실측",
+                      "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
 
 
 @app.get("/api/activities", response_model=ActivitiesResponse)

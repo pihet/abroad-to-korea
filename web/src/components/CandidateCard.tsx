@@ -3,10 +3,10 @@ import type { Candidate, Priority } from '../api'
 import { ActivityMap } from './ActivityMap'
 import { MonthlyChart } from './MonthlyChart'
 
-export function CandidateCard({ c, originUrl, month, priority, saved, comparing, onSave, onCompare, onFeedback, onSearchSimilar, voted }: {
+export function CandidateCard({ c, originUrl, month, priority, saved, comparing, onSave, onCompare, onFeedback, onSearchSimilar, onOpenRegion, voted }: {
   c: Candidate; originUrl: string; month: number; priority: Priority
   saved: boolean; comparing: boolean; voted: 1 | -1 | undefined
-  onSave: () => void; onCompare: () => void; onFeedback: (v: 1 | -1) => void; onSearchSimilar: () => void
+  onSave: () => void; onCompare: () => void; onFeedback: (v: 1 | -1) => void; onSearchSimilar: () => void; onOpenRegion: () => void
 }) {
   const cg = c.congestion, cl = c.climate
   const moved = c.rank !== c.visual_rank
@@ -73,6 +73,7 @@ export function CandidateCard({ c, originUrl, month, priority, saved, comparing,
           <button type="button" aria-pressed={voted === 1} onClick={() => onFeedback(1)}>좋아요</button>
           <button type="button" aria-pressed={voted === -1} onClick={() => onFeedback(-1)}>별로예요</button>
           <button type="button" onClick={onSearchSimilar}>이 사진으로 다시 찾기</button>
+          <button type="button" className="strong" onClick={onOpenRegion}>{c.sigungu.name} 자세히 보기</button>
         </div>
       </div>
       <div className="acts-panel">

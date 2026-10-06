@@ -3,7 +3,7 @@ import { api, type DemoPhoto } from '../api'
 
 export type Source = { kind: 'file'; file: Blob; url: string; sourceAttractionId?: string } | { kind: 'demo'; photo: DemoPhoto; url: string }
 
-export function PhotoStep({ onPick, onBrowse, filterBar }: { onPick: (s: Source) => void; onBrowse: () => void; filterBar: React.ReactNode }) {
+export function PhotoStep({ onPick, onBrowse, filterBar, afterEntries }: { onPick: (s: Source) => void; onBrowse: () => void; filterBar: React.ReactNode; afterEntries?: React.ReactNode }) {
   const [demos, setDemos] = useState<DemoPhoto[]>([])
   const [q, setQ] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -49,6 +49,7 @@ export function PhotoStep({ onPick, onBrowse, filterBar }: { onPick: (s: Source)
         </button>
       </div>
       {err && <p className="error" role="alert">{err}</p>}
+      {afterEntries}
       <div className="demo-head">
         <h2>예시 사진으로 해 보기</h2>
         <input className="search" placeholder="여행지 검색 (교토, 해변…)" value={q} onChange={e => setQ(e.target.value)} aria-label="예시 사진 검색" />
