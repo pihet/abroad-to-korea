@@ -49,7 +49,19 @@ export default function App() {
   const [saved, setSaved] = useState<Saved[]>(loadSaved)
   const [compare, setCompare] = useState<Candidate[]>([])
   const [votes, setVotes] = useState<Record<string, 1 | -1>>({})
-  const [regionKey, setRegionKey] = useState<string | null>(null)
+  // 지역 상세는 주소로도 연다: #region=50_제주시&acts=food (공유·바로가기용)
+  const readHash = () => new URLSearchParams(window.location.hash.slice(1))
+  const [regionKey, setRegionKeyState] = useState<string | null>(() => readHash().get('region'))
+  const [actsGroup] = useState<string | undefined>(() => readHash().get('acts') ?? undefined)
+  const setRegionKey = (k: string | null) => {
+    setRegionKeyState(k)
+    history.replaceState(null, '', k ? `#region=${encodeURIComponent(k)}` : window.location.pathname)
+  }
+  useEffect(() => {
+    const onHash = () => setRegionKeyState(readHash().get('region'))
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   const [wide] = useState(() => window.matchMedia('(min-width: 821px)').matches)
 
   useEffect(() => { try { localStorage.setItem('saved-places', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
@@ -230,7 +242,7 @@ export default function App() {
         )}
       </main>
       {regionKey && (
-        <RegionPage regionKey={regionKey}
+        <RegionPage regionKey={regionKey} initialGroup={actsGroup}
           onClose={() => setRegionKey(null)}
           onSearchPhoto={p => { setRegionKey(null); searchFrom({ attraction: { id: p.attraction_id, image_url: p.image_url } }) }} />
       )}

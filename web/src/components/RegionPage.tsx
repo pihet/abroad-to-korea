@@ -5,8 +5,8 @@ import { MonthsChart } from './MonthsChart'
 import { NeighborhoodMap } from './NeighborhoodMap'
 
 // 지역 상세: 이 지역은 어떤 곳인지 → 언제 가면 좋은지 → 어느 동네에 할 거리가 몰렸는지 → 할 만한 것 목록.
-export function RegionPage({ regionKey, onClose, onSearchPhoto }: {
-  regionKey: string; onClose: () => void
+export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: {
+  regionKey: string; initialGroup?: string; onClose: () => void
   onSearchPhoto: (p: { attraction_id: string; image_url: string }) => void
 }) {
   const [d, setD] = useState<RegionProfile | null>(null)
@@ -76,7 +76,7 @@ export function RegionPage({ regionKey, onClose, onSearchPhoto }: {
 
           <section className="region-sec">
             <h3>{r!.name}에서 할 만한 것</h3>
-            <ActivityMap sigunguKey={regionKey} sigunguName={r!.name} attractionId={d.photo?.attraction_id ?? ''} />
+            <ActivityMap sigunguKey={regionKey} sigunguName={r!.name} attractionId={d.photo?.attraction_id ?? ''} initialGroup={initialGroup} />
           </section>
 
           <ul className="acts-notes">{d.notes.slice(0, -1).map(n => <li key={n}>{n}</li>)}</ul>

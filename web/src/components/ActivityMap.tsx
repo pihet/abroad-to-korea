@@ -8,12 +8,12 @@ const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/l
 const PAGE = 12
 
 // 시군구 "할 만한 것": 번호 마커 지도 + 같은 번호의 목록. 묶음 칩으로 거른다.
-export function ActivityMap({ sigunguKey, sigunguName, attractionId }: {
-  sigunguKey: string; sigunguName: string; attractionId: string
+export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGroup = 'all' }: {
+  sigunguKey: string; sigunguName: string; attractionId: string; initialGroup?: string
 }) {
   const [data, setData] = useState<ActivitiesResponse | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [group, setGroup] = useState<string>('all')
+  const [group, setGroup] = useState<string>(initialGroup)
   const [shown, setShown] = useState(PAGE)
   const [active, setActive] = useState<string | null>(null)
   const [broken, setBroken] = useState<Set<string>>(new Set())  // 원본이 지워진 사진
