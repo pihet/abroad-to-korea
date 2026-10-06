@@ -7,6 +7,7 @@
 
 import io
 import json
+import sys
 import time
 from contextlib import asynccontextmanager
 import urllib.error
@@ -32,6 +33,9 @@ BAD_IMAGE = "사진 파일을 열 수 없습니다. JPG·PNG·WEBP·HEIC 사진�
 APP_DATA = ROOT / "data/interim/app"
 KR_FULL = APP_DATA / "kr_full"       # TourAPI 원본 사진 캐시 (처음 요청 때 받는다)
 TOUR_THUMB = APP_DATA / "tour_thumb"  # 활동 목록 썸네일 캐시
+EXTRA_DIRS = [ROOT / "data/raw/tourapi/detailImage2_ct39", ROOT / "data/raw/tourapi/detailImage2_ct39_sample",
+              ROOT / "data/raw/tourapi/detailImage2"]  # 추가 사진 원문 (음식점: 누를 때 받아 저장 / 표본 / 관광지 매일 수집)
+EXTRA_IMG = APP_DATA / "extra_img"  # 추가 사진 파일 캐시
 FEEDBACK = APP_DATA / "feedback.jsonl"
 WEB_DIST = ROOT / "web/dist"
 
@@ -352,6 +356,62 @@ def tour_image(cid: str):
             raise HTTPException(502, "사진을 받지 못했습니다.")
         except Exception:
             raise HTTPException(502, "사진을 받지 못했습니다.")
+    return FileResponse(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+def _extra_items(cid):
+    """저장해 둔 추가 사진 원문에서 공공누리 1·3유형만. 원문이 없으면 None."""
+    for d in EXTRA_DIRS:
+        for f in (d / f"{cid}.json", d / f"{cid}_Y.json"):
+            if f.exists():
+                it = ((json.loads(f.read_text(encoding="utf-8"))["response"]["body"].get("items") or {}).get("item")) or []
+                it = [it] if isinstance(it, dict) else it
+                return [x for x in it if x.get("cpyrhtDivCd") in ("Type1", "Type3") and (x.get("originimgurl") or x.get("smallimageurl"))]
+    return None
+
+
+@app.get("/api/places/{cid}/photos")
+def place_photos(cid: str):
+    """가게·관광지 추가 사진. 받아 둔 원문이 없으면 그때 TourAPI detailImage2 를 한 번 부르고 저장한다 (관광지 사진 수집과 하루 한도 공유)."""
+    if cid not in acts.by_id:
+        raise HTTPException(404, "장소를 찾을 수 없습니다.")
+    items = _extra_items(cid)
+    if items is None:
+        import urllib.parse
+        sys.path.insert(0, str(ROOT / "src/collect"))
+        from tour_attractions import load_api_key
+        q = urllib.parse.urlencode({"MobileOS": "ETC", "MobileApp": "samsungproj", "_type": "json", "contentId": cid,
+                                    "imageYN": "Y", "numOfRows": 30, "pageNo": 1})
+        try:
+            body = urllib.request.urlopen(f"https://apis.data.go.kr/B551011/KorService2/detailImage2?serviceKey={load_api_key()}&{q}", timeout=20).read()
+            data = json.loads(body)
+        except urllib.error.HTTPError as e:
+            raise HTTPException(503, "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요." if e.code == 429 else "추가 사진을 불러오지 못했습니다.")
+        except Exception:
+            raise HTTPException(503, "추가 사진을 불러오지 못했습니다.")
+        if data.get("response", {}).get("header", {}).get("resultCode") != "0000":
+            raise HTTPException(503, "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요.")
+        EXTRA_DIRS[0].mkdir(parents=True, exist_ok=True)
+        (EXTRA_DIRS[0] / f"{cid}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        items = _extra_items(cid)
+    licence = {"Type1": "공공누리 제1유형 (출처표시)", "Type3": "공공누리 제3유형 (출처표시·변경금지)"}
+    return {"id": cid, "photos": [{"url": f"/images/extra/{cid}/{i}", "name": x.get("imgname"), "license": licence[x["cpyrhtDivCd"]]}
+                                  for i, x in enumerate(items)], "source": "한국관광공사 TourAPI"}
+
+
+@app.get("/images/extra/{cid}/{n}")
+def extra_image(cid: str, n: int):
+    items = _extra_items(cid) or []
+    if not (0 <= n < len(items)):
+        raise HTTPException(404)
+    cached = EXTRA_IMG / f"{cid}_{n}.jpg"
+    if not cached.exists():
+        url = items[n].get("originimgurl") or items[n].get("smallimageurl")  # 받아 둔 원문에 있는 주소만 쓴다
+        try:
+            EXTRA_IMG.mkdir(parents=True, exist_ok=True)
+            cached.write_bytes(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": cp.UA}), timeout=15).read())
+        except Exception:
+            raise HTTPException(404)
     return FileResponse(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { dongFoodApi, type DongFood as DF } from '../api'
+import { PhotoViewer } from './PhotoViewer'
 
 const PAGE = 12
 
@@ -8,6 +9,7 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
   const [d, setD] = useState<DF | null>(null)
   const [shown, setShown] = useState(PAGE)
   const [broken, setBroken] = useState<Set<string>>(new Set())
+  const [view, setView] = useState<DF['items'][number] | null>(null)
   useEffect(() => { setD(null); setShown(PAGE); dongFoodApi(regionKey, code).then(setD).catch(() => setD(null)) }, [regionKey, code])
   if (!d) return <p className="fine">음식점을 불러오는 중…</p>
   return (
@@ -17,11 +19,12 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
         <ul className="df-grid">
           {d.items.slice(0, shown).map(it => (
             <li key={it.id}>
-              <div className="df-ph">
+              <button type="button" className="df-ph" onClick={() => setView(it)} aria-label={`${it.name} 사진 보기`}>
                 {it.image_url && !broken.has(it.id)
                   ? <img src={it.image_url} alt={it.name} loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
-                  : <span>사진 없음</span>}
-              </div>
+                  : <span>사진 없음 · 추가 사진 보기</span>}
+                <em>사진 더 보기</em>
+              </button>
               <b>{it.name}</b>
               <p className={it.menu ? 'df-menu' : 'df-menu none'}>{it.menu ?? '대표메뉴 수집 전'}</p>
               <small>{it.kind}{it.address ? ` · ${it.address.split(' ').slice(2, 4).join(' ')}` : ''}</small>
@@ -30,7 +33,9 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
         </ul>
       )}
       {shown < d.total && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({shown} / {d.total})</button>}
-      <p className="fine">{d.note} 사진: 한국관광공사 TourAPI · 공공누리 제1·3유형</p>
+      <p className="fine">{d.note} 사진을 누르면 추가 사진을 볼 수 있습니다. 사진: 한국관광공사 TourAPI · 공공누리 제1·3유형</p>
+      {view && <PhotoViewer cid={view.id} name={view.name} main={view.image_url && !broken.has(view.id) ? view.image_url : null}
+                            mainLicense={view.license} onClose={() => setView(null)} />}
     </div>
   )
 }

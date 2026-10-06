@@ -354,3 +354,15 @@ def test_dong_activities(client):
     assert "festival" not in counts
     assert all("address" in i and (i["image_url"] is None) == (i["license"] is None) for i in d["items"])  # 점 말풍선용
     assert client.get("/api/regions/51_양양군/dongs/0000000000/activities").status_code == 404
+
+
+def test_place_photos_cached():
+    """표본 조사로 받아 둔 음식점은 외부 호출 없이 추가 사진이 나온다 (공공누리 1·3유형만)."""
+    with TestClient(main.app) as c:
+        r = c.get("/api/places/2844953/photos")
+        if r.status_code == 404:  # 표본 원문이 없는 환경
+            pytest.skip("표본 원문 없음")
+        d = r.json()
+        assert len(d["photos"]) == 3 and all("공공누리" in p["license"] for p in d["photos"])
+        assert c.get("/images/extra/2844953/99").status_code == 404
+        assert c.get("/api/places/0/photos").status_code == 404

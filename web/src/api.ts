@@ -186,3 +186,6 @@ export interface DongActivities {
 }
 export const dongActivitiesApi = (key: string, code: string) =>
   fetch(`/api/regions/${encodeURIComponent(key)}/dongs/${code}/activities`).then(r => json<DongActivities>(r))
+
+export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }
+export const placePhotosApi = (cid: string) => fetch(`/api/places/${cid}/photos`).then(r => json<PlacePhotos>(r))
