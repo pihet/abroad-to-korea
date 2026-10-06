@@ -1,73 +1,133 @@
-import { useEffect, useRef } from 'react'
-import type { Map as LMap } from 'leaflet'
-import type { Neighborhood } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import type { GeoJSON as LGeoJSON, LayerGroup, Map as LMap } from 'leaflet'
+import { dongActivitiesApi, type DongActivities, type Neighborhood } from '../api'
 
 const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => L.default ?? L)
 
-// 순위 1~5 동네의 색 (고정 순서). 순위가 같은 지역 안에서만 쓰이므로 번호와 함께 읽힌다.
+// 순위 1~5 동네의 색 (고정 순서). 번호와 함께 읽힌다.
 export const RANK_COLORS = ['#d64545', '#2f80d1', '#3d9a5b', '#e0a21a', '#8e4ec6']
-const GROUP_LABEL: Record<string, string> = { water: '물·바다', mountain: '산·숲', leisure: '레저', camping: '캠핑', experience: '체험' }
+// 활동 묶음 색: styles.css 의 --g-* 와 같은 값 (지도 점은 CSS 변수를 못 읽어 값으로 둔다)
+const GROUP_COLOR: Record<string, string> = { water: '#1f78b4', mountain: '#2e8b47', leisure: '#d9661f', camping: '#8a6d1f', experience: '#8e44ad', food: '#d6336c' }
+const GROUP_LABEL: Record<string, string> = { water: '물·바다', mountain: '산·숲', leisure: '레저', camping: '캠핑', experience: '체험', food: '먹거리' }
 
 export const mainGroup = (g: Record<string, number>) => {
   const top = Object.entries(g).sort((a, b) => b[1] - a[1])[0]
   return top ? `${GROUP_LABEL[top[0]] ?? top[0]} ${top[1]}` : ''
 }
 
-// 시군구 안 읍·면·동 경계: 전부 옅게, 활동지가 많은 Top 5는 색과 번호로.
-export function NeighborhoodMap({ hoods, focus, name, credit, selected, onSelect }: {
-  hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string; credit: string
+// 시군구 안 읍·면·동 경계. 동네(번호·영역)를 누르면 그 동네로 확대하고, 그 안의 활동지·음식점을 묶음별 색 점으로 찍는다.
+export function NeighborhoodMap({ regionKey, hoods, focus, name, credit, selected, onSelect }: {
+  regionKey: string; hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string; credit: string
   selected: string | null; onSelect: (code: string) => void
 }) {
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<LMap | null>(null)
-  const fitted = useRef<{ c: import('leaflet').LatLng; z: number } | null>(null)  // 동네를 눌러 다시 그려도 보던 위치 유지
+  const L_ = useRef<typeof import('leaflet') | null>(null)
+  const shapes = useRef<LGeoJSON | null>(null)
+  const dots = useRef<LayerGroup | null>(null)
+  const [zoomed, setZoomed] = useState<string | null>(null)  // 사용자가 눌러서 확대한 동네
+  const [acts, setActs] = useState<DongActivities | null>(null)
+  const [hidden, setHidden] = useState<Set<string>>(new Set())  // 끈 묶음
   const top = hoods.filter(h => h.rank).sort((a, b) => a.rank! - b.rank!)
 
+  const pick = (code: string) => { setZoomed(code); onSelect(code) }
+  const showAll = () => {
+    setZoomed(null); setActs(null)
+    const L = L_.current, m = map.current
+    if (L && m) m.fitBounds(focus ? L.latLngBounds([focus[0], focus[1]], [focus[2], focus[3]]) : shapes.current!.getBounds(), { padding: [16, 16] })
+  }
+
+  // 지도와 경계는 지역이 바뀔 때만 새로 그린다
   useEffect(() => {
     let off = false
     loadLeaflet().then(L => {
       if (off || !box.current) return
+      L_.current = L
       map.current?.remove()
       const m = L.map(box.current, { scrollWheelZoom: false })
       map.current = m
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · 경계 SGIS·admdongkor',
       }).addTo(m)
-      const all = L.geoJSON({ type: 'FeatureCollection', features: hoods.map(h => ({ type: 'Feature', properties: h, geometry: h.geometry })) } as GeoJSON.FeatureCollection, {
-        style: f => {
-          const r = (f?.properties as Neighborhood).rank
-          const h = f?.properties as Neighborhood, sel = h.code === selected
-          const base = r ? { color: RANK_COLORS[r - 1], weight: 2, fillColor: RANK_COLORS[r - 1], fillOpacity: 0.35 }
-                         : { color: '#6b7a76', weight: 1, fillOpacity: 0.04, dashArray: '3 3' }
-          return sel ? { ...base, weight: 4, color: '#15181a', fillOpacity: r ? 0.5 : 0.18, dashArray: undefined } : base
-        },
+      shapes.current = L.geoJSON({ type: 'FeatureCollection', features: hoods.map(h => ({ type: 'Feature', properties: h, geometry: h.geometry })) } as GeoJSON.FeatureCollection, {
         onEachFeature: (f, layer) => {
           const h = f.properties as Neighborhood
-          layer.bindTooltip(`${h.rank ? `${h.rank}. ` : ''}${h.name} · 활동지 ${h.total}곳 · 음식점 ${h.n_food}곳 (눌러서 보기)`, { sticky: true })
-          layer.on('click', () => onSelect(h.code))
+          layer.bindTooltip(`${h.rank ? `${h.rank}. ` : ''}${h.name} · 활동지 ${h.total}곳 · 음식점 ${h.n_food}곳 (눌러서 확대)`, { sticky: true })
+          layer.on('click', () => pick(h.code))
         },
       }).addTo(m)
+      dots.current = L.layerGroup().addTo(m)
       for (const h of top) {
-        L.marker(h.label, { icon: L.divIcon({ className: 'hood-pin', html: `<span style="background:${RANK_COLORS[h.rank! - 1]}">${h.rank}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false }).addTo(m)
+        const mk = L.marker(h.label, { icon: L.divIcon({ className: 'hood-pin', html: `<span style="background:${RANK_COLORS[h.rank! - 1]}">${h.rank}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }), zIndexOffset: 500 })
+        mk.on('click', () => pick(h.code))
+        mk.addTo(m)
       }
-      // 외딴 작은 섬(예: 울릉군의 독도)을 빼고 맞춘 범위. 없으면 경계 전체
-      if (!fitted.current) m.fitBounds(focus ? L.latLngBounds([focus[0], focus[1]], [focus[2], focus[3]]) : all.getBounds(), { padding: [16, 16] })
-      else m.setView(fitted.current.c, fitted.current.z)
-      m.on('moveend', () => { fitted.current = { c: m.getCenter(), z: m.getZoom() } })
-      fitted.current = fitted.current ?? { c: m.getCenter(), z: m.getZoom() }
+      m.fitBounds(focus ? L.latLngBounds([focus[0], focus[1]], [focus[2], focus[3]]) : shapes.current.getBounds(), { padding: [16, 16] })
+      restyle()
     })
     return () => { off = true }
-  }, [hoods, selected]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hoods]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 선택 동네 강조 (경계 굵게, 나머지는 옅게)
+  const restyle = () => shapes.current?.setStyle(f => {
+    const h = f?.properties as Neighborhood, r = h.rank, sel = h.code === selected, dim = zoomed && !sel
+    const base = r ? { color: RANK_COLORS[r - 1], weight: 2, fillColor: RANK_COLORS[r - 1], fillOpacity: 0.3 }
+                   : { color: '#6b7a76', weight: 1, fillColor: '#6b7a76', fillOpacity: 0.04, dashArray: '3 3' }
+    if (sel) return { ...base, weight: 4, color: '#15181a', fillOpacity: zoomed ? 0.06 : (r ? 0.45 : 0.15), dashArray: undefined }
+    return dim ? { ...base, fillOpacity: 0.02, opacity: 0.4 } : base
+  })
+  useEffect(() => { restyle() }, [selected, zoomed]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 눌러서 확대한 동네: 범위 맞추고 활동지 불러오기
+  useEffect(() => {
+    if (!zoomed) return
+    const L = L_.current, m = map.current
+    const h = hoods.find(x => x.code === zoomed)
+    if (L && m && h) m.fitBounds(L.geoJSON(h.geometry as GeoJSON.GeoJsonObject).getBounds(), { padding: [24, 24], maxZoom: 15 })
+    setActs(null); setHidden(new Set())
+    dongActivitiesApi(regionKey, zoomed).then(setActs).catch(() => setActs(null))
+  }, [zoomed]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 활동지 점 그리기 (끈 묶음은 빼고)
+  useEffect(() => {
+    const L = L_.current, layer = dots.current
+    if (!L || !layer) return
+    layer.clearLayers()
+    if (!acts || !zoomed) return
+    for (const it of acts.items) {
+      if (hidden.has(it.group)) continue
+      const c = GROUP_COLOR[it.group] ?? '#555'
+      L.circleMarker([it.lat, it.lon], { radius: 7, color: '#fff', weight: 2, fillColor: c, fillOpacity: 0.95 })
+        .bindTooltip(`<b>${it.name}</b><br>${GROUP_LABEL[it.group] ?? ''} · ${it.kind}${it.menu ? `<br>대표메뉴 · ${it.menu}` : ''}`)
+        .addTo(layer)
+    }
+  }, [acts, hidden, zoomed])
 
   useEffect(() => () => { map.current?.remove(); map.current = null }, [])
+  const zh = hoods.find(h => h.code === zoomed)
 
   return (
     <div className="hoods">
-      <div className="hoods-map" ref={box} role="region" aria-label={`${name} 동네 지도`} />
+      <div className="hoods-mapwrap">
+        <div className="hoods-map" ref={box} role="region" aria-label={`${name} 동네 지도`} />
+        {zoomed && <button type="button" className="hoods-back" onClick={showAll}>← {name} 전체 보기</button>}
+      </div>
+      {zoomed && (
+        <div className="hoods-acts" aria-live="polite">
+          <b>{zh?.name}에서 할 수 있는 것</b>
+          {!acts ? <small>불러오는 중…</small> : acts.groups.filter(g => g.count).map(g => (
+            <button key={g.key} type="button" aria-pressed={!hidden.has(g.key)}
+              onClick={() => { const n = new Set(hidden); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); setHidden(n) }}>
+              <i style={{ background: GROUP_COLOR[g.key] }} />{g.label} {g.count}
+            </button>
+          ))}
+          {acts && acts.items.length === 0 && <small>이 동네에는 등록된 활동지가 없습니다.</small>}
+        </div>
+      )}
       {top.length ? (
         <ol className="hoods-legend">
           {top.map(h => (
-            <li key={h.code}><button type="button" aria-pressed={h.code === selected} onClick={() => onSelect(h.code)}>
+            <li key={h.code}><button type="button" aria-pressed={h.code === selected} onClick={() => pick(h.code)}>
               <span className="n" style={{ background: RANK_COLORS[h.rank! - 1] }}>{h.rank}</span>
               <b>{h.name}</b><small>활동지 {h.total}곳 · {mainGroup(h.groups)} · 음식점 {h.n_food}곳</small></button></li>
           ))}

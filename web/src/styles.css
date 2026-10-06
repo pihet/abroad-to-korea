@@ -209,7 +209,7 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 
 /* 지역 활동 지도 */
-:root { --g-water: #1f78b4; --g-mountain: #2e8b47; --g-leisure: #d9661f; --g-camping: #8a6d1f; --g-experience: #8e44ad; --g-festival: #c2185b; --g-food: #b5522b }
+:root { --g-water: #1f78b4; --g-mountain: #2e8b47; --g-leisure: #d9661f; --g-camping: #8a6d1f; --g-experience: #8e44ad; --g-festival: #c2185b; --g-food: #d6336c }
 .acts-panel { grid-column: 1 / -1; border-top: 1px solid var(--line) }
 .acts-toggle { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; padding: 12px 18px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between }
 .acts-toggle:hover { background: var(--soft) }
@@ -540,3 +540,12 @@ h1, h2, h3 { letter-spacing: -0.03em }
 .hoods-legend li { display: block }
 .hoods-legend button .n { grid-row: span 2 }
 .hoods-legend button b, .hoods-legend button small { grid-column: 2 }
+
+/* 동네 확대 */
+.hoods-mapwrap { position: relative }
+.hoods-back { position: absolute; left: 56px; top: 10px; z-index: 500; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 7px 12px; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.15); font-family: inherit }
+.hoods-acts { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center }
+.hoods-acts > b { font-size: 15px; margin-right: 4px }
+.hoods-acts button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums }
+.hoods-acts button i { width: 10px; height: 10px; border-radius: 50% }
+.hoods-acts button[aria-pressed="false"] { opacity: .45; text-decoration: line-through }

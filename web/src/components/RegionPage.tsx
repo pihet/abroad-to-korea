@@ -59,8 +59,8 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
 
           <section className="region-sec">
             <h3>동네와 먹거리</h3>
-            <p className="sub">번호는 관광지·레포츠가 많은 동네 Top 5입니다. 동네를 누르면 그 동네 음식점과 대표메뉴가 나옵니다.</p>
-            <NeighborhoodMap hoods={d.neighborhoods} focus={d.focus} name={r!.name} credit={d.notes.at(-1) ?? ''}
+            <p className="sub">번호는 관광지·레포츠가 많은 동네 Top 5입니다. 동네를 누르면 지도가 확대되며 그 동네의 활동지가 점으로 나타나고, 아래에 음식점과 대표메뉴가 나옵니다.</p>
+            <NeighborhoodMap regionKey={regionKey} hoods={d.neighborhoods} focus={d.focus} name={r!.name} credit={d.notes.at(-1) ?? ''}
               selected={dong} onSelect={setDong} />
             {dong && <DongFood regionKey={regionKey} code={dong} name={d.neighborhoods.find(n => n.code === dong)?.name ?? ''} />}
           </section>

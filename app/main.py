@@ -18,7 +18,9 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .activities import Activities
+from collections import Counter
+
+from .activities import GROUPS as ACT_GROUPS, Activities
 from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
@@ -282,6 +284,19 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
             "notes": ["날씨: Open-Meteo 2021~2025년 같은 달 평균",
                       "방문자: 한국관광공사 외지인 방문자 수, 2026-10은 예측·나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
+
+
+@app.get("/api/regions/{key}/dongs/{code}/activities")
+def dong_activities(key: str, code: str):
+    """동네(읍·면·동) 안의 관광지·레포츠와 음식점 위치. 동네를 누르면 지도에 묶음별 색 점으로 찍는다."""
+    a, f = hoods.act_ids(key, code), hoods.food_ids(key, code)
+    if a is None:
+        raise HTTPException(404, "동네를 찾을 수 없습니다.")
+    rows = [acts.by_id[i] for i in a + f if i in acts.by_id]
+    groups = Counter(r["group"] for r in rows)
+    return {"is_example": False, "code": code,
+            "groups": [{"key": k, "label": label, "count": groups.get(k, 0)} for k, label in ACT_GROUPS if k != "festival"],
+            "items": [{k: r[k] for k in ("id", "name", "group", "kind", "lat", "lon", "image_url")} | {"menu": r.get("menu")} for r in rows]}
 
 
 @app.get("/api/regions/{key}/dongs/{code}/food")

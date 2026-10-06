@@ -342,3 +342,14 @@ def test_dong_food(client):
     assert menus == sorted(menus, reverse=True)  # 대표메뉴 있는 곳이 먼저
     assert all((i["image_url"] is None) == (i["license"] is None) for i in d["items"])
     assert client.get("/api/regions/50_제주시/dongs/0000000000/food").status_code == 404
+
+
+def test_dong_activities(client):
+    p = client.get("/api/regions/51_양양군/profile").json()
+    dong = next(n for n in p["neighborhoods"] if n["rank"] == 1)
+    d = client.get(f"/api/regions/51_양양군/dongs/{dong['code']}/activities").json()
+    counts = {g["key"]: g["count"] for g in d["groups"]}
+    assert sum(v for k, v in counts.items() if k != "food") == dong["total"]  # 동네 순위 수와 같다
+    assert counts["food"] == dong["n_food"] and len(d["items"]) == dong["total"] + dong["n_food"]
+    assert "festival" not in counts
+    assert client.get("/api/regions/51_양양군/dongs/0000000000/activities").status_code == 404

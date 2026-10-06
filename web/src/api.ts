@@ -178,3 +178,10 @@ export interface DongFood {
 }
 export const dongFoodApi = (key: string, code: string) =>
   fetch(`/api/regions/${encodeURIComponent(key)}/dongs/${code}/food`).then(r => json<DongFood>(r))
+
+export interface DongActivities {
+  code: string; groups: ActivityGroup[]
+  items: { id: string; name: string; group: string; kind: string; lat: number; lon: number; image_url: string | null; menu: string | null }[]
+}
+export const dongActivitiesApi = (key: string, code: string) =>
+  fetch(`/api/regions/${encodeURIComponent(key)}/dongs/${code}/activities`).then(r => json<DongActivities>(r))
