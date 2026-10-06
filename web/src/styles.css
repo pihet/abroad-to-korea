@@ -209,7 +209,7 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 
 /* 지역 활동 지도 */
-:root { --g-water: #1f78b4; --g-mountain: #2e8b47; --g-leisure: #d9661f; --g-camping: #8a6d1f; --g-experience: #8e44ad; --g-festival: #c2185b }
+:root { --g-water: #1f78b4; --g-mountain: #2e8b47; --g-leisure: #d9661f; --g-camping: #8a6d1f; --g-experience: #8e44ad; --g-festival: #c2185b; --g-food: #b5522b }
 .acts-panel { grid-column: 1 / -1; border-top: 1px solid var(--line) }
 .acts-toggle { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; padding: 12px 18px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between }
 .acts-toggle:hover { background: var(--soft) }
@@ -221,7 +221,7 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
 .acts-chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
 .acts-chips button:disabled { opacity: .4; cursor: default }
 .g-water { --g: var(--g-water) } .g-mountain { --g: var(--g-mountain) } .g-leisure { --g: var(--g-leisure) }
-.g-camping { --g: var(--g-camping) } .g-experience { --g: var(--g-experience) } .g-festival { --g: var(--g-festival) }
+.g-camping { --g: var(--g-camping) } .g-experience { --g: var(--g-experience) } .g-festival { --g: var(--g-festival) } .g-food { --g: var(--g-food) }
 .acts-map { height: 340px; border-radius: var(--r); overflow: hidden; background: var(--soft); z-index: 0 }
 .pin { display: flex !important; align-items: center; justify-content: center }
 .pin span { width: 100%; height: 100%; border-radius: 50%; background: var(--g); color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35);
@@ -389,3 +389,10 @@ button.upload strong { color: var(--same-ink) }
   .hoods-map { height: 300px }
 }
 @media (prefers-reduced-motion: reduce) { .region-overlay { animation: none } }
+
+/* 먹거리 */
+.acts-list .menu { color: var(--g-food) }
+.food-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px }
+.food-chips li { display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 14px; border-radius: 999px; background: color-mix(in srgb, var(--g-food) 12%, var(--bg)) }
+.food-chips b { color: var(--g-food); font-size: 15px }
+.food-chips small { color: var(--sub); font-size: 12px; font-variant-numeric: tabular-nums }

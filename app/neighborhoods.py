@@ -45,7 +45,7 @@ def build(acts, sido_code):
     counts = [dict() for _ in shapes]
     for items in acts.by_region.values():
         for r in items:
-            if r["group"] == "festival":
+            if r["group"] in ("festival", "food"):  # 동네 순위는 관광지·레포츠만 (음식점은 도심에 몰려 순위를 덮는다)
                 continue
             pt = Point(r["lon"], r["lat"])
             for i in tree.query(pt, predicate="intersects"):

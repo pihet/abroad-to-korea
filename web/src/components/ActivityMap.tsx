@@ -107,6 +107,7 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId }: {
                 <span className="txt">
                   <b>{it.name}</b>
                   <small>{it.kind}{it.distance_km != null ? ` · ${it.distance_km}km` : ''}</small>
+                  {it.menu && <small className="menu">대표메뉴 · {it.menu}</small>}
                   {it.period && <small className={it.schedule === '예정' ? 'fest' : 'fest past'}>{it.period} · {it.schedule === '예정' ? '2026년 일정' : '지난 개최 기록, 다음 일정 미정'}</small>}
                 </span>
               </button>

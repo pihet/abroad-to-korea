@@ -110,7 +110,7 @@ export interface ActivityGroup { key: string; label: string; count: number }
 export interface ActivityItem {
   id: string; name: string; group: string; kind: string; lat: number; lon: number
   address: string | null; image_url: string | null; license: string | null; distance_km: number | null
-  period?: string | null; schedule?: string | null
+  period?: string | null; schedule?: string | null; menu?: string | null
 }
 export interface ActivitiesResponse {
   is_example: boolean; sigungu_key: string; month: number | null
@@ -156,6 +156,7 @@ export interface RegionProfile {
   photo: RegionRow['photo']
   filters: { key: FilterKey; label: string; basis: string }[]
   months: MonthRow[]; neighborhoods: Neighborhood[]; focus: [number, number, number, number] | null; notes: string[]
+  food: { n_places: number; n_menus: number; top: { name: string; places: number }[] }
 }
 export const profileApi = (key: string) =>
   fetch(`/api/regions/${encodeURIComponent(key)}/profile`).then(r => json<RegionProfile>(r))

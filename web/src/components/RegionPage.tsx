@@ -67,6 +67,14 @@ export function RegionPage({ regionKey, onClose, onSearchPhoto }: {
           </section>
 
           <section className="region-sec">
+            <h3>{r!.name}의 먹거리</h3>
+            {d.food.top.length ? <>
+              <p className="sub">한국관광공사에 등록된 음식점 {d.food.n_menus}곳의 대표메뉴에 많이 나오는 음식입니다. 맛 평가나 순위가 아닙니다.</p>
+              <ul className="food-chips">{d.food.top.map(f => <li key={f.name}><b>{f.name}</b><small>{f.places}곳</small></li>)}</ul>
+            </> : <p className="rank-empty">대표메뉴를 모으는 중입니다 (등록 음식점 {d.food.n_places}곳 중 {d.food.n_menus}곳 수집). 음식점 위치는 아래 지도의 '먹거리'에서 볼 수 있습니다.</p>}
+          </section>
+
+          <section className="region-sec">
             <h3>{r!.name}에서 할 만한 것</h3>
             <ActivityMap sigunguKey={regionKey} sigunguName={r!.name} attractionId={d.photo?.attraction_id ?? ''} />
           </section>

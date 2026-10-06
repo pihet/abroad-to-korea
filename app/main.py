@@ -195,7 +195,7 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
     """이 달의 목록. 목록마다 거르는 조건 하나 + 정렬 기준 하나, 둘 다 화면에 적는다 (종합점수 없음)."""
     rows = regions.month_table(month)
     meta = {f["key"]: f for f in regions.filter_meta(month)}
-    n_act = {k: sum(r["group"] != "festival" for r in v) for k, v in acts.by_region.items()}
+    n_act = {k: sum(r["group"] not in ("festival", "food") for r in v) for k, v in acts.by_region.items()}
     n_fest = {r["key"]: sum(i["group"] == "festival" for i in acts.for_region(r["key"], month)[1]) for r in rows}
 
     def top(pred, sort_key, value, unit, n=6):
@@ -259,7 +259,7 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
     return {"is_example": False, "month": month,
             "region": {x: v for x, v in row.items() if x != "ri"}, "photo": engine.region_photo(row["ri"]),
             "filters": regions.filter_meta(month), "months": months,
-            "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key),
+            "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key), "food": acts.food_summary(key),
             "notes": ["날씨: Open-Meteo 2021~2025년 같은 달 평균",
                       "방문자: 한국관광공사 외지인 방문자 수, 2026-10은 예측·나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
@@ -282,6 +282,7 @@ def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12)
             "groups": groups, "items": items,
             "notes": ["묶음은 한국관광공사 TourAPI 분류(관광지·레포츠·축제)로 나눴습니다.",
                       "정렬은 사진이 닮은 관광지에서 가까운 순(직선거리)입니다.",
+                      "먹거리는 한국관광공사에 등록된 음식점·카페입니다. 평점이나 맛 순위가 아닙니다.",
                       "축제는 2026년 일정입니다. 이미 끝난 축제는 지난 개최 기록이며 다음 일정은 미정입니다."]}
 
 

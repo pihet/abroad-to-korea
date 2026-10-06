@@ -5,6 +5,7 @@
 """
 
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -19,6 +20,7 @@ RAW = ROOT / "data/raw/tourapi"
 LCLS = RAW / "lclsSystmCode2_20261004.json"
 LEPORTS = RAW / "areaBasedList2_ct28_20261004"
 FESTIVALS = RAW / "searchFestival2_20251001_20261231.json"
+FOOD_INTRO = RAW / "detailIntro2_ct39"   # 음식점 대표메뉴 (tour_food_intro.py, 매일 이어 받는 중)
 FESTIVAL_YEAR = "2026"   # 축제 목록은 끝난 행사가 빠지므로 2026년 기록을 쓴다
 TODAY = "20261004"
 
@@ -28,6 +30,7 @@ GROUPS = [  # (키, 화면 이름) — 화면의 색 순서와 같다
     ("leisure", "레저"),
     ("camping", "캠핑"),
     ("experience", "체험"),
+    ("food", "먹거리"),
     ("festival", "축제"),
 ]
 # 여행 활동으로 보기 어려운 레포츠 세부 분류 (동네 체육시설)
@@ -57,6 +60,8 @@ def classify(item, ctype, names):
     n2, n3 = names.get(c2, ""), names.get(c3, "")
     if ctype == "15":
         return "festival", "축제"
+    if ctype == "39":
+        return "food", n3 or "음식점"
     if ctype == "28":
         if n3 in LEPORTS_EXCLUDE or not n2:
             return None
@@ -88,7 +93,8 @@ class Activities:
     def __init__(self):
         names = _names()
         unit_of = cp.load_regions()
-        sources = [("12", _pages(cp.RAW_TOUR)), ("28", _pages(LEPORTS)),
+        food_dirs = sorted(RAW.glob("areaBasedList2_ct39_*"))
+        sources = [("12", _pages(cp.RAW_TOUR)), ("28", _pages(LEPORTS)), ("39", _pages(food_dirs[-1]) if food_dirs else []),
                    ("15", json.loads(FESTIVALS.read_text())["response"]["body"]["items"]["item"])]
         self.by_region, self.by_id = {}, {}
         for ctype, items in sources:
@@ -106,6 +112,8 @@ class Activities:
                        "image_url": f"/images/tour/{it['contentid']}" if photo else None,
                        "license": OK_LICENSE.get(it.get("cpyrhtDivCd")) if photo else None,
                        "start": it.get("eventstartdate"), "end": it.get("eventenddate")}
+                if ctype == "39":
+                    rec["menu"] = _menu(it["contentid"])
                 self.by_id[it["contentid"]] = {**rec, "_photo": photo}
                 self.by_region.setdefault(f"{u[0]}_{u[2]}", []).append(rec)
 
@@ -125,9 +133,45 @@ class Activities:
         groups = [{"key": k, "label": label, "count": counts.get(k, 0)} for k, label in GROUPS]
         return groups, out
 
+    def food_summary(self, key, top=8, min_menus=5):
+        """지역 먹거리: 음식점 대표메뉴에 많이 나오는 음식. 대표메뉴를 받은 곳이 min_menus 미만이면 순위를 내지 않는다."""
+        foods = [r for r in self.by_region.get(key, []) if r["group"] == "food"]
+        menus = [r["menu"] for r in foods if r.get("menu")]
+        counts = Counter()
+        for m in menus:
+            counts.update(set(_menu_words(m)))  # 한 음식점이 같은 음식을 여러 번 적어도 1번
+        words = [{"name": w, "places": n} for w, n in counts.most_common(top) if n >= 2] if len(menus) >= min_menus else []
+        return {"n_places": len(foods), "n_menus": len(menus), "top": words}
+
     def photo_url(self, cid):
         r = self.by_id.get(cid)
         return r["_photo"] if r else None
+
+
+def _menu(cid):
+    """음식점 대표메뉴. 아직 받지 않았으면 None (화면은 '대표메뉴 준비 중' 없이 그냥 비워 둔다)."""
+    f = FOOD_INTRO / f"{cid}.json"
+    if not f.exists():
+        return None
+    it = ((json.loads(f.read_text(encoding="utf-8"))["response"]["body"].get("items") or {}).get("item") or [{}])
+    it = it[0] if isinstance(it, list) else it
+    return (it.get("firstmenu") or "").strip() or None
+
+
+_MENU_SPLIT = re.compile(r"[,/·|+&\n]|\s및\s")
+_MENU_TAIL = re.compile(r"\s*(외|등|기타)\s*$")  # "막국수 외" → "막국수" (등갈비처럼 이름 안의 글자는 그대로)
+_MENU_NOISE = re.compile(r"\(.*?\)|\[.*?\]|[0-9][0-9,.]*\s*(원|인분|마리|개|g|kg|ml|L|인|접시|그릇|세트)?|[~*★☆]")
+
+
+def _menu_words(menu):
+    """'북경오리 1마리, 소고기국밥(1인분) 9,000원' → ['북경오리', '소고기국밥']"""
+    out = []
+    for part in _MENU_SPLIT.split(menu):
+        w = _MENU_TAIL.sub("", _MENU_NOISE.sub(" ", part)).strip()
+        w = " ".join(w.split())
+        if 2 <= len(w) <= 12:
+            out.append(w)
+    return out
 
 
 def _in_year(it):

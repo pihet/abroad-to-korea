@@ -124,6 +124,7 @@ class ActivityItem(BaseModel):
     distance_km: Optional[float]
     period: Optional[str] = None
     schedule: Optional[str] = None
+    menu: Optional[str] = None
 
 
 class ActivitiesResponse(BaseModel):

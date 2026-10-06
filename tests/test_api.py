@@ -302,3 +302,23 @@ def test_without_travel_month(client, qid):
     a = client.get("/api/activities", params={"sigungu_key": "51_양양군"}).json()
     fest = [i for i in a["items"] if i["group"] == "festival"]
     assert len(fest) >= 2 and {f["schedule"] for f in fest} <= {"예정", "지난 개최 기록"}
+
+
+def test_food(client):
+    a = client.get("/api/activities", params={"sigungu_key": "50_제주시"}).json()
+    groups = {g["key"]: g["count"] for g in a["groups"]}
+    assert groups["food"] > 0
+    assert any("평점" in n for n in a["notes"])  # 맛 순위가 아니라고 밝힌다
+    p = client.get("/api/regions/50_제주시/profile").json()
+    f = p["food"]
+    assert f["n_places"] == groups["food"] and 0 <= f["n_menus"] <= f["n_places"]
+    assert all(w["places"] >= 2 for w in f["top"]) and (f["top"] == [] or f["n_menus"] >= 5)
+    lists = {l["id"]: l for l in client.get("/api/rankings").json()["lists"]}
+    before = {i["key"]: i["value"] for i in lists["rural-activities"]["items"]}
+    assert before.get("41_가평군") == 207  # 음식점은 '할 거리' 수에 넣지 않는다
+
+
+def test_menu_words():
+    from app.activities import _menu_words
+    assert _menu_words("소고기국밥(1인분) 9,000원, 수육") == ["소고기국밥", "수육"]
+    assert _menu_words("등갈비찜 2인분 외") == ["등갈비찜"]

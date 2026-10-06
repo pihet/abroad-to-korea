@@ -120,7 +120,7 @@ def main() -> None:
 
     manifest = {
         "endpoint": BASE_URL,
-        "contentTypeId": content_type,
+        "contentTypeId": ct,
         "numOfRows": ROWS_PER_PAGE,
         "totalCount": total,
         "pages": pages,
