@@ -1,0 +1,7 @@
+{
+  "name": "record-deck",
+  "private": true,
+  "description": "미니프로젝트2 진행 기록 PPT 생성 (과제 개요서 항목 순서)",
+  "scripts": { "build": "node build.js" },
+  "dependencies": { "pptxgenjs": "3.12.0" }
+}
