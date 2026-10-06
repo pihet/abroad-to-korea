@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api, type DemoPhoto } from '../api'
+import { api, showcaseApi, type DemoPhoto, type Showcase } from '../api'
 
 export type Source = { kind: 'file'; file: Blob; url: string; sourceAttractionId?: string } | { kind: 'demo'; photo: DemoPhoto; url: string }
 
@@ -7,7 +7,9 @@ export function PhotoStep({ onPick, onBrowse, filterBar, afterEntries }: { onPic
   const [demos, setDemos] = useState<DemoPhoto[]>([])
   const [q, setQ] = useState('')
   const [err, setErr] = useState<string | null>(null)
+  const [show, setShow] = useState<Showcase | null>(null)
   useEffect(() => { api.demoPhotos().then(setDemos).catch(e => setErr(e.message)) }, [])
+  useEffect(() => { showcaseApi().then(setShow).catch(() => setShow(null)) }, [])
   const shown = useMemo(() => {
     const f = q.trim().toLowerCase()
     return demos.filter(d => !f || `${d.place_name} ${d.scene_label}`.toLowerCase().includes(f)).slice(0, 48)
@@ -30,24 +32,40 @@ export function PhotoStep({ onPick, onBrowse, filterBar, afterEntries }: { onPic
 
   return (
     <section className="step photo-step">
-      <div className="hero-copy">
-        <h1>가고 싶은 해외 풍경, 국내에서 찾아보세요</h1>
-        <p>해외 여행지 사진을 올리면 분위기가 비슷한 국내 관광지를 찾고, 고른 달에 얼마나 붐비는지까지 함께 보여 드립니다.</p>
+      <div className="hero">
+        <div className="hero-copy">
+          <h1>그 해외 풍경,<br />국내에도 있어요</h1>
+          <p>가고 싶은 해외 여행지 사진을 올리면 분위기가 닮은 국내 관광지를 찾아 드립니다. 덜 붐비는 곳, 가까운 곳으로 다시 고를 수도 있어요.</p>
+          <div className="hero-ctas">
+            <label className="cta">
+              <input type="file" accept="image/*,.heic,.heif" onChange={onFile} />사진 올리기
+            </label>
+            <label className="cta ghost-cta only-mobile">
+              <input type="file" accept="image/*" capture="environment" onChange={onFile} />사진 찍기
+            </label>
+            <button type="button" className="cta ghost-cta" onClick={onBrowse}>사진 없이 둘러보기</button>
+          </div>
+          <p className="fine">JPG·PNG·WEBP·HEIC, 15MB 이하 · 올린 사진은 저장하지 않습니다</p>
+        </div>
+        {show && (
+          <figure className="hero-pair" aria-label="실제 추천 예시">
+            <div className="hp-photo">
+              <img src={show.overseas.image_url} alt={`${show.overseas.place_name} ${show.overseas.scene_label}`} />
+              <figcaption><b>{show.overseas.place_name}</b><span>{show.overseas.scene_label}</span></figcaption>
+            </div>
+            <div className="hp-arrow" aria-hidden="true"><span>닮은 곳</span></div>
+            <div className="hp-photo">
+              <img src={show.domestic.attraction.image_url} alt={show.domestic.attraction.name} />
+              <figcaption><b>{show.domestic.sigungu.sido.split(' ')[0]} {show.domestic.sigungu.name}</b><span>{show.domestic.attraction.name}</span></figcaption>
+            </div>
+            <p className="hp-note">예시 · {show.note} · 왼쪽 {show.overseas.artist} ({show.overseas.license}, Wikimedia Commons) · 오른쪽 한국관광공사 · {show.domestic.attraction.license}</p>
+          </figure>
+        )}
       </div>
-      <div className="start-filters">{filterBar}</div>
-      <div className="upload-row">
-        <label className="upload">
-          <input type="file" accept="image/*,.heic,.heif" onChange={onFile} />
-          <strong>사진 올리기</strong><span>JPG·PNG·WEBP·HEIC, 15MB 이하</span>
-        </label>
-        <label className="upload camera">
-          <input type="file" accept="image/*" capture="environment" onChange={onFile} />
-          <strong>사진 찍기</strong><span>휴대폰에서 바로 촬영</span>
-        </label>
-        <button type="button" className="upload browse-entry" onClick={onBrowse}>
-          <strong>사진 없이 둘러보기</strong><span>조건에 맞는 곳을 사진으로 훑어보기</span>
-        </button>
-      </div>
+      <details className="start-filters">
+        <summary>조건을 걸고 찾기 <small>바다·산·방문객·도시/시골·지역 (선택)</small></summary>
+        {filterBar}
+      </details>
       {err && <p className="error" role="alert">{err}</p>}
       {afterEntries}
       <div className="demo-head">

@@ -165,3 +165,9 @@ export interface RankingItem { key: string; name: string; sido: string; value: n
 export interface RankingList { id: string; title: string; basis: string; items: RankingItem[]; empty?: string }
 export const rankingsApi = () =>
   fetch(`/api/rankings`).then(r => json<{ lists: RankingList[] }>(r)).then(r => r.lists)
+
+export interface Showcase {
+  is_example: boolean; note: string; overseas: DemoPhoto
+  domestic: { sigungu: { key: string; name: string; sido: string }; attraction: Candidate['attraction']; similarity: number; visual_rank: number }
+}
+export const showcaseApi = () => fetch('/api/showcase').then(r => json<Showcase>(r))

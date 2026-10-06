@@ -62,6 +62,25 @@ def health():
     return {"ok": engine is not None}
 
 
+SHOWCASE_PHOTO = "kyoto__fushimi__1.jpg"
+_showcase = None
+
+
+@app.get("/api/showcase")
+def showcase():
+    """첫 화면 예시: 해외 사진 한 장을 실제로 추천에 넣은 결과 1위 (지어낸 짝이 아님). 처음 요청 때 한 번 계산해 둔다."""
+    global _showcase
+    if _showcase is None:
+        photo = next(p for p in engine.demo_photos() if p["photo_id"] == SHOWCASE_PHOTO)
+        img, _ = engine.open_image((sc.IMG_DIR / SHOWCASE_PHOTO).read_bytes())
+        qid, _ = engine.analyze(img)
+        top = engine.recommend(qid, None, "visual", None, None, 1, 0)["candidates"][0]
+        _showcase = {"is_example": True, "note": "실제 추천 결과 1위 (예시 사진으로 계산)", "overseas": photo,
+                     "domestic": {"sigungu": top["sigungu"], "attraction": top["attraction"],
+                                  "similarity": top["visual"]["similarity"], "visual_rank": top["visual_rank"]}}
+    return _showcase
+
+
 @app.get("/api/demo-photos")
 def demo_photos():
     return {"is_example": False, "photos": engine.demo_photos()}

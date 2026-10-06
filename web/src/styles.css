@@ -396,3 +396,125 @@ button.upload strong { color: var(--same-ink) }
 .food-chips li { display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 14px; border-radius: 999px; background: color-mix(in srgb, var(--g-food) 12%, var(--bg)) }
 .food-chips b { color: var(--g-food); font-size: 15px }
 .food-chips small { color: var(--sub); font-size: 12px; font-variant-numeric: tabular-nums }
+
+/* ===== 디자인 개편 (2026-10-06): 글꼴 한 가지, 알약 줄이기, 강조색은 버튼·선택 상태에만 ===== */
+:root {
+  --font: "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --display: var(--font);
+  --ink: #15181a; --sub: #5d6468; --line: #e4e7e9; --soft: #f4f5f6; --tint: #f4f5f6;
+  --accent: #0a6e66; --accent-soft: #e6f1ef;
+  --r: 10px; --r-lg: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #eceeef; --sub: #a5acb0; --line: #2b3033; --soft: #1b1f21; --tint: #1b1f21; --accent: #4fc2b3; --accent-soft: #163330 }
+}
+body { letter-spacing: -0.01em }
+h1, h2, h3 { letter-spacing: -0.03em }
+.hero-copy h1, .result-head h1, .rankings h2, .region-head h2, .qmain h1 { font-family: var(--font); font-weight: 800 }
+.hero-copy h1::after { display: none }
+.logo { font-family: var(--font); font-weight: 900; letter-spacing: -0.04em }
+
+/* 버튼·칩: 둥근 알약 대신 각진 모서리, 선택 상태는 진한 글자색 */
+.primary, .ghost { border-radius: 10px }
+.primary { box-shadow: none }
+.primary:hover:not(:disabled) { transform: none; box-shadow: none; background: color-mix(in srgb, var(--accent) 88%, #000) }
+.fchips button, .fchips select, .months button, .card-actions button, .acts-chips button, .browse-sort select, .search, .conditions select { border-radius: 8px }
+.fchips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg) }
+.fchips button[aria-pressed="true"] .n { color: var(--bg); opacity: .7 }
+.chip { border-radius: 6px; padding: 4px 9px; font-size: 13px }
+.chip.on { background: var(--soft); color: var(--ink); font-weight: 600 }
+.chip.on span { color: var(--sub) }
+.pill { border-radius: 0; padding: 0; background: none !important; font-size: 13px }
+.pill.same::before, .pill.diff::before { content: "●"; font-size: 8px; margin-right: 4px; vertical-align: 2px }
+.pill.same { color: var(--same-ink) } .pill.diff { color: var(--diff-ink) }
+.reasons > div { gap: 4px 12px }
+.badge { border-radius: 4px }
+.region-badges span { border-radius: 4px; background: var(--soft); color: var(--ink); font-weight: 600 }
+.card-actions button.strong { background: var(--ink); color: var(--bg) }
+.fact { background: none; border-left: 2px solid var(--line); border-radius: 0; padding: 2px 0 2px 12px }
+.fact.on { background: none; border-left-color: var(--accent) }
+.region-facts div { background: none; border-left: 2px solid var(--line); border-radius: 0; padding: 4px 0 4px 14px }
+
+/* 첫 화면: 왼쪽 글 + 오른쪽 실제 추천 한 쌍 */
+.hero { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: clamp(24px, 4vw, 56px); align-items: center; padding-block: clamp(12px, 3vw, 40px) 8px }
+.hero-copy h1 { font-size: clamp(36px, 5.4vw, 60px); line-height: 1.08 }
+.hero-copy p { font-size: 17px; line-height: 1.6; margin-top: 18px; max-width: 34ch }
+.hero-copy .fine { font-size: 12.5px; margin-top: 12px }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px }
+.cta { position: relative; display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 24px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 16px; cursor: pointer; border: 0; font-family: inherit }
+.cta input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
+.cta:hover { background: color-mix(in srgb, var(--accent) 88%, #000) }
+.cta:focus-within, .cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px }
+.ghost-cta { background: var(--bg); color: var(--ink); border: 1.5px solid var(--ink) }
+.ghost-cta:hover { background: var(--soft) }
+.only-mobile { display: none }
+@media (hover: none) and (pointer: coarse) { .only-mobile { display: inline-flex } }
+.hero-pair { margin: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px }
+.hp-photo { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.hp-photo img { width: 100%; aspect-ratio: 4/3; object-fit: contain; background: #111; border-radius: var(--r-lg) }
+.hp-photo figcaption { display: flex; flex-direction: column }
+.hp-photo b { font-size: 15px } .hp-photo span { font-size: 13px; color: var(--sub) }
+.hp-arrow span { writing-mode: vertical-rl; font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: .1em }
+.hp-arrow::before, .hp-arrow::after { content: ""; display: block; width: 1px; height: 40px; background: var(--line); margin: 6px auto }
+.hp-note { grid-column: 1 / -1; margin: 0; font-size: 11px; color: var(--sub) }
+.start-filters { background: none; padding: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 28px 0 8px; border-radius: 0 }
+.start-filters > summary { cursor: pointer; padding: 16px 0; font-weight: 700; font-size: 16px; list-style: none; display: flex; align-items: baseline; gap: 10px }
+.start-filters > summary::-webkit-details-marker { display: none }
+.start-filters > summary::after { content: "+"; margin-left: auto; font-size: 20px; color: var(--sub) }
+.start-filters[open] > summary::after { content: "−" }
+.start-filters > summary small { font-weight: 500; color: var(--sub); font-size: 13px }
+.start-filters[open] { padding-bottom: 18px }
+.upload-row { display: none }
+
+/* 둘러볼 만한 곳: 큰 사진 카드 가로 넘기기 */
+.rankings { margin-top: 36px }
+.rank-head h3 { font-size: 19px }
+.rank-wrap { position: relative }
+.rank-row { grid-auto-columns: minmax(240px, 280px); gap: 16px; scrollbar-width: none }
+.rank-row::-webkit-scrollbar { display: none }
+.rank-row .ph { aspect-ratio: 3/2; border-radius: 12px; background: #111 }
+.rank-row .ph em { border-radius: 6px; width: auto; height: auto; padding: 2px 8px; background: rgba(0,0,0,.6); color: #fff; box-shadow: none }
+.rank-row b { font-size: 16px; margin-top: 4px }
+.rank-row .val { color: var(--ink) }
+.rank-nav { position: absolute; top: calc(50% - 46px); z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); font-size: 24px; line-height: 1; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.12); color: var(--ink) }
+.rank-nav.prev { left: -14px } .rank-nav.next { right: -14px }
+@media (max-width: 760px) { .rank-nav { display: none } }
+
+/* 결과: 위 질의 막대 + 아래 목록·지도 2단 */
+.result2 { display: flex; flex-direction: column; gap: 20px }
+.qbar { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 18px; align-items: start; padding-bottom: 18px; border-bottom: 1px solid var(--line); position: relative }
+.qthumb { width: 112px; height: 84px; object-fit: cover; border-radius: 10px }
+.qmain { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.qmain h1 { font-size: clamp(20px, 2.4vw, 26px) }
+.qmeta { margin: 0; color: var(--sub); font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.qmain .tags { margin: 2px 0 0 }
+.qcond > summary { list-style: none; cursor: pointer; border: 1.5px solid var(--ink); border-radius: 10px; padding: 9px 16px; font-weight: 700; font-size: 14px; white-space: nowrap }
+.qcond > summary::-webkit-details-marker { display: none }
+.qcond[open] > summary { background: var(--ink); color: var(--bg) }
+.qcond-panel { position: absolute; right: 0; top: calc(100% - 10px); z-index: 20; width: min(560px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,.14); display: flex; flex-direction: column; gap: 14px }
+.result-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr); gap: 24px; align-items: start }
+.map-col { position: sticky; top: 72px }
+.result-map { height: calc(100vh - 100px); min-height: 420px; border-radius: var(--r-lg); overflow: hidden; background: var(--soft); z-index: 0 }
+.rpin { width: 0 !important; height: 0 !important; overflow: visible }
+.rpin span { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font: 800 14px/1 var(--font); box-shadow: 0 2px 6px rgba(0,0,0,.3); transition: transform .12s }
+.rpin b { position: absolute; left: 20px; top: -11px; white-space: nowrap; background: var(--bg); color: var(--ink); font: 700 12px/1 var(--font); padding: 5px 7px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2) }
+.rpin.on span { background: var(--accent); transform: scale(1.25) }
+.result2 .card { grid-template-columns: 1fr }
+.result2 .pair figure { aspect-ratio: 3/2; min-height: 0; background: #111 }
+.result2 .pair figcaption { top: auto; bottom: 8px; left: 8px }
+.result2 .card-body { padding: 16px 18px 18px }
+.cand { border-radius: var(--r-lg); transition: box-shadow .15s }
+.cand.on .card { box-shadow: 0 0 0 2px var(--accent), var(--card-shadow) }
+.pair figure { aspect-ratio: 3/2 }
+@media (max-width: 980px) {
+  .result-body { grid-template-columns: 1fr }
+  .map-col { position: static; order: -1 }
+  .result-map { height: 300px; min-height: 0 }
+  .hero { grid-template-columns: 1fr }
+}
+@media (max-width: 620px) {
+  .qbar { grid-template-columns: 72px minmax(0, 1fr) }
+  .qthumb { width: 72px; height: 54px }
+  .qcond { grid-column: 1 / -1 }
+  .qcond-panel { position: static; width: 100%; box-shadow: none; margin-top: 8px }
+}

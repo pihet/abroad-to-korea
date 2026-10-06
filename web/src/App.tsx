@@ -3,6 +3,7 @@ import { api, PRIORITY_LABEL, regionsApi, type AnalyzeResponse, type Candidate, 
 import { BrowseStep } from './components/BrowseStep'
 import { Rankings } from './components/Rankings'
 import { RegionPage } from './components/RegionPage'
+import { ResultMap } from './components/ResultMap'
 import { FilterBar } from './components/FilterBar'
 import { CandidateCard } from './components/CandidateCard'
 import { Conditions, type Cond } from './components/Conditions'
@@ -51,6 +52,7 @@ export default function App() {
   const [votes, setVotes] = useState<Record<string, 1 | -1>>({})
   // 지역 상세는 주소로도 연다: #region=50_제주시&acts=food (공유·바로가기용)
   const readHash = () => new URLSearchParams(window.location.hash.slice(1))
+  const [hoverKey, setHoverKey] = useState<string | null>(null)
   const [regionKey, setRegionKeyState] = useState<string | null>(() => readHash().get('region'))
   const [actsGroup] = useState<string | undefined>(() => readHash().get('acts') ?? undefined)
   const setRegionKey = (k: string | null) => {
@@ -62,7 +64,6 @@ export default function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
-  const [wide] = useState(() => window.matchMedia('(min-width: 821px)').matches)
 
   useEffect(() => { try { localStorage.setItem('saved-places', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { regionsApi(cond.origin).then(setRegions).catch(e => setErr(e.message)) }, [cond.origin])
@@ -184,44 +185,54 @@ export default function App() {
         )}
 
         {step === 'result' && result && analysis && (
-          <section className="result">
-            <aside className="query">
-              <div className="query-photo"><img src={preview} alt="원본 사진" /></div>
-              {credit && <Credit p={credit} />}
-              <TagChips tags={analysis.scene_tags} kept={kept} onChange={setKept} />
-              {/* 좁은 화면에서는 조건을 접어 추천 카드가 먼저 보이게 한다 */}
-              <details className="cond-box" open={wide}>
-                <summary>조건 바꾸기 · {PRIORITY_LABEL[cond.priority]}</summary>
-                <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
-                <Conditions value={cond} onChange={setCond} />
-                <button type="button" className="ghost wide" onClick={() => setStep('photo')}>새 사진으로 찾기</button>
-              </details>
-            </aside>
-            <div className="results">
-              <div className="result-head">
-                <h1>분위기가 닮은 국내 여행지</h1>
-                <p>
-                  <span className={result.is_example ? 'badge warn' : 'badge'}>{result.is_example ? '예시 데이터' : '모델 추천 결과'}</span>
+          <section className="result2">
+            <div className="qbar">
+              <img className="qthumb" src={preview} alt="찾은 사진" />
+              <div className="qmain">
+                <h1>이 사진과 분위기가 닮은 국내 여행지</h1>
+                <p className="qmeta">
+                  {result.is_example && <span className="badge warn">예시 데이터</span>}
                   {result.query.allowed_regions != null && <>조건에 맞는 {result.query.allowed_regions}곳 안에서 </>}
-                  사진이 닮은 {result.total_candidates}곳 중 <b>{PRIORITY_LABEL[cond.priority]}</b> 기준
+                  사진이 닮은 {result.total_candidates}곳 · <b>{PRIORITY_LABEL[cond.priority]}</b> 순
                   {result.query.excluded_sigungu && <> · 출발한 {result.query.excluded_sigungu.name}은 제외</>}
                 </p>
+                <TagChips tags={analysis.scene_tags} kept={kept} onChange={setKept} />
+                {credit && <Credit p={credit} />}
               </div>
-              {result.total_candidates === 0 && <p className="error">조건에 맞는 시군구가 없습니다. 조건을 하나 빼 보세요.</p>}
-              <div className={busy ? 'cards busy' : 'cards'}>
-                {list.map(c => (
-                  <CandidateCard key={c.sigungu.key} c={c} originUrl={preview} priority={cond.priority}
-                    saved={saved.some(s => s.key === `${c.sigungu.key}/${c.attraction.id}`)}
-                    comparing={compare.some(x => x.sigungu.key === c.sigungu.key)} voted={votes[c.sigungu.key]}
-                    onSave={() => toggleSave(c)} onCompare={() => toggleCompare(c)} onFeedback={v => feedback(c, v)}
-                    onSearchSimilar={() => searchFrom(c)} onOpenRegion={() => setRegionKey(c.sigungu.key)} />
-                ))}
+              <details className="qcond">
+                <summary>조건 바꾸기</summary>
+                <div className="qcond-panel">
+                  <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
+                  <Conditions value={cond} onChange={setCond} />
+                  <button type="button" className="ghost wide" onClick={() => setStep('photo')}>새 사진으로 찾기</button>
+                </div>
+              </details>
+            </div>
+            {result.total_candidates === 0 && <p className="error">조건에 맞는 시군구가 없습니다. 조건을 하나 빼 보세요.</p>}
+            <div className="result-body">
+              <div className="results">
+                <div className={busy ? 'cards busy' : 'cards'}>
+                  {list.map(c => (
+                    <div key={c.sigungu.key} id={`cand-${c.sigungu.key}`} className={hoverKey === c.sigungu.key ? 'cand on' : 'cand'}
+                         onMouseEnter={() => setHoverKey(c.sigungu.key)} onMouseLeave={() => setHoverKey(null)}>
+                      <CandidateCard c={c} originUrl={preview} priority={cond.priority}
+                        saved={saved.some(s => s.key === `${c.sigungu.key}/${c.attraction.id}`)}
+                        comparing={compare.some(x => x.sigungu.key === c.sigungu.key)} voted={votes[c.sigungu.key]}
+                        onSave={() => toggleSave(c)} onCompare={() => toggleCompare(c)} onFeedback={v => feedback(c, v)}
+                        onSearchSimilar={() => searchFrom(c)} onOpenRegion={() => setRegionKey(c.sigungu.key)} />
+                    </div>
+                  ))}
+                </div>
+                {list.length < result.total_candidates && (
+                  <button type="button" className="ghost wide" disabled={busy} onClick={more}>다른 후보 보기 ({list.length} / {result.total_candidates})</button>
+                )}
+                {compare.length >= 2 && <CompareTable items={compare} onClear={() => setCompare([])} />}
+                <Sources r={result} />
               </div>
-              {list.length < result.total_candidates && (
-                <button type="button" className="ghost wide" disabled={busy} onClick={more}>다른 후보 보기 ({list.length} / {result.total_candidates})</button>
-              )}
-              {compare.length >= 2 && <CompareTable items={compare} onClear={() => setCompare([])} />}
-              <Sources r={result} />
+              <div className="map-col">
+                <ResultMap items={list} active={hoverKey}
+                  onPick={k => { setHoverKey(k); document.getElementById(`cand-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+              </div>
             </div>
           </section>
         )}
