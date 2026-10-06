@@ -137,3 +137,7 @@
 - `GET /api/regions?month=&origin=` — 시군구 230곳의 조건 값(`coast_km`, `mountain_n`, `visitors`, `congestion_index`, `temp_c`, `rain_days`), `flags`, 대표 사진, 출발지 거리. `filters[]`에 이름과 기준 문구
 - `GET /api/activities?sigungu_key=&month=&attraction_id=` — 지역 활동 목록과 묶음별 개수, 기준 관광지(★)
 - `GET /images/tour/{id}` — 활동 목록의 공공누리 1·3유형 썸네일 (목록에 있는 id만)
+
+- 2026-10-06: 화면에서 여행 월 선택 제거. `travel_month`(recommend), `month`(regions·rankings·profile·activities)는 선택 값으로 남김. 없으면 월평균·연간 기준, `priority: "season"`과 `filters: ["mild"]`는 400
+- `GET /api/regions/{key}/profile` — 지역 상세(12개월 기온·비·혼잡도, 읍·면·동 경계와 동네 Top 5, `focus` 지도 범위)
+- `GET /api/rankings` — 둘러볼 만한 곳 목록(목록마다 조건 하나 + 정렬 기준 하나)

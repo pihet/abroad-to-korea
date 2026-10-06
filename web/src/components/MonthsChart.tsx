@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MonthRow } from '../api'
 
-// "언제 가면 좋을까": 같은 월 축을 쓰는 작은 그래프 세 개(기온 · 비 온 날 · 혼잡도).
+// "언제 가면 좋을까": 같은 월 축을 쓰는 작은 그래프 세 개(기온 · 비 온 날 · 혼잡도). month = 강조할 달(없으면 null).
 // 단위가 다른 값을 한 그래프의 두 축에 겹치지 않는다. 고른 달은 세로 띠로 강조, 마우스를 올린 달은 세 값을 한 번에 보여 준다.
 const W = 640, PAD_L = 44, PAD_R = 12, ROW_H = 74, GAP = 22, TOP = 8
 const COL = (W - PAD_L - PAD_R) / 12
@@ -13,7 +13,7 @@ const ROWS: Row[] = [
   { key: 'crowd', title: '혼잡도 (평소 100)', unit: '', get: m => m.congestion_index, kind: 'bar', ref: 100 },
 ]
 
-export function MonthsChart({ months, month, onPick }: { months: MonthRow[]; month: number; onPick?: (m: number) => void }) {
+export function MonthsChart({ months, month, onPick }: { months: MonthRow[]; month: number | null; onPick?: (m: number) => void }) {
   const [hover, setHover] = useState<number | null>(null)
   const H = TOP + ROWS.length * (ROW_H + GAP) + 18
   const cx = (i: number) => PAD_L + COL * i + COL / 2
@@ -23,13 +23,13 @@ export function MonthsChart({ months, month, onPick }: { months: MonthRow[]; mon
   return (
     <div className="mchart3">
       <div className="mchart3-read" aria-live="polite">
-        <b>{shown}월</b>
-        <span>평균기온 {cur?.temp_c ?? '–'}°C</span>
-        <span>비 온 날 {cur?.rain_days ?? '–'}일</span>
-        <span>혼잡도 {cur?.congestion_index ?? '–'}{cur?.basis ? ` (${cur.basis === 'forecast' ? '예측' : '실측'} ${cur.basis_month})` : ''}</span>
+        <b>{shown ? `${shown}월` : '달 위에 마우스를 올려 보세요'}</b>
+        {cur && <><span>평균기온 {cur.temp_c ?? '–'}°C</span>
+        <span>비 온 날 {cur.rain_days ?? '–'}일</span>
+        <span>혼잡도 {cur.congestion_index ?? '–'}{cur.basis ? ` (${cur.basis === 'forecast' ? '예측' : '실측'} ${cur.basis_month})` : ''}</span></>}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="월별 평균기온, 비 온 날, 혼잡도" onMouseLeave={() => setHover(null)}>
-        <rect x={PAD_L + COL * (month - 1)} y={0} width={COL} height={H - 18} className="pick-band" />
+        {month && <rect x={PAD_L + COL * (month - 1)} y={0} width={COL} height={H - 18} className="pick-band" />}
         {hover && hover !== month && <rect x={PAD_L + COL * (hover - 1)} y={0} width={COL} height={H - 18} className="hover-band" />}
         {ROWS.map((r, ri) => {
           const y0 = TOP + ri * (ROW_H + GAP) + 14, y1 = y0 + ROW_H - 14

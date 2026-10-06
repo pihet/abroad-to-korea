@@ -135,6 +135,8 @@ def _in_year(it):
 
 
 def _in_month(r, month):
+    if month is None:  # 여행 월을 고르지 않으면 2026년 축제 전부
+        return True
     ym = f"{FESTIVAL_YEAR}{month:02d}"
     return r["start"][:6] <= ym <= r["end"][:6]
 

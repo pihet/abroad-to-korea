@@ -126,6 +126,10 @@ def recommend(req: RecommendRequest):
         raise HTTPException(404, "분석 결과가 만료됐습니다. 사진을 다시 분석해 주세요.")
     if req.sido and req.sido not in {s["sido"] for s in regions.static.values()}:
         raise HTTPException(400, "시도 이름이 올바르지 않습니다.")
+    if req.travel_month is None and req.priority == "season":
+        raise HTTPException(400, "'고른 달에 가기 좋은 곳'은 여행 월을 골라야 쓸 수 있습니다.")
+    if req.travel_month is None and "mild" in req.filters:
+        raise HTTPException(400, "날씨 조건은 여행 월을 골라야 쓸 수 있습니다.")
     allowed = regions.allowed(req.travel_month, req.filters, req.sido)
     exclude = engine.cache[req.query_id]["exclude"]
     if allowed is not None and exclude is not None:  # 필터 개수도 출발 시군구를 뺀 수로 보여 준다
@@ -172,7 +176,7 @@ def kr_image(cid: str):
 
 
 @app.get("/api/regions")
-def region_table(month: int = Query(ge=1, le=12), origin: Optional[str] = None):
+def region_table(month: Optional[int] = Query(None, ge=1, le=12), origin: Optional[str] = None):
     """시군구별 조건 값·필터 통과 여부·대표 사진. 조건 칩의 곳 수와 '사진 없이 둘러보기'에 쓴다."""
     if origin is not None and origin not in ORIGINS:
         raise HTTPException(400, "출발지가 올바르지 않습니다.")
@@ -187,7 +191,7 @@ def region_table(month: int = Query(ge=1, le=12), origin: Optional[str] = None):
 
 
 @app.get("/api/rankings")
-def rankings(month: int = Query(ge=1, le=12)):
+def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
     """이 달의 목록. 목록마다 거르는 조건 하나 + 정렬 기준 하나, 둘 다 화면에 적는다 (종합점수 없음)."""
     rows = regions.month_table(month)
     meta = {f["key"]: f for f in regions.filter_meta(month)}
@@ -198,6 +202,24 @@ def rankings(month: int = Query(ge=1, le=12)):
         sel = sorted((r for r in rows if pred(r) and sort_key(r) is not None), key=sort_key)[:n]
         return [{"key": r["key"], "name": r["name"], "sido": r["sido"], "value": value(r), "unit": unit,
                  "photo": engine.region_photo(r["ri"])} for r in sel]
+
+    if month is None:  # 여행 월 없이: 연간·앞으로 열릴 축제 기준
+        n_up = {r["key"]: sum(i["group"] == "festival" and i.get("schedule") == "예정" for i in acts.for_region(r["key"], None)[1]) for r in rows}
+        lists = [
+            {"id": "quiet-sea", "title": "방문객이 적은 바닷가",
+             "basis": "바다 가까운 곳 중 월평균 외지인 방문자 수가 적은 순 (2025-09~2026-08)",
+             "items": top(lambda r: r["flags"]["sea"], lambda r: r["visitors"], lambda r: round(r["visitors"] / 10000), "만 명/월")},
+            {"id": "mountain", "title": "산·숲이 많은 곳",
+             "basis": "산·계곡·숲·자연공원 관광지가 많은 순 (TourAPI 분류)",
+             "items": top(lambda r: r["mountain_n"] > 0, lambda r: -r["mountain_n"], lambda r: r["mountain_n"], "곳")},
+            {"id": "rural-activities", "title": "할 거리가 많은 시골·소도시",
+             "basis": "시골·소도시 중 관광지·레포츠 수가 많은 순 (축제 제외)",
+             "items": top(lambda r: r["flags"]["rural"], lambda r: -n_act.get(r["key"], 0), lambda r: n_act.get(r["key"], 0), "곳")},
+            {"id": "festivals", "title": "앞으로 축제가 많이 열리는 곳",
+             "basis": "2026년 일정 중 아직 끝나지 않은 축제 수가 많은 순",
+             "items": top(lambda r: n_up[r["key"]] > 0, lambda r: -n_up[r["key"]], lambda r: n_up[r["key"]], "개")},
+        ]
+        return {"is_example": False, "month": None, "lists": lists}
 
     lists = [
         {"id": "quiet-sea", "title": f"{month}월, 방문객이 적은 바닷가",
@@ -222,7 +244,7 @@ def rankings(month: int = Query(ge=1, le=12)):
 
 
 @app.get("/api/regions/{key}/profile")
-def region_profile(key: str, month: int = Query(ge=1, le=12)):
+def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
     """지역 상세: 조건 값, 12개월 날씨·방문자, 읍·면·동 경계와 활동지가 몰린 동네 Top 5."""
     row = next((r for r in regions.month_table(month) if r["key"] == key), None)
     if row is None:
@@ -244,7 +266,7 @@ def region_profile(key: str, month: int = Query(ge=1, le=12)):
 
 
 @app.get("/api/activities", response_model=ActivitiesResponse)
-def activities(sigungu_key: str, month: int = Query(ge=1, le=12), attraction_id: Optional[str] = None):
+def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12), attraction_id: Optional[str] = None):
     if sigungu_key not in engine.region_keys:
         raise HTTPException(404, "시군구를 찾을 수 없습니다.")
     origin = None

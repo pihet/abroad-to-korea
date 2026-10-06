@@ -285,3 +285,20 @@ def test_rankings(client):
             assert calm["empty"]
         sea = [i["value"] for i in lists["quiet-sea"]["items"]]
         assert sea == sorted(sea)
+
+
+def test_without_travel_month(client, qid):
+    """화면에서 여행 월 선택을 뺐다: 월 없이 요청하면 월평균·연간 기준."""
+    r = client.post("/api/recommend", json={"query_id": qid, "priority": "crowd", "limit": 30}).json()
+    assert r["query"]["month"] is None and r["candidates"]
+    for c in r["candidates"]:
+        assert c["climate"] is None and c["congestion"]["basis"] == "annual" and c["congestion"]["index"] is None
+    assert client.post("/api/recommend", json={"query_id": qid, "priority": "season"}).status_code == 400
+    assert client.post("/api/recommend", json={"query_id": qid, "filters": ["mild"]}).status_code == 400
+    lists = client.get("/api/rankings").json()["lists"]
+    assert [l["id"] for l in lists] == ["quiet-sea", "mountain", "rural-activities", "festivals"]
+    p = client.get("/api/regions/51_양양군/profile").json()
+    assert p["month"] is None and len(p["months"]) == 12
+    a = client.get("/api/activities", params={"sigungu_key": "51_양양군"}).json()
+    fest = [i for i in a["items"] if i["group"] == "festival"]
+    assert len(fest) >= 2 and {f["schedule"] for f in fest} <= {"예정", "지난 개최 기록"}

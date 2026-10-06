@@ -21,7 +21,7 @@ URBAN_MIN = 0.5  # 시군구 인구 중 '동' 지역 거주 비율. 이 이상�
 FILTERS = {
     "sea": ("바다 가까운 곳", f"관광지가 해안선 {COAST_KM:g}km 안에 있는 시군구 (Natural Earth 해안선)"),
     "mountain": ("산·숲이 많은 곳", f"산·계곡·숲·자연공원 관광지 {MOUNTAIN_MIN}곳 이상 (TourAPI 분류)"),
-    "calm": ("방문객이 적은 곳", "그 달 외지인 방문자 수가 전국 시군구 중앙값 이하 (절대량. 카드의 혼잡도는 그 지역 평소 대비라 다를 수 있음)"),
+    "calm": ("방문객이 적은 곳", "그 달(월을 고르지 않으면 월평균) 외지인 방문자 수가 전국 시군구 중앙값 이하 (절대량. 카드의 혼잡도는 그 지역 평소 대비라 다를 수 있음)"),
     "city": ("도시", f"주민의 {URBAN_MIN:.0%} 이상이 '동' 지역에 사는 시군구 (2026-09 주민등록, 통계청 동부·읍면부 구분)"),
     "rural": ("시골·소도시", f"주민의 {URBAN_MIN:.0%} 넘게 '읍·면' 지역에 사는 시군구 (2026-09 주민등록)"),
     "mild": ("날씨가 쾌적한 곳", f"그 달 평균기온 {COMFORT[0]}~{COMFORT[1]}°C (2021~2025년)"),  # 달마다 바뀜: weather_rule
@@ -39,6 +39,8 @@ def weather_rule(median):
 
 
 def _weather_ok(way, t, median):
+    if way == "none":
+        return False
     if way == "warm":
         return t >= median
     if way == "cool":
@@ -119,8 +121,8 @@ class Regions:
         vis = sorted(r["visitors"] for r in rows if r["visitors"] is not None)
         med = vis[len(vis) // 2] if vis else None
         temps = sorted(r["temp_c"] for r in rows if r["temp_c"] is not None)
-        t_med = temps[len(temps) // 2]
-        rule = weather_rule(t_med)
+        t_med = temps[len(temps) // 2] if temps else None
+        rule = weather_rule(t_med) if temps else ("none", FILTERS["mild"][0], "여행 월을 고르면 쓸 수 있습니다")
         for r in rows:
             r["flags"] = {
                 "sea": r["coast_km"] is not None and r["coast_km"] <= COAST_KM,

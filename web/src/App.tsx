@@ -37,11 +37,11 @@ export default function App() {
   const [preview, setPreview] = useState<string>('')
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null)
   const [kept, setKept] = useState<string[]>([])
-  const [cond, setCond] = useState<Cond>({ month: 10, priority: 'visual', origin: null })
+  const [cond, setCond] = useState<Cond>({ priority: 'visual', origin: null })
   const [fsel, setFsel] = useState<{ sido: string | null; keys: FilterKey[] }>({ sido: null, keys: [] })
   const [regions, setRegions] = useState<RegionsResponse | null>(null)
-  const filters: Filters = { month: cond.month, ...fsel }
-  const setFilters = (f: Filters) => { setFsel({ sido: f.sido, keys: f.keys }); if (f.month !== cond.month) setCond({ ...cond, month: f.month }) }
+  const filters: Filters = fsel
+  const setFilters = (f: Filters) => setFsel({ sido: f.sido, keys: f.keys })
   const [result, setResult] = useState<RecommendResponse | null>(null)
   const [extra, setExtra] = useState<Candidate[]>([])
   const [busy, setBusy] = useState(false)
@@ -53,7 +53,7 @@ export default function App() {
   const [wide] = useState(() => window.matchMedia('(min-width: 821px)').matches)
 
   useEffect(() => { try { localStorage.setItem('saved-places', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
-  useEffect(() => { regionsApi(cond.month, cond.origin).then(setRegions).catch(e => setErr(e.message)) }, [cond.month, cond.origin])
+  useEffect(() => { regionsApi(cond.origin).then(setRegions).catch(e => setErr(e.message)) }, [cond.origin])
 
   const pick = (s: Source) => { setSource(s); setErr(null); setStep('crop'); window.scrollTo(0, 0) }
 
@@ -75,7 +75,7 @@ export default function App() {
     if (!analysis) return
     setBusy(true); setErr(null)
     try {
-      const r = await api.recommend({ query_id: analysis.query_id, travel_month: c.month, priority: c.priority,
+      const r = await api.recommend({ query_id: analysis.query_id, priority: c.priority,
                                       origin: c.origin, kept_tags: tags, limit: PAGE, offset: 0, filters: fsel.keys, sido: fsel.sido })
       setResult(r); setExtra([]); setStep('result')
     } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
@@ -88,7 +88,7 @@ export default function App() {
     if (!analysis || !result) return
     setBusy(true)
     try {
-      const r = await api.recommend({ query_id: analysis.query_id, travel_month: cond.month, priority: cond.priority,
+      const r = await api.recommend({ query_id: analysis.query_id, priority: cond.priority,
                                       origin: cond.origin, kept_tags: kept, limit: PAGE, offset: PAGE + extra.length,
                                       filters: fsel.keys, sido: fsel.sido })
       setExtra([...extra, ...r.candidates])
@@ -138,7 +138,7 @@ export default function App() {
         {step === 'photo' && (
           <PhotoStep onPick={pick} onBrowse={() => { setStep('browse'); window.scrollTo(0, 0) }}
                      filterBar={<FilterBar value={filters} onChange={setFilters} regions={regions} />}
-                     afterEntries={<Rankings month={cond.month} onOpen={setRegionKey} />} />
+                     afterEntries={<Rankings onOpen={setRegionKey} />} />
         )}
         {step === 'browse' && (
           <section className="step">
@@ -179,7 +179,7 @@ export default function App() {
               <TagChips tags={analysis.scene_tags} kept={kept} onChange={setKept} />
               {/* 좁은 화면에서는 조건을 접어 추천 카드가 먼저 보이게 한다 */}
               <details className="cond-box" open={wide}>
-                <summary>조건 바꾸기 · {cond.month}월 · {PRIORITY_LABEL[cond.priority]}</summary>
+                <summary>조건 바꾸기 · {PRIORITY_LABEL[cond.priority]}</summary>
                 <FilterBar value={filters} onChange={setFilters} regions={regions} compact />
                 <Conditions value={cond} onChange={setCond} />
                 <button type="button" className="ghost wide" onClick={() => setStep('photo')}>새 사진으로 찾기</button>
@@ -191,14 +191,14 @@ export default function App() {
                 <p>
                   <span className={result.is_example ? 'badge warn' : 'badge'}>{result.is_example ? '예시 데이터' : '모델 추천 결과'}</span>
                   {result.query.allowed_regions != null && <>조건에 맞는 {result.query.allowed_regions}곳 안에서 </>}
-                  사진이 닮은 {result.total_candidates}곳 중 <b>{PRIORITY_LABEL[cond.priority]}</b> 기준 · {cond.month}월
+                  사진이 닮은 {result.total_candidates}곳 중 <b>{PRIORITY_LABEL[cond.priority]}</b> 기준
                   {result.query.excluded_sigungu && <> · 출발한 {result.query.excluded_sigungu.name}은 제외</>}
                 </p>
               </div>
               {result.total_candidates === 0 && <p className="error">조건에 맞는 시군구가 없습니다. 조건을 하나 빼 보세요.</p>}
               <div className={busy ? 'cards busy' : 'cards'}>
                 {list.map(c => (
-                  <CandidateCard key={c.sigungu.key} c={c} originUrl={preview} month={cond.month} priority={cond.priority}
+                  <CandidateCard key={c.sigungu.key} c={c} originUrl={preview} priority={cond.priority}
                     saved={saved.some(s => s.key === `${c.sigungu.key}/${c.attraction.id}`)}
                     comparing={compare.some(x => x.sigungu.key === c.sigungu.key)} voted={votes[c.sigungu.key]}
                     onSave={() => toggleSave(c)} onCompare={() => toggleCompare(c)} onFeedback={v => feedback(c, v)}
@@ -208,7 +208,7 @@ export default function App() {
               {list.length < result.total_candidates && (
                 <button type="button" className="ghost wide" disabled={busy} onClick={more}>다른 후보 보기 ({list.length} / {result.total_candidates})</button>
               )}
-              {compare.length >= 2 && <CompareTable items={compare} month={cond.month} onClear={() => setCompare([])} />}
+              {compare.length >= 2 && <CompareTable items={compare} onClear={() => setCompare([])} />}
               <Sources r={result} />
             </div>
           </section>
@@ -230,7 +230,7 @@ export default function App() {
         )}
       </main>
       {regionKey && (
-        <RegionPage regionKey={regionKey} month={cond.month} onMonth={m => setCond({ ...cond, month: m })}
+        <RegionPage regionKey={regionKey}
           onClose={() => setRegionKey(null)}
           onSearchPhoto={p => { setRegionKey(null); searchFrom({ attraction: { id: p.attraction_id, image_url: p.image_url } }) }} />
       )}
@@ -246,13 +246,16 @@ function Credit({ p }: { p: { artist: string; license: string; license_url: stri
   )
 }
 
-function CompareTable({ items, month, onClear }: { items: Candidate[]; month: number; onClear: () => void }) {
+// 최근 12개월 중 혼잡도(평소 대비)가 가장 낮은 달
+const quietest = (m: { month: string; index: number }[]) => { const q = m.reduce((a, b) => (b.index < a.index ? b : a)); return `${Number(q.month.slice(5))}월 (${q.index})` }
+
+function CompareTable({ items, onClear }: { items: Candidate[]; onClear: () => void }) {
   const rows: [string, (c: Candidate) => string][] = [
     ['시군구', c => `${c.sigungu.sido} ${c.sigungu.name}`],
     ['가장 닮은 관광지', c => c.attraction.name],
     ['사진 유사도 순위', c => `${c.visual_rank}위 (CLIP ${c.visual.similarity.toFixed(2)})`],
-    [`${month}월 혼잡도`, c => c.congestion ? `${c.congestion.index} (${c.congestion.basis === 'forecast' ? '예측' : '실측'} ${c.congestion.basis_month})` : '자료 없음'],
-    [`${month}월 날씨`, c => c.climate ? `${c.climate.temp_c}°C · 비 ${c.climate.rain_days}일` : '자료 없음'],
+    ['월평균 외지인 방문', c => c.congestion ? `약 ${Math.round(c.congestion.visitors / 10000).toLocaleString()}만 명` : '자료 없음'],
+    ['가장 한산한 달', c => c.congestion ? quietest(c.congestion.monthly) : '자료 없음'],
     ['거리', c => c.distance_km != null ? `${c.distance_km} km` : '출발지 미선택'],
     ['비슷한 점', c => c.similar_tags.join(', ') || '–'],
     ['다른 점', c => c.different_tags.join(', ') || '–'],

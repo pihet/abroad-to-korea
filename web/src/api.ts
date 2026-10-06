@@ -1,6 +1,6 @@
 // API 계약 (docs/MVP_PLAN.md 5장, app/schemas.py 와 같은 모양). 화면은 이 타입만 알고 모델 코드는 모른다.
 
-export type Priority = 'visual' | 'crowd' | 'near' | 'season'
+export type Priority = 'visual' | 'crowd' | 'near'
 export type Origin = '서울' | '부산' | '대구' | '광주' | '대전'
 
 export interface DemoPhoto {
@@ -38,7 +38,7 @@ export interface Candidate {
   similar_tags: string[]
   different_tags: string[]
   congestion: {
-    month: number; index: number; visitors: number; basis: 'forecast' | 'actual'; basis_month: string; monthly: MonthPoint[]
+    month: number | null; index: number | null; visitors: number; basis: 'forecast' | 'actual' | 'annual'; basis_month: string; monthly: MonthPoint[]
   } | null
   climate: { month: number; temp_c: number; rain_days: number; comfort: number } | null
   distance_km: number | null
@@ -48,7 +48,7 @@ export interface Candidate {
 
 export interface RecommendResponse {
   is_example: boolean
-  query: { query_id: string; scene_tags: string[]; kept_tags: string[] | null; month: number; priority: Priority; origin: Origin | null
+  query: { query_id: string; scene_tags: string[]; kept_tags: string[] | null; month: number | null; priority: Priority; origin: Origin | null
            filters: FilterKey[]; sido: string | null; allowed_regions: number | null
            excluded_sigungu: { key: string; name: string } | null }
   model: { visual: string; rerank: string; priorities: Priority[] }
@@ -88,7 +88,7 @@ export const api = {
     return r.blob()
   },
 
-  recommend: (body: { query_id: string; travel_month: number; priority: Priority; origin?: Origin | null;
+  recommend: (body: { query_id: string; priority: Priority; origin?: Origin | null;
                       kept_tags?: string[]; limit?: number; offset?: number; filters?: FilterKey[]; sido?: string | null }) =>
     fetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => json<RecommendResponse>(r)),
@@ -98,11 +98,11 @@ export const api = {
       .then(r => json<{ ok: boolean }>(r)),
 }
 
+// 여행 월 선택을 없애면서 'season'(고른 달에 가기 좋은 곳)은 화면에서 뺐다. API는 월과 함께 보낼 때만 받는다
 export const PRIORITY_LABEL: Record<Priority, string> = {
   visual: '사진과 최대한 비슷하게',
   crowd: '덜 붐비는 곳',
   near: '출발지에서 가까운 곳',
-  season: '고른 달에 가기 좋은 곳',
 }
 export const ORIGINS: Origin[] = ['서울', '부산', '대구', '광주', '대전']
 
@@ -113,13 +113,13 @@ export interface ActivityItem {
   period?: string | null; schedule?: string | null
 }
 export interface ActivitiesResponse {
-  is_example: boolean; sigungu_key: string; month: number
+  is_example: boolean; sigungu_key: string; month: number | null
   anchor: { id: string; name: string; lat: number; lon: number } | null
   groups: ActivityGroup[]; items: ActivityItem[]; notes: string[]
 }
 
-export const activitiesApi = (sigunguKey: string, month: number, attractionId?: string) => {
-  const q = new URLSearchParams({ sigungu_key: sigunguKey, month: String(month) })
+export const activitiesApi = (sigunguKey: string, attractionId?: string) => {
+  const q = new URLSearchParams({ sigungu_key: sigunguKey })
   if (attractionId) q.set('attraction_id', attractionId)
   return fetch(`/api/activities?${q}`).then(r => json<ActivitiesResponse>(r))
 }
@@ -136,10 +136,10 @@ export interface RegionsResponse {
   filters: { key: FilterKey; label: string; basis: string }[]
   sidos: string[]; regions: RegionRow[]
 }
-export const regionsApi = (month: number, origin?: Origin | null) =>
-  fetch(`/api/regions?month=${month}${origin ? `&origin=${encodeURIComponent(origin)}` : ''}`).then(r => json<RegionsResponse>(r))
+export const regionsApi = (origin?: Origin | null) =>
+  fetch(`/api/regions${origin ? `?origin=${encodeURIComponent(origin)}` : ''}`).then(r => json<RegionsResponse>(r))
 
-export interface Filters { month: number; sido: string | null; keys: FilterKey[] }
+export interface Filters { sido: string | null; keys: FilterKey[] }
 export const matches = (r: RegionRow, f: Filters) => f.keys.every(k => r.flags[k]) && (!f.sido || r.sido === f.sido)
 
 export interface MonthRow {
@@ -157,10 +157,10 @@ export interface RegionProfile {
   filters: { key: FilterKey; label: string; basis: string }[]
   months: MonthRow[]; neighborhoods: Neighborhood[]; focus: [number, number, number, number] | null; notes: string[]
 }
-export const profileApi = (key: string, month: number) =>
-  fetch(`/api/regions/${encodeURIComponent(key)}/profile?month=${month}`).then(r => json<RegionProfile>(r))
+export const profileApi = (key: string) =>
+  fetch(`/api/regions/${encodeURIComponent(key)}/profile`).then(r => json<RegionProfile>(r))
 
 export interface RankingItem { key: string; name: string; sido: string; value: number; unit: string; photo: RegionRow['photo'] }
 export interface RankingList { id: string; title: string; basis: string; items: RankingItem[]; empty?: string }
-export const rankingsApi = (month: number) =>
-  fetch(`/api/rankings?month=${month}`).then(r => json<{ lists: RankingList[] }>(r)).then(r => r.lists)
+export const rankingsApi = () =>
+  fetch(`/api/rankings`).then(r => json<{ lists: RankingList[] }>(r)).then(r => r.lists)

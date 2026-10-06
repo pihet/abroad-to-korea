@@ -1,6 +1,6 @@
 import { matches, type FilterKey, type Filters, type RegionsResponse } from '../api'
 
-// 여행 월 · 시도 · 조건 칩. 칩마다 "지금 고른 다른 조건과 함께 걸었을 때" 남는 시군구 수를 보여 준다.
+// 시도 · 조건 칩. 칩마다 "지금 고른 다른 조건과 함께 걸었을 때" 남는 시군구 수를 보여 준다.
 export function FilterBar({ value, onChange, regions, compact }: {
   value: Filters; onChange: (f: Filters) => void; regions: RegionsResponse | null; compact?: boolean
 }) {
@@ -13,17 +13,9 @@ export function FilterBar({ value, onChange, regions, compact }: {
   return (
     <div className={compact ? 'filterbar compact' : 'filterbar'}>
       <fieldset>
-        <legend>여행 월</legend>
-        <div className="months">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <button key={m} type="button" aria-pressed={value.month === m} onClick={() => onChange({ ...value, month: m })}>{m}월</button>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
         <legend>어떤 곳이면 좋을까요 <small>(여러 개 고를 수 있어요)</small></legend>
         <div className="fchips">
-          {regions?.filters.map(f => {
+          {regions?.filters.filter(f => f.key !== 'mild').map(f => {  // 날씨 칩은 여행 월이 있어야 성립해서 뺐다
             const on = value.keys.includes(f.key)
             const n = count({ ...value, keys: on ? value.keys : [...value.keys, f.key] })
             return (

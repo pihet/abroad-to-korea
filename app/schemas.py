@@ -31,7 +31,7 @@ class AnalyzeResponse(BaseModel):
 
 class RecommendRequest(BaseModel):
     query_id: str
-    travel_month: int = Field(ge=1, le=12)
+    travel_month: Optional[int] = Field(default=None, ge=1, le=12)  # 없으면 연간 기준
     priority: Priority = "visual"
     origin: Optional[Origin] = None
     kept_tags: Optional[list[str]] = None
@@ -48,10 +48,10 @@ class MonthPoint(BaseModel):
 
 
 class Congestion(BaseModel):
-    month: int
-    index: int
+    month: Optional[int]
+    index: Optional[int]
     visitors: int
-    basis: Literal["forecast", "actual"]
+    basis: Literal["forecast", "actual", "annual"]
     basis_month: str
     monthly: list[MonthPoint]
 
@@ -129,7 +129,7 @@ class ActivityItem(BaseModel):
 class ActivitiesResponse(BaseModel):
     is_example: bool = False
     sigungu_key: str
-    month: int
+    month: Optional[int]
     anchor: Optional[dict]
     groups: list[ActivityGroup]
     items: list[ActivityItem]

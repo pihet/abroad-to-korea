@@ -83,6 +83,9 @@ class Context:
             return None
         mean = float(v.mean())
         monthly = [{"month": m, "visitors": int(x), "index": round(100 * x / mean)} for m, x in zip(self.months12, v)]
+        if month is None:  # 여행 월을 고르지 않음: 최근 12개월 월평균
+            return {"month": None, "index": None, "visitors": round(mean), "basis": "annual",
+                    "basis_month": f"{self.months12[0]}~{self.months12[-1]}", "monthly": monthly}
         if month == int(FORECAST_MONTH[5:]) and key in self.forecast:
             value, basis, basis_month = self.forecast[key], "forecast", FORECAST_MONTH
         else:
@@ -93,6 +96,8 @@ class Context:
 
     # ---------------- 날씨·거리
     def climate(self, key, month):
+        if month is None:  # 날씨는 달마다 달라서 월이 없으면 보여 주지 않는다
+            return None
         ck = (key, month)
         if ck not in self._climate_cache:
             d = monthly_climate(key[0], key[1], month)

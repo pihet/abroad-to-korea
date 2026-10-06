@@ -119,7 +119,8 @@ class Engine:
         n = len(cands)
         keys = [tuple(self.region_keys[c["ri"]].split("_", 1)) for c in cands]
         if priority == "crowd":
-            vals = [None if (cg := self.ctx.congestion(k, month)) is None else -cg["index"] for k in keys]
+            # 월이 있으면 그 달 혼잡도(평소 대비), 없으면 월평균 외지인 방문자 수가 적은 쪽
+            vals = [None if (cg := self.ctx.congestion(k, month)) is None else -(cg["index"] if month else cg["visitors"]) for k in keys]
         elif priority == "near":
             vals = [None if (d := self.ctx.distance(k, origin or "서울")) is None else -d for k in keys]
         elif priority == "season":

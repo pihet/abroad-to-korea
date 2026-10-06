@@ -8,8 +8,8 @@ const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/l
 const PAGE = 12
 
 // 시군구 "할 만한 것": 번호 마커 지도 + 같은 번호의 목록. 묶음 칩으로 거른다.
-export function ActivityMap({ sigunguKey, sigunguName, month, attractionId }: {
-  sigunguKey: string; sigunguName: string; month: number; attractionId: string
+export function ActivityMap({ sigunguKey, sigunguName, attractionId }: {
+  sigunguKey: string; sigunguName: string; attractionId: string
 }) {
   const [data, setData] = useState<ActivitiesResponse | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -24,8 +24,8 @@ export function ActivityMap({ sigunguKey, sigunguName, month, attractionId }: {
 
   useEffect(() => {
     setData(null); setErr(null)
-    activitiesApi(sigunguKey, month, attractionId).then(setData).catch(e => setErr(e.message))
-  }, [sigunguKey, month, attractionId])
+    activitiesApi(sigunguKey, attractionId).then(setData).catch(e => setErr(e.message))
+  }, [sigunguKey, attractionId])
 
   const list: ActivityItem[] = useMemo(() => {
     if (!data) return []
