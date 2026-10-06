@@ -4,7 +4,6 @@ export interface Cond { priority: Priority; origin: Origin | null }
 
 const PRIORITY_HINT: Record<Priority, string> = {
   visual: '사진 유사도 순서 그대로',
-  crowd: '월평균 외지인 방문이 적은 곳을 위로',
   near: '출발지에서 직선거리가 가까운 곳을 위로',
 }
 

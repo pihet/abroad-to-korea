@@ -269,16 +269,11 @@ function Credit({ p }: { p: { artist: string; license: string; license_url: stri
   )
 }
 
-// 최근 12개월 중 혼잡도(평소 대비)가 가장 낮은 달
-const quietest = (m: { month: string; index: number }[]) => { const q = m.reduce((a, b) => (b.index < a.index ? b : a)); return `${Number(q.month.slice(5))}월 (${q.index})` }
-
 function CompareTable({ items, onClear }: { items: Candidate[]; onClear: () => void }) {
   const rows: [string, (c: Candidate) => string][] = [
     ['시군구', c => `${c.sigungu.sido} ${c.sigungu.name}`],
     ['가장 닮은 관광지', c => c.attraction.name],
     ['사진 유사도 순위', c => `${c.visual_rank}위 (CLIP ${c.visual.similarity.toFixed(2)})`],
-    ['월평균 외지인 방문', c => c.congestion ? `약 ${Math.round(c.congestion.visitors / 10000).toLocaleString()}만 명` : '자료 없음'],
-    ['가장 한산한 달', c => c.congestion ? quietest(c.congestion.monthly) : '자료 없음'],
     ['거리', c => c.distance_km != null ? `${c.distance_km} km` : '출발지 미선택'],
     ['비슷한 점', c => c.similar_tags.join(', ') || '–'],
     ['다른 점', c => c.different_tags.join(', ') || '–'],

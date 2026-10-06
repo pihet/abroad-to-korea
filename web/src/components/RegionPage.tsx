@@ -53,7 +53,8 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
 
           <section className="region-sec">
             <h3>언제 가면 좋을까</h3>
-            <p className="sub">달 위에 마우스를 올리면 그 달 값을 보여 줍니다. 가장 한산한 달을 표시했습니다.</p>
+            <p className="sub">달 위에 마우스를 올리면 그 달 값을 보여 줍니다. 가장 한산한 달을 표시했습니다.
+              혼잡도는 그 지역 평소(최근 12개월 평균 = 100) 대비이고, 빗금 막대는 우리가 학습한 방문자 예측 모델의 값입니다.</p>
             <MonthsChart months={d.months} month={quiet?.month ?? null} />
           </section>
 

@@ -1,6 +1,6 @@
 // API 계약 (docs/MVP_PLAN.md 5장, app/schemas.py 와 같은 모양). 화면은 이 타입만 알고 모델 코드는 모른다.
 
-export type Priority = 'visual' | 'crowd' | 'near'
+export type Priority = 'visual' | 'near'
 export type Origin = '서울' | '부산' | '대구' | '광주' | '대전'
 
 export interface DemoPhoto {
@@ -99,9 +99,9 @@ export const api = {
 }
 
 // 여행 월 선택을 없애면서 'season'(고른 달에 가기 좋은 곳)은 화면에서 뺐다. API는 월과 함께 보낼 때만 받는다
+// 'crowd'(덜 붐비는 곳)도 뺐다: 혼잡도는 검색 조건이 아니라 지역 상세에서만 보여 준다. API는 아직 받는다
 export const PRIORITY_LABEL: Record<Priority, string> = {
   visual: '사진과 최대한 비슷하게',
-  crowd: '덜 붐비는 곳',
   near: '출발지에서 가까운 곳',
 }
 export const ORIGINS: Origin[] = ['서울', '부산', '대구', '광주', '대전']

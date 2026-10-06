@@ -151,13 +151,6 @@ h1, h2, h3 { letter-spacing: -.02em; text-wrap: balance; margin: 0 }
 .fact.on { background: var(--accent-soft) }
 .fact.on b { color: var(--same-ink) }
 .na { color: var(--sub); font-weight: 500 !important; font-size: 14px !important }
-.chart .lab { font-weight: 500 }
-.mchart { width: 100%; height: auto; max-width: 420px }
-.mchart .bar { fill: color-mix(in srgb, var(--ink) 18%, var(--bg)) }
-.mchart .bar.on { fill: var(--accent) }
-.mchart .ref { stroke: var(--sub); stroke-dasharray: 3 3; stroke-width: 1 }
-.mchart .lab { font-size: 9px; fill: var(--sub) }
-.mchart .lab.on { fill: var(--ink); font-weight: 700 }
 .links { display: flex; gap: 12px; font-size: 13px; font-weight: 700 }
 .card-actions { display: flex; flex-wrap: wrap; gap: 6px }
 .card-actions button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer }
@@ -363,6 +356,13 @@ button.upload strong { color: var(--same-ink) }
 .mchart3 .tick { font-size: 10.5px; fill: var(--sub) }
 .mchart3 .bar { fill: color-mix(in srgb, var(--ink) 16%, var(--bg)) }
 .mchart3 .bar.on { fill: var(--accent) }
+.mchart3 .bar.fc { fill: url(#fc-hatch); stroke: var(--accent); stroke-width: 1.2 }
+.mchart3 .fc-bg { fill: var(--accent-soft) }
+.mchart3 .fc-line { stroke: var(--accent); stroke-width: 2 }
+.mchart3-legend { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 12px; color: var(--sub) }
+.mchart3-legend i { width: 12px; height: 10px; border-radius: 2px; display: inline-block }
+.mchart3-legend .lg-actual { background: color-mix(in srgb, var(--ink) 16%, var(--bg)) }
+.mchart3-legend .lg-fc { margin-left: 8px; border: 1.2px solid var(--accent); background: repeating-linear-gradient(45deg, var(--accent) 0 2px, var(--accent-soft) 2px 5px) }
 .mchart3 .line { fill: none; stroke: var(--accent); stroke-width: 2 }
 .mchart3 .dot { fill: var(--bg); stroke: var(--accent); stroke-width: 2 }
 .mchart3 .dot.on { fill: var(--accent) }

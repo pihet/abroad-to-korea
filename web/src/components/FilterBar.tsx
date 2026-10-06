@@ -15,7 +15,7 @@ export function FilterBar({ value, onChange, regions, compact }: {
       <fieldset>
         <legend>어떤 곳이면 좋을까요 <small>(여러 개 고를 수 있어요)</small></legend>
         <div className="fchips">
-          {regions?.filters.filter(f => f.key !== 'mild').map(f => {  // 날씨 칩은 여행 월이 있어야 성립해서 뺐다
+          {regions?.filters.filter(f => f.key !== 'mild' && f.key !== 'calm').map(f => {  // 날씨 칩은 여행 월이 있어야 성립해서, 방문객 칩은 혼잡도를 지역 상세에서만 보여 주기로 해서 뺐다
             const on = value.keys.includes(f.key)
             const n = count({ ...value, keys: on ? value.keys : [...value.keys, f.key] })
             return (

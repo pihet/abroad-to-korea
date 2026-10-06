@@ -296,7 +296,7 @@ def test_without_travel_month(client, qid):
     assert client.post("/api/recommend", json={"query_id": qid, "priority": "season"}).status_code == 400
     assert client.post("/api/recommend", json={"query_id": qid, "filters": ["mild"]}).status_code == 400
     lists = client.get("/api/rankings").json()["lists"]
-    assert [l["id"] for l in lists] == ["quiet-sea", "mountain", "rural-activities", "festivals"]
+    assert [l["id"] for l in lists] == ["mountain", "rural-activities", "festivals"]
     p = client.get("/api/regions/51_양양군/profile").json()
     assert p["month"] is None and len(p["months"]) == 12
     a = client.get("/api/activities", params={"sigungu_key": "51_양양군"}).json()

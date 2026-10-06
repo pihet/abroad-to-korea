@@ -228,12 +228,9 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
         return [{"key": r["key"], "name": r["name"], "sido": r["sido"], "value": value(r), "unit": unit,
                  "photo": engine.region_photo(r["ri"])} for r in sel]
 
-    if month is None:  # 여행 월 없이: 연간·앞으로 열릴 축제 기준
+    if month is None:  # 여행 월 없이: 연간·앞으로 열릴 축제 기준. 혼잡도는 지역 상세에서만 보여 준다
         n_up = {r["key"]: sum(i["group"] == "festival" and i.get("schedule") == "예정" for i in acts.for_region(r["key"], None)[1]) for r in rows}
         lists = [
-            {"id": "quiet-sea", "title": "방문객이 적은 바닷가",
-             "basis": "바다 가까운 곳 중 월평균 외지인 방문자 수가 적은 순 (2025-09~2026-08)",
-             "items": top(lambda r: r["flags"]["sea"], lambda r: r["visitors"], lambda r: round(r["visitors"] / 10000), "만 명/월")},
             {"id": "mountain", "title": "산·숲이 많은 곳",
              "basis": "산·계곡·숲·자연공원 관광지가 많은 순 (TourAPI 분류)",
              "items": top(lambda r: r["mountain_n"] > 0, lambda r: -r["mountain_n"], lambda r: r["mountain_n"], "곳")},
@@ -286,7 +283,7 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
             "filters": regions.filter_meta(month), "months": months,
             "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key), "food": acts.food_summary(key),
             "notes": ["날씨: Open-Meteo 2021~2025년 같은 달 평균",
-                      "방문자: 한국관광공사 외지인 방문자 수, 2026-10은 예측·나머지 달은 2025-09~2026-08 실측",
+                      "방문자: 한국관광공사 외지인 방문자 수. 2026-10은 월 단위 예측 모델(ridge, 2025년 검증 WAPE 5.6%) 값, 나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
 
 

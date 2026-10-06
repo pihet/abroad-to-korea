@@ -35,7 +35,7 @@ export function PhotoStep({ onPick, onBrowse, filterBar, afterEntries }: { onPic
       <div className="hero">
         <div className="hero-copy">
           <h1>그 해외 풍경,<br />국내에도 있어요</h1>
-          <p>가고 싶은 해외 여행지 사진을 올리면 분위기가 닮은 국내 관광지를 찾아 드립니다. 덜 붐비는 곳, 가까운 곳으로 다시 고를 수도 있어요.</p>
+          <p>가고 싶은 해외 여행지 사진을 올리면 분위기가 닮은 국내 관광지를 찾아 드립니다. 닮은 곳을 누르면 그 지역의 날씨, 혼잡도, 동네와 먹거리를 볼 수 있어요.</p>
           <div className="hero-ctas">
             <label className="cta">
               <input type="file" accept="image/*,.heic,.heif" onChange={onFile} />사진 올리기

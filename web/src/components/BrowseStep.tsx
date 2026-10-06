@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { matches, ORIGINS, type Filters, type Origin, type RegionRow, type RegionsResponse } from '../api'
 import { ActivityMap } from './ActivityMap'
 
-type Sort = 'calm' | 'near' | 'name'
-const SORT_LABEL: Record<Sort, string> = { calm: '방문객 적은 순 (월평균)', near: '가까운 순', name: '이름순' }
+type Sort = 'name' | 'near'
+const SORT_LABEL: Record<Sort, string> = { name: '이름순', near: '가까운 순' }
 const PAGE = 24
 
 // 사진 없이 둘러보기: 조건에 맞는 시군구를 기준 하나로 정렬해 대표 사진으로 보여 준다.
@@ -12,13 +12,13 @@ export function BrowseStep({ filters, regions, origin, onOrigin, onSearchPhoto, 
   filters: Filters; regions: RegionsResponse | null; origin: Origin | null; onOrigin: (o: Origin | null) => void
   onSearchPhoto: (r: RegionRow) => void; onOpen: (key: string) => void
 }) {
-  const [sort, setSort] = useState<Sort>('calm')
+  const [sort, setSort] = useState<Sort>('name')
   const [shown, setShown] = useState(PAGE)
   const [open, setOpen] = useState<string | null>(null)
 
   const list = useMemo(() => {
     const rows = (regions?.regions ?? []).filter(r => matches(r, filters) && r.photo)
-    const v = (r: RegionRow) => sort === 'calm' ? r.visitors ?? Infinity : sort === 'near' ? r.distance_km ?? Infinity : 0
+    const v = (r: RegionRow) => sort === 'near' ? r.distance_km ?? Infinity : 0
     return rows.sort((a, b) => v(a) - v(b) || a.name.localeCompare(b.name, 'ko'))
   }, [regions, filters, sort])
 
@@ -39,7 +39,7 @@ export function BrowseStep({ filters, regions, origin, onOrigin, onSearchPhoto, 
         </div>
       </div>
       <p className="sub">
-        {sort === 'calm' ? '월평균 외지인 방문자가 적은 순서입니다.' : sort === 'near' ? '출발 도시에서 직선거리가 가까운 순서입니다.' : '가나다 순서입니다.'}
+        {sort === 'near' ? '출발 도시에서 직선거리가 가까운 순서입니다.' : '가나다 순서입니다.'}
         {' '}사진은 각 시군구 관광지 사진 중 그 지역 사진들의 평균에 가장 가까운 한 장입니다.
       </p>
       <div className="browse-grid">

@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import type { Candidate, Priority } from '../api'
 import { ActivityMap } from './ActivityMap'
-import { MonthlyChart } from './MonthlyChart'
 
 export function CandidateCard({ c, originUrl, priority, saved, comparing, onSave, onCompare, onFeedback, onSearchSimilar, onOpenRegion, voted }: {
   c: Candidate; originUrl: string; priority: Priority
   saved: boolean; comparing: boolean; voted: 1 | -1 | undefined
   onSave: () => void; onCompare: () => void; onFeedback: (v: 1 | -1) => void; onSearchSimilar: () => void; onOpenRegion: () => void
 }) {
-  const cg = c.congestion
   const moved = c.rank !== c.visual_rank
   const [acts, setActs] = useState(false)
   return (
@@ -36,35 +34,13 @@ export function CandidateCard({ c, originUrl, priority, saved, comparing, onSave
           <p className="fine">장면 태그 자동 비교 (참고용, 평가 전 기능)</p>
         </div>
 
-        {cg && (() => {
-          const q = cg.monthly.reduce((x, y) => (y.index < x.index ? y : x))
-          return (
-            <div className="facts">
-              <div className={priority === 'crowd' ? 'fact on' : 'fact'}>
-                <span className="lab">월평균 외지인 방문</span>
-                <b>{Math.round(cg.visitors / 10000).toLocaleString()}<small> 만 명</small></b>
-                <small className="basis">{cg.basis_month}</small>
-              </div>
-              <div className="fact">
-                <span className="lab">가장 한산한 달</span>
-                <b>{Number(q.month.slice(5))}월<small> · 평소의 {q.index}%</small></b>
-                <small className="basis">최근 12개월 실측</small>
-              </div>
-              {c.distance_km != null && (
-                <div className={priority === 'near' ? 'fact on' : 'fact'}>
-                  <span className="lab">거리</span><b>{c.distance_km}<small> km</small></b><small className="basis">직선거리</small>
-                </div>
-              )}
+        {c.distance_km != null && (
+          <div className="facts">
+            <div className={priority === 'near' ? 'fact on' : 'fact'}>
+              <span className="lab">거리</span><b>{c.distance_km}<small> km</small></b><small className="basis">직선거리</small>
             </div>
-          )
-        })()}
-        {cg && (
-          <div className="chart">
-            <span className="lab">최근 12개월 혼잡도 (외지인 방문 실측, {cg.monthly[0].month} ~ {cg.monthly[11].month}, 평소 = 100)</span>
-            <MonthlyChart points={cg.monthly} month={0} />
           </div>
         )}
-        {!cg && <p className="fine">방문자 자료가 없는 지역입니다.</p>}
 
         <div className="links">
           {c.map_links.kakao && <a href={c.map_links.kakao} target="_blank" rel="noopener">카카오맵</a>}

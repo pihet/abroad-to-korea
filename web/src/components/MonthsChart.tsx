@@ -3,6 +3,7 @@ import type { MonthRow } from '../api'
 
 // "언제 가면 좋을까": 같은 월 축을 쓰는 작은 그래프 세 개(기온 · 비 온 날 · 혼잡도). month = 강조할 달(없으면 null).
 // 단위가 다른 값을 한 그래프의 두 축에 겹치지 않는다. 고른 달은 세로 띠로 강조, 마우스를 올린 달은 세 값을 한 번에 보여 준다.
+// 혼잡도 막대 중 예측 모델 값(basis = forecast)은 빗금 막대로 실측과 구분한다.
 const W = 640, PAD_L = 44, PAD_R = 12, ROW_H = 74, GAP = 22, TOP = 8
 const COL = (W - PAD_L - PAD_R) / 12
 
@@ -26,9 +27,11 @@ export function MonthsChart({ months, month, onPick }: { months: MonthRow[]; mon
         <b>{shown ? `${shown}월` : '달 위에 마우스를 올려 보세요'}</b>
         {cur && <><span>평균기온 {cur.temp_c ?? '–'}°C</span>
         <span>비 온 날 {cur.rain_days ?? '–'}일</span>
-        <span>혼잡도 {cur.congestion_index ?? '–'}{cur.basis ? ` (${cur.basis === 'forecast' ? '예측' : '실측'} ${cur.basis_month})` : ''}</span></>}
+        <span>혼잡도 {cur.congestion_index ?? '–'}{cur.visitors != null ? ` · 외지인 약 ${Math.round(cur.visitors / 10000).toLocaleString()}만 명` : ''}{cur.basis ? ` (${cur.basis === 'forecast' ? '예측' : '실측'} ${cur.basis_month})` : ''}</span></>}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="월별 평균기온, 비 온 날, 혼잡도" onMouseLeave={() => setHover(null)}>
+        <defs><pattern id="fc-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="5" height="5" className="fc-bg" /><line x1="0" y1="0" x2="0" y2="5" className="fc-line" /></pattern></defs>
         {month && <rect x={PAD_L + COL * (month - 1)} y={0} width={COL} height={H - 18} className="pick-band" />}
         {hover && hover !== month && <rect x={PAD_L + COL * (hover - 1)} y={0} width={COL} height={H - 18} className="hover-band" />}
         {ROWS.map((r, ri) => {
@@ -50,7 +53,8 @@ export function MonthsChart({ months, month, onPick }: { months: MonthRow[]; mon
               {r.kind === 'bar' && months.map((m, i) => {
                 const v = r.get(m); if (v == null) return null
                 const on = m.month === month, top = Math.min(Y(v), y1 - 1), bw = COL * 0.56
-                return <path key={m.month} className={on ? 'bar on' : 'bar'}
+                const fc = r.key === 'crowd' && m.basis === 'forecast'
+                return <path key={m.month} className={`bar${on ? ' on' : ''}${fc ? ' fc' : ''}`}
                   d={`M${cx(i) - bw / 2},${y1} V${top + 4} q0,-4 4,-4 H${cx(i) + bw / 2 - 4} q4,0 4,4 V${y1} Z`} />
               })}
               {r.kind === 'line' && <>
@@ -65,11 +69,14 @@ export function MonthsChart({ months, month, onPick }: { months: MonthRow[]; mon
             <text x={cx(i)} y={H - 4} textAnchor="middle" className={m.month === shown ? 'mlab on' : 'mlab'}>{m.month}</text>
             <rect x={PAD_L + COL * i} y={0} width={COL} height={H} fill="transparent" style={{ cursor: onPick ? 'pointer' : 'default' }}
               onMouseEnter={() => setHover(m.month)} onClick={() => onPick?.(m.month)}>
-              <title>{`${m.month}월 · ${m.temp_c ?? '–'}°C · 비 ${m.rain_days ?? '–'}일 · 혼잡도 ${m.congestion_index ?? '–'}`}</title>
+              <title>{`${m.month}월 · ${m.temp_c ?? '–'}°C · 비 ${m.rain_days ?? '–'}일 · 혼잡도 ${m.congestion_index ?? '–'}${m.basis === 'forecast' ? ' (예측)' : ''}`}</title>
             </rect>
           </g>
         ))}
       </svg>
+      {months.some(m => m.basis === 'forecast') && (
+        <p className="mchart3-legend"><i className="lg-actual" />실측 <i className="lg-fc" />예측 모델</p>
+      )}
     </div>
   )
 }
