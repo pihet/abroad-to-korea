@@ -331,3 +331,14 @@ def test_showcase(client):
     r = client.post("/api/analyze", data={"demo_photo_id": main.SHOWCASE_PHOTO}).json()
     top = client.post("/api/recommend", json={"query_id": r["query_id"], "limit": 1}).json()["candidates"][0]
     assert s["domestic"]["sigungu"]["key"] == top["sigungu"]["key"] and s["domestic"]["attraction"]["id"] == top["attraction"]["id"]
+
+
+def test_dong_food(client):
+    p = client.get("/api/regions/50_제주시/profile").json()
+    dong = max(p["neighborhoods"], key=lambda n: n["n_food"])
+    d = client.get(f"/api/regions/50_제주시/dongs/{dong['code']}/food").json()
+    assert d["total"] == dong["n_food"] > 0 and "평점" in d["note"]
+    menus = [i["menu"] is not None for i in d["items"]]
+    assert menus == sorted(menus, reverse=True)  # 대표메뉴 있는 곳이 먼저
+    assert all((i["image_url"] is None) == (i["license"] is None) for i in d["items"])
+    assert client.get("/api/regions/50_제주시/dongs/0000000000/food").status_code == 404

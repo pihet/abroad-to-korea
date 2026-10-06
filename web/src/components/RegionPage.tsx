@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { profileApi, type RegionProfile } from '../api'
 import { ActivityMap } from './ActivityMap'
 import { MonthsChart } from './MonthsChart'
+import { DongFood } from './DongFood'
 import { NeighborhoodMap } from './NeighborhoodMap'
 
 // 지역 상세: 이 지역은 어떤 곳인지 → 언제 가면 좋은지 → 어느 동네에 할 거리가 몰렸는지 → 할 만한 것 목록.
@@ -11,8 +12,12 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
 }) {
   const [d, setD] = useState<RegionProfile | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [dong, setDong] = useState<string | null>(null)
 
-  useEffect(() => { setErr(null); profileApi(regionKey).then(setD).catch(e => setErr(e.message)) }, [regionKey])
+  useEffect(() => {
+    setErr(null)
+    profileApi(regionKey).then(p => { setD(p); setDong(p.neighborhoods.find(n => n.rank === 1)?.code ?? null) }).catch(e => setErr(e.message))
+  }, [regionKey])  // 처음에는 1위 동네의 음식점을 보여 준다
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', esc); document.body.style.overflow = 'hidden'
@@ -22,8 +27,6 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
   const r = d?.region
   const label = (k: string) => d?.filters.find(f => f.key === k)?.label
   const ms = d?.months ?? []
-  const nums = (f: (m: (typeof ms)[number]) => number | null) => ms.map(f).filter((v): v is number => v != null)
-  const avgT = nums(m => m.temp_c), rains = nums(m => m.rain_days)
   const quiet = ms.filter(m => m.congestion_index != null).reduce<(typeof ms)[number] | null>((a, b) => (!a || b.congestion_index! < a.congestion_index! ? b : a), null)
   const badges = r ? ([
     r.flags.sea && `바다 ${r.coast_km}km`, r.flags.mountain && `산·숲 ${r.mountain_n}곳`,
@@ -43,12 +46,6 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
               <p className="eyebrow">{r!.sido}</p>
               <h2>{r!.name}</h2>
               <div className="region-badges">{badges.map(b => <span key={b}>{b}</span>)}</div>
-              <div className="region-facts">
-                <div><small>연평균 기온</small><b>{avgT.length ? (avgT.reduce((a, b) => a + b, 0) / avgT.length).toFixed(1) : '–'}<i>°C</i></b></div>
-                <div><small>한 해 비 온 날</small><b>{rains.length ? Math.round(rains.reduce((a, b) => a + b, 0)) : '–'}<i>일</i></b></div>
-                <div><small>가장 한산한 달</small><b>{quiet ? `${quiet.month}월` : '–'}<i>{quiet ? `평소의 ${quiet.congestion_index}%` : ''}</i></b></div>
-                <div><small>월평균 외지인 방문</small><b>{r!.visitors ? Math.round(r!.visitors / 10000).toLocaleString() : '–'}<i>만 명</i></b></div>
-              </div>
               {d.photo && <button type="button" className="primary" onClick={() => onSearchPhoto(d.photo!)}>이 사진과 닮은 다른 곳 찾기</button>}
               {d.photo && <p className="credit">사진 {d.photo.name} · 한국관광공사 TourAPI · {d.photo.license}</p>}
             </div>
@@ -61,17 +58,11 @@ export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: 
           </section>
 
           <section className="region-sec">
-            <h3>할 거리가 몰린 동네 Top 5</h3>
-            <p className="sub">읍·면·동마다 관광지·레포츠 수를 센 순서입니다 (축제 제외).</p>
-            <NeighborhoodMap hoods={d.neighborhoods} focus={d.focus} name={r!.name} credit={d.notes.at(-1) ?? ''} />
-          </section>
-
-          <section className="region-sec">
-            <h3>{r!.name}의 먹거리</h3>
-            {d.food.top.length ? <>
-              <p className="sub">한국관광공사에 등록된 음식점 {d.food.n_menus}곳의 대표메뉴에 많이 나오는 음식입니다. 맛 평가나 순위가 아닙니다.</p>
-              <ul className="food-chips">{d.food.top.map(f => <li key={f.name}><b>{f.name}</b><small>{f.places}곳</small></li>)}</ul>
-            </> : <p className="rank-empty">대표메뉴를 모으는 중입니다 (등록 음식점 {d.food.n_places}곳 중 {d.food.n_menus}곳 수집). 음식점 위치는 아래 지도의 '먹거리'에서 볼 수 있습니다.</p>}
+            <h3>동네와 먹거리</h3>
+            <p className="sub">번호는 관광지·레포츠가 많은 동네 Top 5입니다. 동네를 누르면 그 동네 음식점과 대표메뉴가 나옵니다.</p>
+            <NeighborhoodMap hoods={d.neighborhoods} focus={d.focus} name={r!.name} credit={d.notes.at(-1) ?? ''}
+              selected={dong} onSelect={setDong} />
+            {dong && <DongFood regionKey={regionKey} code={dong} name={d.neighborhoods.find(n => n.code === dong)?.name ?? ''} />}
           </section>
 
           <section className="region-sec">

@@ -148,7 +148,7 @@ export interface MonthRow {
 }
 export interface Neighborhood {
   code: string; name: string; total: number; groups: Record<string, number>; rank: number | null
-  label: [number, number]; geometry: GeoJSON.Geometry
+  label: [number, number]; geometry: GeoJSON.Geometry; n_food: number
 }
 export interface RegionProfile {
   is_example: boolean; month: number
@@ -171,3 +171,10 @@ export interface Showcase {
   domestic: { sigungu: { key: string; name: string; sido: string }; attraction: Candidate['attraction']; similarity: number; visual_rank: number }
 }
 export const showcaseApi = () => fetch('/api/showcase').then(r => json<Showcase>(r))
+
+export interface DongFood {
+  code: string; total: number; with_menu: number; note: string
+  items: { id: string; name: string; kind: string; address: string | null; image_url: string | null; license: string | null; menu: string | null }[]
+}
+export const dongFoodApi = (key: string, code: string) =>
+  fetch(`/api/regions/${encodeURIComponent(key)}/dongs/${code}/food`).then(r => json<DongFood>(r))

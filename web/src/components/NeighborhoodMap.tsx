@@ -14,9 +14,13 @@ export const mainGroup = (g: Record<string, number>) => {
 }
 
 // 시군구 안 읍·면·동 경계: 전부 옅게, 활동지가 많은 Top 5는 색과 번호로.
-export function NeighborhoodMap({ hoods, focus, name, credit }: { hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string; credit: string }) {
+export function NeighborhoodMap({ hoods, focus, name, credit, selected, onSelect }: {
+  hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string; credit: string
+  selected: string | null; onSelect: (code: string) => void
+}) {
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<LMap | null>(null)
+  const fitted = useRef<{ c: import('leaflet').LatLng; z: number } | null>(null)  // 동네를 눌러 다시 그려도 보던 위치 유지
   const top = hoods.filter(h => h.rank).sort((a, b) => a.rank! - b.rank!)
 
   useEffect(() => {
@@ -32,22 +36,28 @@ export function NeighborhoodMap({ hoods, focus, name, credit }: { hoods: Neighbo
       const all = L.geoJSON({ type: 'FeatureCollection', features: hoods.map(h => ({ type: 'Feature', properties: h, geometry: h.geometry })) } as GeoJSON.FeatureCollection, {
         style: f => {
           const r = (f?.properties as Neighborhood).rank
-          return r ? { color: RANK_COLORS[r - 1], weight: 2, fillColor: RANK_COLORS[r - 1], fillOpacity: 0.35 }
-                   : { color: '#6b7a76', weight: 1, fillOpacity: 0.04, dashArray: '3 3' }
+          const h = f?.properties as Neighborhood, sel = h.code === selected
+          const base = r ? { color: RANK_COLORS[r - 1], weight: 2, fillColor: RANK_COLORS[r - 1], fillOpacity: 0.35 }
+                         : { color: '#6b7a76', weight: 1, fillOpacity: 0.04, dashArray: '3 3' }
+          return sel ? { ...base, weight: 4, color: '#15181a', fillOpacity: r ? 0.5 : 0.18, dashArray: undefined } : base
         },
         onEachFeature: (f, layer) => {
           const h = f.properties as Neighborhood
-          layer.bindTooltip(`${h.rank ? `${h.rank}. ` : ''}${h.name} · 활동지 ${h.total}곳`, { sticky: true })
+          layer.bindTooltip(`${h.rank ? `${h.rank}. ` : ''}${h.name} · 활동지 ${h.total}곳 · 음식점 ${h.n_food}곳 (눌러서 보기)`, { sticky: true })
+          layer.on('click', () => onSelect(h.code))
         },
       }).addTo(m)
       for (const h of top) {
         L.marker(h.label, { icon: L.divIcon({ className: 'hood-pin', html: `<span style="background:${RANK_COLORS[h.rank! - 1]}">${h.rank}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false }).addTo(m)
       }
       // 외딴 작은 섬(예: 울릉군의 독도)을 빼고 맞춘 범위. 없으면 경계 전체
-      m.fitBounds(focus ? L.latLngBounds([focus[0], focus[1]], [focus[2], focus[3]]) : all.getBounds(), { padding: [16, 16] })
+      if (!fitted.current) m.fitBounds(focus ? L.latLngBounds([focus[0], focus[1]], [focus[2], focus[3]]) : all.getBounds(), { padding: [16, 16] })
+      else m.setView(fitted.current.c, fitted.current.z)
+      m.on('moveend', () => { fitted.current = { c: m.getCenter(), z: m.getZoom() } })
+      fitted.current = fitted.current ?? { c: m.getCenter(), z: m.getZoom() }
     })
     return () => { off = true }
-  }, [hoods]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hoods, selected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => { map.current?.remove(); map.current = null }, [])
 
@@ -57,8 +67,9 @@ export function NeighborhoodMap({ hoods, focus, name, credit }: { hoods: Neighbo
       {top.length ? (
         <ol className="hoods-legend">
           {top.map(h => (
-            <li key={h.code}><span className="n" style={{ background: RANK_COLORS[h.rank! - 1] }}>{h.rank}</span>
-              <b>{h.name}</b><small>활동지 {h.total}곳 · 가장 많은 것: {mainGroup(h.groups)}</small></li>
+            <li key={h.code}><button type="button" aria-pressed={h.code === selected} onClick={() => onSelect(h.code)}>
+              <span className="n" style={{ background: RANK_COLORS[h.rank! - 1] }}>{h.rank}</span>
+              <b>{h.name}</b><small>활동지 {h.total}곳 · {mainGroup(h.groups)} · 음식점 {h.n_food}곳</small></button></li>
           ))}
         </ol>
       ) : <p className="fine">이 지역에는 활동지로 분류된 곳이 아직 없습니다.</p>}

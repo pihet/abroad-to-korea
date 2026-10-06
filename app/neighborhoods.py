@@ -43,21 +43,25 @@ def build(acts, sido_code):
         meta.append({"key": f"{code}_{_sgg_name(p)}", "code": p["adm_cd2"], "name": p["adm_nm"].split()[-1]})
     tree = STRtree(shapes)
     counts = [dict() for _ in shapes]
+    foods = [[] for _ in shapes]  # 동네를 누르면 보여 줄 음식점 id
     for items in acts.by_region.values():
         for r in items:
-            if r["group"] in ("festival", "food"):  # 동네 순위는 관광지·레포츠만 (음식점은 도심에 몰려 순위를 덮는다)
+            if r["group"] == "festival":
                 continue
             pt = Point(r["lon"], r["lat"])
             for i in tree.query(pt, predicate="intersects"):
-                counts[i][r["group"]] = counts[i].get(r["group"], 0) + 1
+                if r["group"] == "food":  # 동네 순위는 관광지·레포츠만 (음식점은 도심에 몰려 순위를 덮는다)
+                    foods[i].append(r["id"])
+                else:
+                    counts[i][r["group"]] = counts[i].get(r["group"], 0) + 1
                 break
     out = {}
-    for s, m, c in zip(shapes, meta, counts):
+    for s, m, c, fd in zip(shapes, meta, counts, foods):
         parts = list(getattr(s, "geoms", [s]))
         big = max(parts, key=lambda g: g.area)
         lab = big.representative_point()  # 가장 큰 땅덩이 안의 한 점 (경계 상자 중심은 섬이 있으면 바다에 찍힌다)
         out.setdefault(m["key"], []).append({
-            "code": m["code"], "name": m["name"], "groups": c, "total": sum(c.values()),
+            "code": m["code"], "name": m["name"], "groups": c, "total": sum(c.values()), "food_ids": fd,
             "label": [round(lab.y, 5), round(lab.x, 5)],
             "parts": [[round(v, 5) for v in g.bounds] + [g.area] for g in parts],
             "geometry": _round(s.simplify(SIMPLIFY_DEG, preserve_topology=True)),
@@ -76,7 +80,11 @@ class Neighborhoods:
         dongs = self.by_region.get(key, [])
         ranked = sorted((d for d in dongs if d["total"] > 0), key=lambda d: (-d["total"], d["name"]))[:top]
         rank = {d["code"]: i + 1 for i, d in enumerate(ranked)}
-        return [{k: v for k, v in d.items() if k != "parts"} | {"rank": rank.get(d["code"])} for d in dongs]
+        return [{k: v for k, v in d.items() if k not in ("parts", "food_ids")} | {"rank": rank.get(d["code"]), "n_food": len(d["food_ids"])}
+                for d in dongs]
+
+    def food_ids(self, key, code):
+        return next((d["food_ids"] for d in self.by_region.get(key, []) if d["code"] == code), None)
 
     def focus(self, key):
         """지도 범위 [남, 서, 북, 동]: 시군구 전체 넓이의 1% 미만인 외딴 조각(예: 울릉군의 독도)은 뺀다."""

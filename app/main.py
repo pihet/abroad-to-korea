@@ -284,6 +284,19 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
 
 
+@app.get("/api/regions/{key}/dongs/{code}/food")
+def dong_food(key: str, code: str):
+    """동네(읍·면·동) 안의 음식점: 대표사진(공공누리 1·3유형만)과 대표메뉴. 대표메뉴가 있는 곳, 사진이 있는 곳 순."""
+    ids = hoods.food_ids(key, code)
+    if ids is None:
+        raise HTTPException(404, "동네를 찾을 수 없습니다.")
+    rows = [acts.by_id[i] for i in ids if i in acts.by_id]
+    rows.sort(key=lambda r: (r.get("menu") is None, r["image_url"] is None, r["name"]))
+    return {"is_example": False, "code": code, "total": len(rows), "with_menu": sum(r.get("menu") is not None for r in rows),
+            "items": [{k: r[k] for k in ("id", "name", "kind", "address", "image_url", "license", "lat", "lon")} | {"menu": r.get("menu")} for r in rows],
+            "note": "한국관광공사에 등록된 음식점입니다. 평점이나 맛 순위가 아닙니다. 대표메뉴는 매일 수집 중입니다."}
+
+
 @app.get("/api/activities", response_model=ActivitiesResponse)
 def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12), attraction_id: Optional[str] = None):
     if sigungu_key not in engine.region_keys:
