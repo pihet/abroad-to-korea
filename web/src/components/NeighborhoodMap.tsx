@@ -15,6 +15,23 @@ export const mainGroup = (g: Record<string, number>) => {
   return top ? `${GROUP_LABEL[top[0]] ?? top[0]} ${top[1]}` : ''
 }
 
+const esc = (s: string) => s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
+
+// 점을 눌렀을 때 말풍선: 사진(공공누리 1·3유형만, 자르지 않음) · 이름 · 분류 · 대표메뉴 · 주소 · 지도 링크
+function popupHtml(it: DongActivities['items'][number], color: string) {
+  const photo = it.image_url
+    ? `<div class="ap-ph"><img src="${it.image_url}" alt="${esc(it.name)}" onerror="this.parentNode.remove()"></div>` : ''
+  const map = `https://map.kakao.com/link/map/${encodeURIComponent(it.name)},${it.lat},${it.lon}`
+  return `${photo}<div class="ap-body">
+    <span class="ap-group" style="color:${color}">● ${esc(GROUP_LABEL[it.group] ?? '')} · ${esc(it.kind)}</span>
+    <b class="ap-name">${esc(it.name)}</b>
+    ${it.menu ? `<span class="ap-menu">대표메뉴 · ${esc(it.menu)}</span>` : ''}
+    ${it.address ? `<span class="ap-addr">${esc(it.address)}</span>` : ''}
+    <a class="ap-link" href="${map}" target="_blank" rel="noopener">카카오맵에서 보기</a>
+    ${it.license ? `<span class="ap-lic">사진 한국관광공사 · ${esc(it.license)}</span>` : ''}
+  </div>`
+}
+
 // 시군구 안 읍·면·동 경계. 동네(번호·영역)를 누르면 그 동네로 확대하고, 그 안의 활동지·음식점을 묶음별 색 점으로 찍는다.
 export function NeighborhoodMap({ regionKey, hoods, focus, name, credit, selected, onSelect }: {
   regionKey: string; hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string; credit: string
@@ -76,7 +93,13 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, credit, selecte
     if (sel) return { ...base, weight: 4, color: '#15181a', fillOpacity: zoomed ? 0.06 : (r ? 0.45 : 0.15), dashArray: undefined }
     return dim ? { ...base, fillOpacity: 0.02, opacity: 0.4 } : base
   })
-  useEffect(() => { restyle() }, [selected, zoomed]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 확대한 동안에는 동네 안내 문구를 끈다 (점 위를 가리지 않게)
+  const tooltips = () => shapes.current?.eachLayer(l => {
+    const h = (l as unknown as { feature: { properties: Neighborhood } }).feature.properties
+    l.unbindTooltip()
+    if (!zoomed) l.bindTooltip(`${h.rank ? `${h.rank}. ` : ''}${h.name} · 활동지 ${h.total}곳 · 음식점 ${h.n_food}곳 (눌러서 확대)`, { sticky: true })
+  })
+  useEffect(() => { restyle(); tooltips() }, [selected, zoomed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 눌러서 확대한 동네: 범위 맞추고 활동지 불러오기
   useEffect(() => {
@@ -97,8 +120,9 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, credit, selecte
     for (const it of acts.items) {
       if (hidden.has(it.group)) continue
       const c = GROUP_COLOR[it.group] ?? '#555'
-      L.circleMarker([it.lat, it.lon], { radius: 7, color: '#fff', weight: 2, fillColor: c, fillOpacity: 0.95 })
-        .bindTooltip(`<b>${it.name}</b><br>${GROUP_LABEL[it.group] ?? ''} · ${it.kind}${it.menu ? `<br>대표메뉴 · ${it.menu}` : ''}`)
+      L.circleMarker([it.lat, it.lon], { radius: 8, color: '#fff', weight: 2, fillColor: c, fillOpacity: 0.95 })
+        .bindTooltip(esc(it.name), { direction: 'top', offset: [0, -6] })
+        .bindPopup(popupHtml(it, c), { maxWidth: 260, minWidth: 220, className: 'act-pop' })
         .addTo(layer)
     }
   }, [acts, hidden, zoomed])

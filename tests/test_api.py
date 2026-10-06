@@ -352,4 +352,5 @@ def test_dong_activities(client):
     assert sum(v for k, v in counts.items() if k != "food") == dong["total"]  # 동네 순위 수와 같다
     assert counts["food"] == dong["n_food"] and len(d["items"]) == dong["total"] + dong["n_food"]
     assert "festival" not in counts
+    assert all("address" in i and (i["image_url"] is None) == (i["license"] is None) for i in d["items"])  # 점 말풍선용
     assert client.get("/api/regions/51_양양군/dongs/0000000000/activities").status_code == 404

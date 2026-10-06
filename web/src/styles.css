@@ -549,3 +549,16 @@ h1, h2, h3 { letter-spacing: -0.03em }
 .hoods-acts button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums }
 .hoods-acts button i { width: 10px; height: 10px; border-radius: 50% }
 .hoods-acts button[aria-pressed="false"] { opacity: .45; text-decoration: line-through }
+
+/* 동네 지도 점 말풍선 */
+.act-pop .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; overflow: hidden; background: var(--bg); color: var(--ink) }
+.act-pop .leaflet-popup-content { margin: 0; width: 240px !important; font: 13px/1.45 var(--font) }
+.act-pop .leaflet-popup-tip { background: var(--bg) }
+.ap-ph { aspect-ratio: 3/2; background: #111; display: flex; align-items: center; justify-content: center }
+.ap-ph img { width: 100%; height: 100%; object-fit: contain }
+.ap-body { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px }
+.ap-group { font-size: 12px; font-weight: 700 }
+.ap-name { font-size: 16px; font-weight: 800 }
+.ap-menu { color: var(--g-food); font-weight: 600 }
+.ap-addr, .ap-lic { color: var(--sub); font-size: 12px }
+.ap-link { font-weight: 700; color: var(--accent); margin-top: 2px }

@@ -296,7 +296,7 @@ def dong_activities(key: str, code: str):
     groups = Counter(r["group"] for r in rows)
     return {"is_example": False, "code": code,
             "groups": [{"key": k, "label": label, "count": groups.get(k, 0)} for k, label in ACT_GROUPS if k != "festival"],
-            "items": [{k: r[k] for k in ("id", "name", "group", "kind", "lat", "lon", "image_url")} | {"menu": r.get("menu")} for r in rows]}
+            "items": [{k: r[k] for k in ("id", "name", "group", "kind", "lat", "lon", "image_url", "license", "address")} | {"menu": r.get("menu")} for r in rows]}
 
 
 @app.get("/api/regions/{key}/dongs/{code}/food")
