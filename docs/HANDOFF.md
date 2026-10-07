@@ -1579,3 +1579,8 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 지역 상세: 동네 하이라이트 아래 "열리는 축제"(오늘 이후 끝나는 축제, 시작일 순)와 "체험 활동"(TourAPI 체험마을·체험장 등) 가로 카드. 누르면 아래에 기간·주소·카카오맵. 숫자 칸 "축제"는 "열릴 축제" 수로 바꿈
 - 버그 수정: 축제 '예정/지난 개최 기록' 판단이 2026-10-04로 고정돼 있던 것을 오늘 날짜로
 - 테스트 1개 추가 (33개)
+
+### 15-21. 예전 단계형 화면 삭제 (2026-10-07)
+
+- 사용자 결정으로 `App.tsx`와 그 화면 전용 부품 10개 삭제 (BrowseStep·CandidateCard·Conditions·FilterBar·PhotoStep·Rankings·RegionPage·ResultMap·TagChips). `#classic` 없음. 공용 부품(지도·음식점·비 예보·코스·자르기·사진 보기)은 유지
+- TODO: styles.css 에 예전 화면 전용 규칙, api.ts 의 matches·showcaseApi, 서버 /api/showcase 가 남아 있음 (쓰는 곳 없음)

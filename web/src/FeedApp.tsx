@@ -5,7 +5,7 @@ import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
 import './feed.css'
 
-// 메인 화면 (인스타그램형). 예전 화면은 #classic 으로 연다. 데이터는 기존 API 그대로, 화면 배치만 다르다.
+// 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · 저장 + 지역 검색 · 지역 상세.
 // 사진은 공공누리 3유형이 섞여 있어 정사각형으로 자르지 않는다 (object-fit: contain).
 
 type Tab = 'home' | 'explore' | 'search' | 'saved'
@@ -131,7 +131,6 @@ export default function FeedApp() {
         <div className="ig-top-act">
           <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
-          <a href="/#classic" className="ig-old" onClick={e => { e.preventDefault(); window.location.hash = 'classic'; window.location.reload() }}>예전 화면</a>
         </div>
       </header>
 

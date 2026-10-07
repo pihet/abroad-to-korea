@@ -5,10 +5,12 @@ import { CourseView } from './components/CourseView'
 import { DongFood } from './components/DongFood'
 import { NeighborhoodMap, RANK_COLORS } from './components/NeighborhoodMap'
 import { RainCheck } from './components/RainCheck'
-import { crowdWord } from './components/RegionPage'
 
 // 지역 상세 (인스타그램 프로필형): 프로필 머리 → 동네 하이라이트 → 탭(동네·먹거리 / 언제 갈까 / 할 거리).
 // 지도·음식점·비 예보 부품은 예전 상세 화면과 같은 것을 쓴다.
+
+// 평소(100) 대비 혼잡도를 말로: ±5 안은 '평소와 비슷'
+const crowdWord = (i: number) => i >= 105 ? `평소보다 ${i - 100}% 붐빌 것으로 보여요` : i <= 95 ? `평소보다 ${100 - i}% 한산할 것으로 보여요` : '평소와 비슷할 것으로 보여요'
 
 type Tab = 'hoods' | 'course' | 'when' | 'acts'
 const TABS: [Tab, string][] = [['hoods', '동네·먹거리'], ['course', '코스'], ['when', '언제 갈까'], ['acts', '할 거리']]
