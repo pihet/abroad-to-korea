@@ -411,3 +411,16 @@ def test_region_courses(client):
     counts = [c["regions"]["51_고성군"] for c in d["items"]]
     assert counts == sorted(counts, reverse=True)
     assert client.get("/api/regions/99_없음/courses").status_code == 404
+
+
+def test_search_names(client):
+    """읍·면·동과 장소 이름 검색: 맞는 것만, 이름 앞에서 맞는 것이 먼저, 결과마다 시군구가 붙는다."""
+    d = client.get("/api/search", params={"q": "석촌"}).json()
+    assert any(x["name"] == "석촌동" and x["region_name"] == "송파구" for x in d["dongs"])
+    p = client.get("/api/search", params={"q": "화암사"}).json()["places"]
+    assert p and all("화암사" in x["name"].replace(" ", "") for x in p) and all(x["region_key"] and x["sido"] for x in p)
+    for rows in client.get("/api/search", params={"q": "서면"}).json().values():
+        if isinstance(rows, list) and rows:
+            starts = [x["name"].replace(" ", "").startswith("서면") for x in rows]
+            assert starts == sorted(starts, reverse=True)
+    assert client.get("/api/search", params={"q": ""}).status_code == 422

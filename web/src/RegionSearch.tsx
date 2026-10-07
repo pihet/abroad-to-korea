@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { RegionRow } from './api'
+import { searchApi, type RegionRow, type SearchResult } from './api'
 
-// 시군구 검색 (인스타그램 검색 화면형). 이름·시도로 찾고("강원 양양"처럼 여러 낱말도), 초성만 쳐도 찾는다("ㅇㅇ" → 양양군).
+// 검색 (인스타그램 검색 화면형): 시군구는 받아 둔 230곳에서, 읍·면·동과 장소(관광지·음식점·축제)는 서버(/api/search)에서.
+// 시군구는 이름·시도로 찾고("강원 양양"처럼 여러 낱말도), 초성만 쳐도 찾는다("ㅇㅇ" → 양양군).
 // 검색어가 없으면 최근 본 지역과 시도 목록을 보여 준다. 결과를 누르면 지역 상세를 연다.
 
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ'
@@ -27,11 +28,21 @@ const RECENT_KEY = 'feed-recent-regions'
 const loadRecent = (): string[] => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { return [] } }
 
 export function RegionSearch({ rows, shortSido, onPick, onClose }: {
-  rows: RegionRow[]; shortSido: (s: string) => string; onPick: (key: string) => void; onClose: () => void
+  rows: RegionRow[]; shortSido: (s: string) => string; onPick: (key: string, dong?: string | null) => void; onClose: () => void
 }) {
   const [q, setQ] = useState('')
   const [recent, setRecent] = useState<string[]>(loadRecent)
   const input = useRef<HTMLInputElement>(null)
+  const [more, setMore] = useState<SearchResult | null>(null)
+  // 동네·장소는 서버에서: 입력이 멈추고 0.2초 뒤에, 이전 요청은 취소
+  useEffect(() => {
+    const t = q.trim()
+    setMore(null)
+    if (!t) return
+    const ac = new AbortController()
+    const id = setTimeout(() => searchApi(t, ac.signal).then(setMore).catch(() => {}), 200)
+    return () => { clearTimeout(id); ac.abort() }
+  }, [q])
   useEffect(() => { input.current?.focus() }, [])
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -50,11 +61,11 @@ export function RegionSearch({ rows, shortSido, onPick, onClose }: {
   const sidos = useMemo(() => [...new Set(rows.map(r => r.sido))].sort((a, b) => a.localeCompare(b, 'ko')), [rows])
   const byKey = useMemo(() => new Map(rows.map(r => [r.key, r])), [rows])
 
-  const pick = (key: string) => {
+  const pick = (key: string, dong?: string | null) => {
     const next = [key, ...recent.filter(k => k !== key)].slice(0, 10)
     setRecent(next)
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)) } catch { /* 저장소 없음 */ }
-    onPick(key)
+    onPick(key, dong)
   }
   const clearRecent = () => { setRecent([]); try { localStorage.removeItem(RECENT_KEY) } catch { /* 저장소 없음 */ } }
 
@@ -72,16 +83,31 @@ export function RegionSearch({ rows, shortSido, onPick, onClose }: {
           <button type="button" onClick={onClose} aria-label="닫기"><svg viewBox="0 0 24 24" className="ic" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
           <div className="igs-box">
             <svg viewBox="0 0 24 24" className="ic" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
-            <input ref={input} value={q} onChange={e => setQ(e.target.value)} placeholder="시군구 검색 (양양, 강원 고성, ㅈㅈ…)" aria-label="시군구 검색"
-                   onKeyDown={e => { if (e.key === 'Enter' && hits[0]) pick(hits[0].key) }} />
+            <input ref={input} value={q} onChange={e => setQ(e.target.value)} placeholder="지역·동네·장소 검색 (양양, 석촌동, 화암사…)" aria-label="지역·동네·장소 검색"
+                   onKeyDown={e => { if (e.key !== 'Enter') return; if (hits[0]) pick(hits[0].key); else if (more?.dongs[0]) pick(more.dongs[0].region_key, more.dongs[0].code); else if (more?.places[0]) pick(more.places[0].region_key, more.places[0].dong_code) }} />
             {q && <button type="button" className="clr" onClick={() => { setQ(''); input.current?.focus() }} aria-label="지우기">×</button>}
           </div>
         </header>
 
-        {q.trim() ? (
-          hits.length ? <ul className="igs-list">{hits.map(r => <Row key={r.key} r={r} />)}</ul>
-            : <p className="ig-wait">"{q.trim()}"에 맞는 시군구가 없어요. 시군구 이름(예: 양양군)이나 시도(예: 강원)로 찾아 보세요.</p>
-        ) : <>
+        {q.trim() ? <>
+          {hits.length > 0 && <section className="igs-sec"><div className="igs-head"><b>지역</b></div>
+            <ul className="igs-list">{hits.slice(0, 8).map(r => <Row key={r.key} r={r} />)}</ul></section>}
+          {more && more.dongs.length > 0 && <section className="igs-sec"><div className="igs-head"><b>동네</b></div>
+            <ul className="igs-list">{more.dongs.map(x => (
+              <li key={x.code}><button type="button" onClick={() => pick(x.region_key, x.code)}>
+                <span className="av"><i>동</i></span>
+                <span className="tx"><b>{x.name}</b><small>{x.sido ? shortSido(x.sido) : ''} {x.region_name}{x.n_acts ? ` · 활동지 ${x.n_acts}곳` : ''}</small></span>
+              </button></li>))}</ul></section>}
+          {more && more.places.length > 0 && <section className="igs-sec"><div className="igs-head"><b>장소</b></div>
+            <ul className="igs-list">{more.places.map(x => (
+              <li key={x.id}><button type="button" onClick={() => pick(x.region_key, x.dong_code)}>
+                <span className="av"><i>{x.group === 'food' ? '식' : x.group === 'festival' ? '축' : '곳'}</i></span>
+                <span className="tx"><b>{x.name}</b><small>{x.kind} · {x.sido ? shortSido(x.sido) : ''} {x.region_name}{x.dong_name ? ` ${x.dong_name}` : ''}</small></span>
+              </button></li>))}</ul></section>}
+          {!more && !hits.length && <p className="ig-wait">찾는 중…</p>}
+          {more && !hits.length && !more.dongs.length && !more.places.length &&
+            <p className="ig-wait">"{q.trim()}"에 맞는 지역·동네·장소가 없어요.</p>}
+        </> : <>
           {recent.length > 0 && (
             <section className="igs-sec">
               <div className="igs-head"><b>최근 본 지역</b><button type="button" className="ig-link" onClick={clearRecent}>모두 지우기</button></div>

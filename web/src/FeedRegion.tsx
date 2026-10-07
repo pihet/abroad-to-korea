@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { activitiesApi, profileApi, type RegionProfile } from './api'
+import { activitiesApi, profileApi, type ActivityItem, type RegionProfile } from './api'
 import { ActivityMap } from './components/ActivityMap'
 import { CourseView } from './components/CourseView'
 import { DongFood } from './components/DongFood'
@@ -13,21 +13,23 @@ import { crowdWord } from './components/RegionPage'
 type Tab = 'hoods' | 'course' | 'when' | 'acts'
 const TABS: [Tab, string][] = [['hoods', '동네·먹거리'], ['course', '코스'], ['when', '언제 갈까'], ['acts', '할 거리']]
 
-export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPhoto }: {
-  regionKey: string; saved: boolean; onToggleSave: () => void; onClose: () => void
+export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClose, onSearchPhoto }: {
+  regionKey: string; initialDong?: string | null; saved: boolean; onToggleSave: () => void; onClose: () => void
   onSearchPhoto: (p: { attraction_id: string; image_url: string }) => void
 }) {
   const [d, setD] = useState<RegionProfile | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [nFest, setNFest] = useState<number | null>(null)
+  const [items, setItems] = useState<ActivityItem[] | null>(null)  // 축제·체험 줄에 쓴다
+  const [peek, setPeek] = useState<ActivityItem | null>(null)
   const [dong, setDong] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoods')
 
   useEffect(() => {
     setD(null); setErr(null); setTab('hoods')
-    profileApi(regionKey).then(p => { setD(p); setDong(p.neighborhoods.find(n => n.rank === 1)?.code ?? null) }).catch(e => setErr(e.message))
-    activitiesApi(regionKey).then(a => setNFest(a.groups.find(g => g.key === 'festival')?.count ?? 0)).catch(() => setNFest(null))
-  }, [regionKey])
+    setItems(null); setPeek(null)
+    profileApi(regionKey).then(p => { setD(p); setDong(initialDong ?? p.neighborhoods.find(n => n.rank === 1)?.code ?? null) }).catch(e => setErr(e.message))
+    activitiesApi(regionKey).then(a => setItems(a.items)).catch(() => setItems(null))
+  }, [regionKey, initialDong])
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', esc); document.body.style.overflow = 'hidden'
@@ -46,6 +48,9 @@ export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPh
   ].filter(Boolean) as string[] : []
   // 원형 프로필은 사진을 자르므로 변경이 허용되는 공공누리 1유형일 때만 사진을 쓴다
   const avatar = d?.photo && d.photo.license.includes('제1유형') ? d.photo.image_url : null
+  // 앞으로 열릴(또는 열리고 있는) 축제는 시작일 순, 체험은 그대로 (TourAPI 체험마을·체험장 등)
+  const fests = (items ?? []).filter(i => i.group === 'festival' && i.schedule === '예정').sort((a, b) => (a.period ?? '').localeCompare(b.period ?? ''))
+  const exps = (items ?? []).filter(i => i.group === 'experience')
   const pickDong = (code: string) => { setDong(code); setTab('hoods') }
 
   return (
@@ -64,7 +69,7 @@ export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPh
             <ul className="igr-stats">
               <li><b>{nActs}</b><small>활동지</small></li>
               <li><b>{d.food.n_places}</b><small>음식점</small></li>
-              <li><b>{nFest ?? '–'}</b><small>축제</small></li>
+              <li><b>{items ? fests.length : '–'}</b><small>열릴 축제</small></li>
             </ul>
           </section>
           <div className="igr-bio">
@@ -87,6 +92,28 @@ export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPh
                 </button>
               ))}
             </nav>
+          )}
+
+          {(fests.length > 0 || exps.length > 0) && (
+            <section className="igr-now">
+              {fests.length > 0 && <>
+                <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정</small></div>
+                <ol>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
+              </>}
+              {exps.length > 0 && <>
+                <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등</small></div>
+                <ol>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
+              </>}
+              {peek && (
+                <div className="igr-peek">
+                  <b>{peek.name}</b>
+                  <small>{peek.kind}{peek.period ? ` · ${peek.period}` : ''}</small>
+                  {peek.address && <small>{peek.address}</small>}
+                  <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵에서 보기</a>
+                  {peek.license && <small className="lic">사진 한국관광공사 TourAPI · {peek.license}</small>}
+                </div>
+              )}
+            </section>
           )}
 
           <nav className="igr-tabs" role="tablist">
@@ -128,5 +155,16 @@ export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPh
         </>}
       </div>
     </div>
+  )
+}
+
+// 축제·체험 카드: 사진(자르지 않음) + 이름 + 기간/종류. 누르면 아래에 주소·지도 링크
+function NowCard({ x, on, sub, onClick }: { x: ActivityItem; on: boolean; sub: string; onClick: () => void }) {
+  const [broken, setBroken] = useState(false)  // 원본 사진이 없는 곳(404)은 이름으로 대신
+  return (
+    <li><button type="button" aria-pressed={on} onClick={onClick}>
+      <span className="ph">{x.image_url && !broken ? <img src={x.image_url} alt={x.name} loading="lazy" onError={() => setBroken(true)} /> : <i>{x.name}</i>}</span>
+      <b>{x.name}</b><small>{sub}</small>
+    </button></li>
   )
 }

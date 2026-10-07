@@ -28,6 +28,7 @@ from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
 from .rain import Rain, RainError
 from .courses import Courses
+from .search import Search
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 
@@ -51,7 +52,7 @@ MISSING_PHOTOS: set[str] = set()
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions, hoods, rain, courses
+    global engine, acts, regions, hoods, rain, courses, search
     t = time.time()
     engine = Engine()
     acts = Activities()
@@ -59,6 +60,7 @@ async def lifespan(_app):
     hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
     rain = Rain(engine.ctx.centers)
     courses = Courses(acts, engine)
+    search = Search(acts, hoods, regions.static)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
@@ -268,6 +270,12 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
          "items": top(lambda r: n_fest[r["key"]] > 0, lambda r: -n_fest[r["key"]], lambda r: n_fest[r["key"]], "개")},
     ]
     return {"is_example": False, "month": month, "lists": lists}
+
+
+@app.get("/api/search")
+def search_names(q: str = Query(..., min_length=1, max_length=40), limit: int = Query(20, ge=1, le=50)):
+    """읍·면·동과 장소(관광지·레포츠·음식점·축제) 이름 검색. 이름 앞에서 맞는 것 → 안에서 맞는 것 → 초성으로 맞는 것 순."""
+    return {"q": q, **search.find(q, limit)}
 
 
 @app.get("/api/festivals")

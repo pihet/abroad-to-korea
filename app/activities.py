@@ -23,7 +23,6 @@ LEPORTS = RAW / "areaBasedList2_ct28_20261004"
 FESTIVALS = RAW / "searchFestival2_20251001_20261231.json"
 FOOD_INTRO = RAW / "detailIntro2_ct39"   # 음식점 대표메뉴 (tour_food_intro.py, 매일 이어 받는 중)
 FESTIVAL_YEAR = "2026"   # 축제 목록은 끝난 행사가 빠지므로 2026년 기록을 쓴다
-TODAY = "20261004"
 
 GROUPS = [  # (키, 화면 이름) — 화면의 색 순서와 같다
     ("water", "물·바다"),
@@ -126,7 +125,7 @@ class Activities:
                 if not _in_month(r, month):
                     continue
                 r = {**r, "period": f"{_d(r['start'])} ~ {_d(r['end'])}",
-                     "schedule": "예정" if r["end"] >= TODAY else "지난 개최 기록"}
+                     "schedule": "예정" if r["end"] >= date.today().strftime("%Y%m%d") else "지난 개최 기록"}  # 오늘 기준
             d = round(haversine(origin, (r["lat"], r["lon"])), 1) if origin else None
             out.append({**{k: v for k, v in r.items() if k not in ("start", "end")}, "distance_km": d})
         out.sort(key=lambda r: (r["distance_km"] if r["distance_km"] is not None else 0, r["name"]))

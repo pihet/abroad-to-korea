@@ -77,6 +77,7 @@ export default function FeedApp() {
   const setOpen = (k: string | null) => { setOpenState(k); history.replaceState(null, '', k ? `#region=${encodeURIComponent(k)}` : window.location.pathname) }
   const [start, setStart] = useState<Source | null>(null)
   const [finding, setFinding] = useState(false)  // 지역 검색 화면
+  const [openDong, setOpenDong] = useState<string | null>(null)  // 검색에서 동네·장소로 들어오면 그 동네를 고른 채로
   const [saved, setSaved] = useState<string[]>(loadSaved)
   const more = useRef<HTMLDivElement>(null)
 
@@ -237,8 +238,8 @@ export default function FeedApp() {
       </nav>
 
       {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}
-        onPick={k => { setFinding(false); setOpen(k) }} />}
-      {open && <FeedRegion regionKey={open} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => setOpen(null)}
+        onPick={(k, dong) => { setFinding(false); setOpenDong(dong ?? null); setOpen(k) }} />}
+      {open && <FeedRegion regionKey={open} initialDong={openDong} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => { setOpen(null); setOpenDong(null) }}
         onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
     </div>
   )

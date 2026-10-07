@@ -209,5 +209,14 @@ export interface Course { id: string; title: string; stops: CourseStop[]; distan
 export interface CoursesResponse { is_example: boolean; total: number; items: Course[]; coverage: { loaded: number; listed: number }; notes: string[] }
 export const coursesApi = (key: string) => fetch(`/api/regions/${encodeURIComponent(key)}/courses`).then(r => json<CoursesResponse>(r))
 
+export interface SearchHit { name: string; region_key: string; region_name: string | null; sido: string | null }
+export interface SearchResult {
+  q: string
+  dongs: (SearchHit & { code: string; n_acts: number })[]
+  places: (SearchHit & { id: string; kind: string; group: string | null; dong_code: string | null; dong_name: string | null })[]
+}
+export const searchApi = (q: string, signal?: AbortSignal) =>
+  fetch(`/api/search?q=${encodeURIComponent(q)}&limit=12`, { signal }).then(r => json<SearchResult>(r))
+
 export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }
 export const placePhotosApi = (cid: string) => fetch(`/api/places/${cid}/photos`).then(r => json<PlacePhotos>(r))
