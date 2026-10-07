@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { rankingsApi, regionsApi, type RankingList, type RegionRow } from './api'
 import { RegionPage } from './components/RegionPage'
+import { FeedSearch, type Source } from './FeedSearch'
 import './feed.css'
 
-// 인스타그램형 디자인 시안 (#feed 로 연다). 데이터는 기존 API 그대로, 화면 배치만 다르다.
+// 메인 화면 (인스타그램형). 예전 화면은 #classic 으로 연다. 데이터는 기존 API 그대로, 화면 배치만 다르다.
 // 사진은 공공누리 3유형이 섞여 있어 정사각형으로 자르지 않는다 (object-fit: contain).
 
-type Tab = 'home' | 'explore' | 'saved'
+type Tab = 'home' | 'explore' | 'search' | 'saved'
 type Story = { id: string; label: string; match: (r: RegionRow) => boolean }
 const STORIES: Story[] = [
   { id: 'all', label: '전체', match: () => true },
@@ -59,7 +60,10 @@ export default function FeedApp() {
   const [tab, setTab] = useState<Tab>('home')
   const [story, setStory] = useState('all')
   const [shown, setShown] = useState(PAGE)
-  const [open, setOpen] = useState<string | null>(null)
+  // 지역 상세는 주소로도 연다: #region=50_제주시 (공유·바로가기용)
+  const [open, setOpenState] = useState<string | null>(() => new URLSearchParams(window.location.hash.slice(1)).get('region'))
+  const setOpen = (k: string | null) => { setOpenState(k); history.replaceState(null, '', k ? `#region=${encodeURIComponent(k)}` : window.location.pathname) }
+  const [start, setStart] = useState<Source | null>(null)
   const [saved, setSaved] = useState<string[]>(loadSaved)
   const more = useRef<HTMLDivElement>(null)
 
@@ -69,6 +73,11 @@ export default function FeedApp() {
   }, [])
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { setShown(PAGE); window.scrollTo(0, 0) }, [story, tab])
+  useEffect(() => {
+    const onHash = () => setOpenState(new URLSearchParams(window.location.hash.slice(1)).get('region'))
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   const feed = useMemo(() => (rows ?? []).filter(STORIES.find(s => s.id === story)!.match), [rows, story])
   // 피드 끝에 닿으면 다음 묶음 (무한 스크롤)
@@ -92,7 +101,13 @@ export default function FeedApp() {
     return out
   }, [rows])
   const cover = (s: Story) => covers[s.id]
-  const goSearch = () => { window.location.href = '/' }  // 사진으로 찾기는 기존 화면을 쓴다
+  const goSearch = () => setTab('search')
+  // 지역 상세의 "이 사진과 닮은 다른 곳 찾기": 출발 관광지를 넘겨 같은 시군구가 다시 1위로 나오지 않게 한다
+  const searchPhoto = async (p: { attraction_id: string; image_url: string }) => {
+    const blob = await fetch(p.image_url).then(r => r.blob())
+    setOpen(null); setTab('search')
+    setStart({ kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: p.attraction_id })
+  }
 
   return (
     <div className="ig">
@@ -100,7 +115,7 @@ export default function FeedApp() {
         <b className="ig-logo">닮은꼴<i>.</i></b>
         <div className="ig-top-act">
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
-          <a href="/" className="ig-old">기존 화면</a>
+          <a href="/#classic" className="ig-old" onClick={e => { e.preventDefault(); window.location.hash = 'classic'; window.location.reload() }}>예전 화면</a>
         </div>
       </header>
 
@@ -181,14 +196,18 @@ export default function FeedApp() {
         )
       )}
 
+      <div hidden={tab !== 'search'}>
+        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} />
+      </div>
+
       <nav className="ig-tabs" aria-label="메뉴">
         <button type="button" aria-pressed={tab === 'home'} onClick={() => setTab('home')}><Svg d={Icon.home} fill={tab === 'home'} /><small>홈</small></button>
         <button type="button" aria-pressed={tab === 'explore'} onClick={() => setTab('explore')}><Svg d={Icon.search} /><small>탐색</small></button>
-        <button type="button" onClick={goSearch}><Svg d={Icon.plus} /><small>사진으로 찾기</small></button>
+        <button type="button" aria-pressed={tab === 'search'} onClick={goSearch}><Svg d={Icon.plus} /><small>사진으로 찾기</small></button>
         <button type="button" aria-pressed={tab === 'saved'} onClick={() => setTab('saved')}><Svg d={Icon.bookmark} fill={tab === 'saved'} /><small>저장</small></button>
       </nav>
 
-      {open && <RegionPage regionKey={open} onClose={() => setOpen(null)} onSearchPhoto={goSearch} />}
+      {open && <RegionPage regionKey={open} onClose={() => setOpen(null)} onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
     </div>
   )
 }

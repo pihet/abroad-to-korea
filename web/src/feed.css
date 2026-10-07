@@ -99,3 +99,68 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .ig-tabs small { font-size: 10.5px }
 
 @media (max-width: 470px) { .ig { border: 0 } }
+
+/* ---------- 사진으로 찾기 ---------- */
+.ig-pick, .ig-res { padding-bottom: 8px }
+.ig-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; margin: 16px; padding: 24px 16px;
+  border: 1px dashed var(--ig-line); border-radius: 16px }
+.ig-upload b { font-size: 17px }
+.ig-upload small { font-size: 12.5px; color: var(--ig-sub) }
+.ig-upload div { display: flex; gap: 8px; margin: 6px 0 2px }
+.ig-btn { position: relative; display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 10px; font-size: 14px; font-weight: 700;
+  border: 1px solid var(--ig-line); cursor: pointer }
+.ig-btn.primary { background: #0095f6; border-color: #0095f6; color: #fff }
+.ig-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
+.ig-search { padding: 4px 16px 12px }
+.ig-search input { width: 100%; height: 38px; border-radius: 10px; border: 0; background: var(--ig-soft); color: var(--ig-ink); padding: 0 14px; font: inherit; font-size: 14px }
+.ig-foot { margin: 10px 16px; font-size: 11px; color: var(--ig-sub) }
+.ig-foot a { color: inherit }
+.ig-link { color: #0095f6 !important; font-size: 13px !important; font-weight: 700 }
+
+.ig-crop { padding: 8px 16px }
+.ig-crop .crop-step h2 { font-size: 18px }
+.ig-crop .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px }
+.ig-crop .actions button { height: 38px; padding: 0 16px; border-radius: 10px; font-size: 14px; font-weight: 700; border: 1px solid var(--ig-line) }
+.ig-crop .actions button.primary { background: #0095f6; border-color: #0095f6; color: #fff }
+.ig-crop .actions button:disabled { opacity: .6 }
+
+.ig-mine { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--ig-line) }
+.ig-mine img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex: none }
+.ig-mine div { display: flex; flex-direction: column; align-items: flex-start; gap: 2px }
+.ig-mine b { font-size: 15px }
+.ig-mine small { font-size: 12.5px; color: var(--ig-sub) }
+
+.ig-pills { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px 0; scrollbar-width: none }
+.ig-pills.tags { padding-bottom: 10px; border-bottom: 1px solid var(--ig-line) }
+.ig-pills button, .ig-pills select { flex: none; height: 32px; padding: 0 12px !important; border-radius: 8px; font-size: 13px !important; font-weight: 600;
+  background: var(--ig-soft) !important; color: var(--ig-ink); border: 0; font-family: inherit }
+.ig-pills button[aria-pressed="true"] { background: var(--ig-ink) !important; color: var(--ig-bg) }
+.ig-pills.tags button[aria-pressed="false"] { color: var(--ig-sub); text-decoration: line-through }
+
+.rank-badge { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 800; font-size: 14px;
+  color: #fff; background: var(--ig-ring) }
+.carousel { position: relative; background: var(--ig-soft) }
+.carousel .track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none }
+.carousel .track::-webkit-scrollbar { display: none }
+.carousel figure { position: relative; flex: none; width: 100%; margin: 0; scroll-snap-align: start; display: flex; align-items: center; justify-content: center; min-height: 220px }
+.carousel img { width: 100%; height: auto; max-height: 590px; object-fit: contain; display: block }
+.carousel figcaption { position: absolute; top: 10px; right: 10px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .55);
+  border-radius: 999px; padding: 3px 10px }
+.carousel .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50% !important;
+  background: rgba(255, 255, 255, .9) !important; color: #000 !important; font-size: 20px !important; line-height: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, .25) }
+.carousel .nav.next { right: 10px }
+.carousel .nav.prev { left: 10px }
+.carousel .dots { display: flex; justify-content: center; gap: 4px; padding: 8px 0 0; background: var(--ig-bg) }
+.carousel .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--ig-line) }
+.carousel .dots i.on { background: #0095f6 }
+.ig-res .post-act { padding-top: 4px }
+.post-act .txt { font-size: 13px !important; font-weight: 600; color: var(--ig-sub) !important; border: 1px solid var(--ig-line) !important; border-radius: 999px; padding: 4px 10px !important }
+.post-act .txt[aria-pressed="true"] { color: var(--ig-bg) !important; background: var(--ig-ink) !important; border-color: var(--ig-ink) !important }
+.post-cap.tags { display: flex; flex-wrap: wrap; gap: 2px 6px; font-size: 13px; color: var(--ig-sub) }
+.post-cap.tags span { color: #00376b; font-weight: 600 }
+.post-cap.tags.diff span { color: #b4462a }
+@media (prefers-color-scheme: dark) { .post-cap.tags span { color: #e0f1ff } .post-cap.tags.diff span { color: #ffb4a0 } }
+.post-links { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 14px 0; font-size: 13px }
+.post-links a { color: var(--ig-sub) }
+.ig-more { display: block !important; width: calc(100% - 32px); margin: 14px 16px; height: 40px; border-radius: 10px; border: 1px solid var(--ig-line) !important;
+  font-weight: 700; font-size: 14px }
