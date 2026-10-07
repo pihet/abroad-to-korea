@@ -394,3 +394,20 @@ def test_festivals_this_week(client):
     flags = [f["starts_in_range"] for f in d["items"]]
     assert flags == sorted(flags, reverse=True)  # 이번 주 시작이 먼저
     assert client.get("/api/festivals", params={"days": 40}).status_code == 422
+
+
+def test_region_courses(client):
+    """공식 여행코스: 들르는 순서가 1부터 빈틈없이, 같은 곳 중복 없이, 그 시군구를 지나는 코스만."""
+    d = client.get("/api/regions/51_고성군/courses").json()
+    if d["coverage"]["loaded"] == 0:
+        pytest.skip("여행코스 상세(detailInfo2_ct25)를 아직 받지 않음")
+    assert d["notes"] and d["total"] == len(d["items"]) or d["total"] > len(d["items"])
+    for c in d["items"]:
+        assert [s["order"] for s in c["stops"]] == list(range(1, len(c["stops"]) + 1))
+        ids = [s["id"] or s["name"] for s in c["stops"]]
+        assert len(ids) == len(set(ids))
+        assert c["regions"].get("51_고성군", 0) >= 1
+        assert all(s["image_url"] is None or s["license"] for s in c["stops"])  # 사진은 라이선스 확인된 것만
+    counts = [c["regions"]["51_고성군"] for c in d["items"]]
+    assert counts == sorted(counts, reverse=True)
+    assert client.get("/api/regions/99_없음/courses").status_code == 404

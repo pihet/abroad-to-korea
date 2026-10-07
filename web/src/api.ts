@@ -201,5 +201,13 @@ export interface Festival {
 export const festivalsApi = (days = 7) =>
   fetch(`/api/festivals?days=${days}`).then(r => json<{ start: string; end: string; total: number; items: Festival[]; basis: string }>(r))
 
+export interface CourseStop {
+  order: number; id: string | null; name: string; overview: string; lat: number | null; lon: number | null
+  group: string | null; kind: string | null; image_url: string | null; license: string | null; region: string | null
+}
+export interface Course { id: string; title: string; stops: CourseStop[]; distance: string | null; taketime: string | null; theme: string | null; regions: Record<string, number> }
+export interface CoursesResponse { is_example: boolean; total: number; items: Course[]; coverage: { loaded: number; listed: number }; notes: string[] }
+export const coursesApi = (key: string) => fetch(`/api/regions/${encodeURIComponent(key)}/courses`).then(r => json<CoursesResponse>(r))
+
 export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }
 export const placePhotosApi = (cid: string) => fetch(`/api/places/${cid}/photos`).then(r => json<PlacePhotos>(r))

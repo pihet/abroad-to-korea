@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { activitiesApi, profileApi, type RegionProfile } from './api'
 import { ActivityMap } from './components/ActivityMap'
+import { CourseView } from './components/CourseView'
 import { DongFood } from './components/DongFood'
 import { NeighborhoodMap, RANK_COLORS } from './components/NeighborhoodMap'
 import { RainCheck } from './components/RainCheck'
@@ -9,8 +10,8 @@ import { crowdWord } from './components/RegionPage'
 // 지역 상세 (인스타그램 프로필형): 프로필 머리 → 동네 하이라이트 → 탭(동네·먹거리 / 언제 갈까 / 할 거리).
 // 지도·음식점·비 예보 부품은 예전 상세 화면과 같은 것을 쓴다.
 
-type Tab = 'hoods' | 'when' | 'acts'
-const TABS: [Tab, string][] = [['hoods', '동네·먹거리'], ['when', '언제 갈까'], ['acts', '할 거리']]
+type Tab = 'hoods' | 'course' | 'when' | 'acts'
+const TABS: [Tab, string][] = [['hoods', '동네·먹거리'], ['course', '코스'], ['when', '언제 갈까'], ['acts', '할 거리']]
 
 export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPhoto }: {
   regionKey: string; saved: boolean; onToggleSave: () => void; onClose: () => void
@@ -104,6 +105,11 @@ export function FeedRegion({ regionKey, saved, onToggleSave, onClose, onSearchPh
               <NeighborhoodMap regionKey={regionKey} hoods={d.neighborhoods} focus={d.focus} name={r.name} credit={d.notes.at(-1) ?? ''}
                 selected={dong} onSelect={setDong} />
               {dong && <DongFood regionKey={regionKey} code={dong} name={d.neighborhoods.find(n => n.code === dong)?.name ?? ''} />}
+            </section>
+          )}
+          {tab === 'course' && (
+            <section className="igr-sec">
+              <CourseView regionKey={regionKey} regionName={r.name} />
             </section>
           )}
           {tab === 'when' && (

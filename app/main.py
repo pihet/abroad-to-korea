@@ -27,6 +27,7 @@ from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
 from .rain import Rain, RainError
+from .courses import Courses
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 
@@ -50,13 +51,14 @@ MISSING_PHOTOS: set[str] = set()
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions, hoods, rain
+    global engine, acts, regions, hoods, rain, courses
     t = time.time()
     engine = Engine()
     acts = Activities()
     regions = Regions(engine, acts)
     hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
     rain = Rain(engine.ctx.centers)
+    courses = Courses(acts, engine)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
@@ -302,6 +304,19 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
             "notes": ["비 예보: 오늘부터 16일 안은 Open-Meteo 일기예보, 그 밖은 Open-Meteo 2021~2025년 같은 날짜 기록 (CC BY 4.0)",
                       "방문자: 한국관광공사 외지인 방문자 수. 2026-10은 월 단위 예측 모델(ridge, 2025년 검증 WAPE 5.6%) 값, 나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
+
+
+@app.get("/api/regions/{key}/courses")
+def region_courses(key: str, limit: int = Query(20, ge=1, le=100)):
+    """그 시군구를 지나는 한국관광공사 공식 여행코스. 들르는 곳이 그 시군구에 많은 코스부터."""
+    if key not in regions.static:
+        raise HTTPException(404, "시군구를 찾을 수 없습니다.")
+    rows = courses.for_region(key)
+    return {"is_example": False, "total": len(rows), "items": rows[:limit],
+            "coverage": {"loaded": courses.n_loaded, "listed": courses.n_total},
+            "notes": ["코스: 한국관광공사 TourAPI 여행코스 (들르는 곳·순서·설명·총거리·소요시간은 원문 그대로)",
+                      "지도 위치와 사진은 받아 둔 관광지·레포츠·음식점·축제와 같은 곳만 표시 (문화시설·쇼핑 등은 이름·설명만)",
+                      "선은 들르는 순서를 직선으로 이은 것이며 실제 길이 아닙니다"]}
 
 
 @app.get("/api/regions/{key}/rain")
