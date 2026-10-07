@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { rankingsApi, regionsApi, type RankingList, type RegionRow } from './api'
-import { RegionPage } from './components/RegionPage'
+import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import './feed.css'
 
@@ -207,7 +207,8 @@ export default function FeedApp() {
         <button type="button" aria-pressed={tab === 'saved'} onClick={() => setTab('saved')}><Svg d={Icon.bookmark} fill={tab === 'saved'} /><small>저장</small></button>
       </nav>
 
-      {open && <RegionPage regionKey={open} onClose={() => setOpen(null)} onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
+      {open && <FeedRegion regionKey={open} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => setOpen(null)}
+        onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { DongFood } from './DongFood'
 import { NeighborhoodMap } from './NeighborhoodMap'
 
 // 평소(100) 대비 혼잡도를 말로: ±5 안은 '평소와 비슷'
-const crowdWord = (i: number) => i >= 105 ? `평소보다 ${i - 100}% 붐빌 것으로 보여요` : i <= 95 ? `평소보다 ${100 - i}% 한산할 것으로 보여요` : '평소와 비슷할 것으로 보여요'
+export const crowdWord = (i: number) => i >= 105 ? `평소보다 ${i - 100}% 붐빌 것으로 보여요` : i <= 95 ? `평소보다 ${100 - i}% 한산할 것으로 보여요` : '평소와 비슷할 것으로 보여요'
 
 // 지역 상세: 이 지역은 어떤 곳인지 → 언제 가면 좋은지 → 어느 동네에 할 거리가 몰렸는지 → 할 만한 것 목록.
 export function RegionPage({ regionKey, initialGroup, onClose, onSearchPhoto }: {

@@ -13,7 +13,8 @@
 body:has(.ig) { background: var(--ig-page, #fafafa) }
 @media (prefers-color-scheme: dark) { body:has(.ig) { --ig-page: #000 } }
 
-.ig button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0 }
+/* :where 로 우선순위를 낮춰, 다시 쓰는 기존 부품(지도·음식점·비 예보)의 버튼 스타일이 이기게 한다 */
+.ig :where(button) { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0 }
 .ig .ic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round }
 .ig .ic.fill { fill: currentColor }
 
@@ -164,3 +165,53 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .post-links a { color: var(--ig-sub) }
 .ig-more { display: block !important; width: calc(100% - 32px); margin: 14px 16px; height: 40px; border-radius: 10px; border: 1px solid var(--ig-line) !important;
   font-weight: 700; font-size: 14px }
+
+/* ---------- 지역 상세 (프로필형) ---------- */
+.igr { position: fixed; inset: 0; z-index: 50; overflow-y: auto; background: var(--ig-page, #fafafa) }
+@media (prefers-color-scheme: dark) { .igr { background: #000 } }
+.igr-col { max-width: 470px; min-height: 100%; margin: 0 auto; background: var(--ig-bg); border-left: 1px solid var(--ig-line); border-right: 1px solid var(--ig-line); padding-bottom: 32px }
+.igr-top { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; height: 52px; padding: 0 8px;
+  background: var(--ig-bg); border-bottom: 1px solid var(--ig-line) }
+.igr-top b { text-align: center; font-size: 16px }
+.igr-top button { width: 40px; height: 40px; display: grid; place-items: center }
+.igr-head { display: flex; align-items: center; gap: 24px; padding: 16px 16px 8px }
+.igr-av { width: 86px; height: 86px; flex: none; border-radius: 50%; padding: 3px; background: var(--ig-ring) }
+.igr-av img, .igr-av i { width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--ig-bg); display: grid; place-items: center; object-fit: cover;
+  background: var(--ig-soft); font-style: normal; font-size: 30px; font-weight: 800 }
+.igr-stats { list-style: none; margin: 0; padding: 0; flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); text-align: center }
+.igr-stats b { display: block; font-size: 18px; font-variant-numeric: tabular-nums }
+.igr-stats small { font-size: 13px; color: var(--ig-sub) }
+.igr-bio { padding: 0 16px; display: flex; flex-direction: column; gap: 3px; font-size: 14px }
+.igr-bio p { margin: 0 }
+.igr-bio .sub { color: var(--ig-sub); font-size: 13px }
+.igr-tags { color: #00376b; font-weight: 600 }
+@media (prefers-color-scheme: dark) { .igr-tags { color: #e0f1ff } }
+.igr-bio .tag { font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 1px 5px; background: #ee2a7b; color: #fff; vertical-align: 1px }
+.igr-bio .tag.ghost { background: transparent; color: var(--ig-sub); border: 1px solid var(--ig-line) }
+.igr-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 12px 16px }
+.igr-btns button { height: 34px; border-radius: 8px; font-size: 14px; font-weight: 700; background: var(--ig-soft) }
+.igr-btns button.primary { background: #0095f6; color: #fff }
+.igr-btns button[aria-pressed="true"] { color: var(--ig-like) }
+.igr-btns button:only-child { grid-column: 1 / -1 }
+.igr-hl { display: flex; gap: 14px; overflow-x: auto; padding: 4px 16px 14px; scrollbar-width: none }
+.igr-hl button { flex: none; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 5px }
+.igr-hl .ring { width: 62px; height: 62px; border-radius: 50%; border: 2px solid; display: grid; place-items: center; background: var(--ig-soft);
+  box-shadow: inset 0 0 0 3px var(--ig-bg) }
+.igr-hl .ring b { font-size: 22px; font-weight: 900 }
+.igr-hl small { font-size: 12px; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.igr-hl button[aria-pressed="true"] small { font-weight: 800 }
+.igr-hl button[aria-pressed="true"] .ring { box-shadow: inset 0 0 0 3px var(--ig-bg), 0 0 0 2px var(--ig-ink) }
+.igr-tabs { position: sticky; top: 52px; z-index: 4; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--ig-bg);
+  border-top: 1px solid var(--ig-line); border-bottom: 1px solid var(--ig-line) }
+.igr-tabs button { height: 44px; font-size: 13.5px; font-weight: 600; color: var(--ig-sub); border-top: 2px solid transparent !important; margin-top: -1px }
+.igr-tabs button[aria-selected="true"] { color: var(--ig-ink); border-top-color: var(--ig-ink) !important }
+.igr-sec { padding: 12px 12px 4px; display: flex; flex-direction: column; gap: 10px }
+.igr-sec h4 { margin: 4px 0 0; font-size: 15px }
+.igr-photo { margin: 0 -12px; background: var(--ig-soft) }
+.igr-photo img { width: 100%; height: auto; max-height: 520px; object-fit: contain; display: block }
+.igr-photo figcaption { font-size: 11px; color: var(--ig-sub); padding: 4px 12px; background: var(--ig-bg) }
+.igr-hint { margin: 0; font-size: 12.5px; color: var(--ig-sub) }
+.igr-notes { margin: 16px 16px 0; padding-left: 16px; font-size: 11px; color: var(--ig-sub) }
+/* Leaflet 레이어(z-index 400~1000)가 위쪽 고정 제목·탭 위로 올라오지 않게 지도 영역을 가둔다 */
+.igr-sec { isolation: isolate }
+.igr .df-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
