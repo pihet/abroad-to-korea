@@ -1595,3 +1595,4 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 
 - `.env`에 `TOUR_API_KEY_2` … 를 더하면 `tour_images.py`·`tour_food_intro.py`·`tour_courses.py`가 키마다 하루 최대 건수까지 쓰고, 한도 초과(429 / LIMITED_NUMBER_OF_SERVICE_REQUESTS)가 오면 같은 항목을 다음 키로 다시 요청 (`tour_attractions.KeyRing`). 다른 오류는 지금처럼 멈춤
 - 조원 키 1개 추가(값은 `.env`에만). 실제 확인: 코스 구성 키1 12건 → 한도 → 키2 69건으로 1,068개 완료, 코스 소개 키2 990건(남은 69)
+- 조원 키 4개(값은 `.env`의 TOUR_API_KEY_2~5에만)로 같은 날 더 받음: 관광지 추가 사진 9,867/12,603(남은 2,736), 대표메뉴 4,901/13,402(남은 8,501), 여행코스 구성·소개 1,068 모두 완료. 키 5개면 조회 종류별 하루 약 4,950건 → 관광지 사진은 2026-10-08이면 끝남. 끝나면 인덱스 재생성·재평가(#5, #6)
