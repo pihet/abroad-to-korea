@@ -316,3 +316,26 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .igx-grid span small { font-size: 10.5px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .igx-grid button.big span b { font-size: 14px }
 .igx-grid button.big span small { font-size: 12px }
+
+.igr-photo.top { margin: 4px 0 0 }
+.igr-photo.top figcaption { padding: 6px 16px 0; font-size: 12.5px; color: var(--ig-sub) }
+.igr-peek-txt { margin: 4px 0; font-size: 13.5px; line-height: 1.55; color: var(--ig-ink); max-height: 9.5em; overflow-y: auto }
+.igr-peek-links { display: flex; gap: 14px; align-items: center; margin-top: 2px }
+.igr-peek-links a, .igr-peek-links button { font-size: 13px; font-weight: 700; color: #0095f6 }
+
+/* 지도 아래 동네 Top 5: 한 줄씩 길게 내려가지 않게 두 칸 격자로 */
+.igr .hoods-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 8px; list-style: none; margin: 0 }
+.igr .hoods-legend li { margin: 0 }
+.igr .hoods-legend button { width: 100%; height: 100%; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; text-align: left }
+.igr .hoods-legend button b { font-size: 14px; display: block }
+.igr .hoods-legend button small { font-size: 11px; line-height: 1.35; display: block }
+.igr .hoods-legend .n { flex: none; width: 24px; height: 24px; font-size: 12px }
+
+/* 마우스로 끌어 넘기는 가로 줄 (dragScroll.ts) */
+@media (pointer: fine) { [data-drag] { cursor: grab } }
+[data-drag].dragging { cursor: grabbing; scroll-snap-type: none; user-select: none }
+[data-drag] img { -webkit-user-drag: none; user-select: none }
+
+/* 내 사진의 장면 태그 (눌러지지 않는 표시) */
+.ig-mytags { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--ig-line); font-size: 13.5px; font-weight: 600; color: #00376b }
+@media (prefers-color-scheme: dark) { .ig-mytags { color: #e0f1ff } }

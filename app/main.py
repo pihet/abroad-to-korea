@@ -397,6 +397,53 @@ def _extra_items(cid):
     return None
 
 
+def _tour_get(op, params, quota_msg, fail_msg):
+    """TourAPI 를 한 번 부른다. .env 의 키를 차례로 쓰고, 하루 한도 초과면 다음 키로. 모두 안 되면 503."""
+    import urllib.parse
+    sys.path.insert(0, str(ROOT / "src/collect"))
+    from tour_attractions import is_quota_error, load_api_keys
+    q = urllib.parse.urlencode({"MobileOS": "ETC", "MobileApp": "samsungproj", "_type": "json", **params})
+    for key in load_api_keys():
+        try:
+            data = json.loads(urllib.request.urlopen(f"https://apis.data.go.kr/B551011/KorService2/{op}?serviceKey={key}&{q}", timeout=20).read())
+        except urllib.error.HTTPError as e:
+            if e.code == 429 or is_quota_error(e.read()[:300].decode("utf-8", "replace")):
+                continue
+            raise HTTPException(503, fail_msg)
+        except Exception:
+            raise HTTPException(503, fail_msg)
+        if data.get("response", {}).get("header", {}).get("resultCode") == "0000":
+            return data
+        if not is_quota_error(json.dumps(data, ensure_ascii=False)):
+            raise HTTPException(503, fail_msg)
+    raise HTTPException(503, quota_msg)
+
+
+DETAIL_DIR = ROOT / "data/raw/tourapi/detailCommon2"
+
+
+@app.get("/api/places/{cid}/detail")
+def place_detail(cid: str):
+    """체험·축제 등 장소 소개글(detailCommon2 overview)·홈페이지·전화. 받아 둔 원문이 없으면 그때 한 번 부르고 저장한다."""
+    if cid not in acts.by_id:
+        raise HTTPException(404, "장소를 찾을 수 없습니다.")
+    f = DETAIL_DIR / f"{cid}.json"
+    if f.exists():
+        data = json.loads(f.read_text(encoding="utf-8"))
+    else:
+        data = _tour_get("detailCommon2", {"contentId": cid, "numOfRows": 1, "pageNo": 1},
+                         "오늘 소개 조회 한도를 다 써서 불러올 수 없습니다. 내일 다시 시도해 주세요.", "소개를 불러오지 못했습니다.")
+        DETAIL_DIR.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    it = ((data["response"]["body"].get("items") or {}).get("item")) or [{}]
+    it = it[0] if isinstance(it, list) else it
+    import re as _re
+    clean = lambda x: " ".join(_re.sub(r"<[^>]+>", " ", x or "").split()) or None
+    home = _re.search(r'href="([^"]+)"', it.get("homepage") or "")
+    return {"id": cid, "title": it.get("title"), "overview": clean(it.get("overview")), "tel": clean(it.get("tel")),
+            "homepage": home.group(1) if home else None, "source": "한국관광공사 TourAPI"}
+
+
 @app.get("/api/places/{cid}/photos")
 def place_photos(cid: str):
     """가게·관광지 추가 사진. 받아 둔 원문이 없으면 그때 TourAPI detailImage2 를 한 번 부르고 저장한다 (관광지 사진 수집과 하루 한도 공유)."""
@@ -404,20 +451,8 @@ def place_photos(cid: str):
         raise HTTPException(404, "장소를 찾을 수 없습니다.")
     items = _extra_items(cid)
     if items is None:
-        import urllib.parse
-        sys.path.insert(0, str(ROOT / "src/collect"))
-        from tour_attractions import load_api_key
-        q = urllib.parse.urlencode({"MobileOS": "ETC", "MobileApp": "samsungproj", "_type": "json", "contentId": cid,
-                                    "imageYN": "Y", "numOfRows": 30, "pageNo": 1})
-        try:
-            body = urllib.request.urlopen(f"https://apis.data.go.kr/B551011/KorService2/detailImage2?serviceKey={load_api_key()}&{q}", timeout=20).read()
-            data = json.loads(body)
-        except urllib.error.HTTPError as e:
-            raise HTTPException(503, "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요." if e.code == 429 else "추가 사진을 불러오지 못했습니다.")
-        except Exception:
-            raise HTTPException(503, "추가 사진을 불러오지 못했습니다.")
-        if data.get("response", {}).get("header", {}).get("resultCode") != "0000":
-            raise HTTPException(503, "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요.")
+        data = _tour_get("detailImage2", {"contentId": cid, "imageYN": "Y", "numOfRows": 30, "pageNo": 1},
+                         "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요.", "추가 사진을 불러오지 못했습니다.")
         EXTRA_DIRS[0].mkdir(parents=True, exist_ok=True)
         (EXTRA_DIRS[0] / f"{cid}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         items = _extra_items(cid)

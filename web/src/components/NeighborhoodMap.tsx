@@ -43,7 +43,7 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, selected, onSel
   const dots = useRef<LayerGroup | null>(null)
   const [zoomed, setZoomed] = useState<string | null>(null)  // 사용자가 눌러서 확대한 동네
   const [acts, setActs] = useState<DongActivities | null>(null)
-  const [hidden, setHidden] = useState<Set<string>>(new Set())  // 끈 묶음
+  const [only, setOnly] = useState<string | null>(null)  // 누른 묶음만 보기 (다시 누르면 전체)
   const top = hoods.filter(h => h.rank).sort((a, b) => a.rank! - b.rank!)
 
   const pick = (code: string) => { setZoomed(code); onSelect(code) }
@@ -106,7 +106,7 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, selected, onSel
     const L = L_.current, m = map.current
     const h = hoods.find(x => x.code === zoomed)
     if (L && m && h) m.fitBounds(L.geoJSON(h.geometry as GeoJSON.GeoJsonObject).getBounds(), { padding: [24, 24], maxZoom: 15 })
-    setActs(null); setHidden(new Set())
+    setActs(null); setOnly(null)
     dongActivitiesApi(regionKey, zoomed).then(setActs).catch(() => setActs(null))
   }, [zoomed]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -117,14 +117,14 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, selected, onSel
     layer.clearLayers()
     if (!acts || !zoomed) return
     for (const it of acts.items) {
-      if (hidden.has(it.group)) continue
+      if (only && it.group !== only) continue
       const c = GROUP_COLOR[it.group] ?? '#555'
       L.circleMarker([it.lat, it.lon], { radius: 8, color: '#fff', weight: 2, fillColor: c, fillOpacity: 0.95 })
         .bindTooltip(esc(it.name), { direction: 'top', offset: [0, -6] })
         .bindPopup(popupHtml(it, c), { maxWidth: 260, minWidth: 220, className: 'act-pop' })
         .addTo(layer)
     }
-  }, [acts, hidden, zoomed])
+  }, [acts, only, zoomed])
 
   useEffect(() => () => { map.current?.remove(); map.current = null }, [])
   const zh = hoods.find(h => h.code === zoomed)
@@ -139,8 +139,8 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, selected, onSel
         <div className="hoods-acts" aria-live="polite">
           <b>{zh?.name}에서 할 수 있는 것</b>
           {!acts ? <small>불러오는 중…</small> : acts.groups.filter(g => g.count).map(g => (
-            <button key={g.key} type="button" aria-pressed={!hidden.has(g.key)}
-              onClick={() => { const n = new Set(hidden); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); setHidden(n) }}>
+            <button key={g.key} type="button" aria-pressed={!only || only === g.key}
+              onClick={() => setOnly(only === g.key ? null : g.key)}>
               <i style={{ background: GROUP_COLOR[g.key] }} />{g.label} {g.count}
             </button>
           ))}

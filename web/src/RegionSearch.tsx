@@ -71,7 +71,7 @@ export function RegionSearch({ rows, shortSido, onPick, onClose }: {
 
   const Row = ({ r }: { r: RegionRow }) => (
     <li><button type="button" onClick={() => pick(r.key)}>
-      <span className="av">{r.photo && r.photo.license.includes('제1유형') ? <img src={r.photo.image_url} alt="" /> : <i>{r.name.slice(0, 1)}</i>}</span>
+      <span className="av">{r.photo ? <img src={r.photo.image_url} alt="" /> : <i>{r.name.slice(0, 1)}</i>}</span>
       <span className="tx"><b>{r.name}</b><small>{r.sido}{r.flags.sea ? ' · 바다' : ''}{r.mountain_n > 0 ? ' · 산·숲' : ''} · {r.flags.city ? '도시' : '시골·소도시'}</small></span>
     </button></li>
   )

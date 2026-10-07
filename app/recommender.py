@@ -9,6 +9,7 @@ Stage B  30곳 안에서만 재정렬. visual 은 Stage A 순서 그대로, 그 
 """
 
 import io
+import re
 import uuid
 from collections import OrderedDict
 
@@ -192,7 +193,24 @@ class Engine:
             return None
         it = self.I["items"][self.cid[k]]
         return {"attraction_id": it["contentid"], "name": it["title"], "image_url": f"/images/kr/{it['contentid']}",
-                "license": KOGL.get(it["cpyrhtDivCd"], it["cpyrhtDivCd"])}
+                "license": KOGL.get(it["cpyrhtDivCd"], it["cpyrhtDivCd"]), "tags": self.photo_tags(it)}
+
+    def photo_tags(self, it):
+        """사진 속 관광지 자체의 분류로 만든 해시태그 (시군구 전체 특징이 아님). 해변 → #바다 #해변, 사찰 → #사찰."""
+        if not hasattr(self, "_lcls"):
+            from .activities import _names
+            self._lcls = _names()
+        n2, n3 = self._lcls.get(it.get("lclsSystm2", ""), ""), self._lcls.get(it.get("lclsSystm3", ""), "")
+        c2 = it.get("lclsSystm2", "")
+        tags = []
+        if c2 == "NA02":
+            tags.append("#바다")
+        elif c2 in ("NA01", "NA04"):
+            tags.append("#산숲")
+        word = re.split(r"[.,·/()]", n3 or n2)[0].strip().replace(" ", "")
+        if word and f"#{word}" not in tags:
+            tags.append(f"#{word}")
+        return tags
 
     # ---------------- 데모 사진 (카탈로그 장면당 첫 사진)
     def demo_photos(self):

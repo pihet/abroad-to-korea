@@ -132,7 +132,7 @@ export interface RegionRow {
   key: string; name: string; sido: string; coast_km: number | null; mountain_n: number; urban_share: number | null
   visitors: number | null; congestion_index: number | null; temp_c: number | null; rain_days: number | null
   flags: Record<FilterKey, boolean>; distance_km: number | null
-  photo: { attraction_id: string; name: string; image_url: string; license: string } | null
+  photo: { attraction_id: string; name: string; image_url: string; license: string; tags?: string[] } | null
 }
 export interface RegionsResponse {
   is_example: boolean; month: number
@@ -213,6 +213,9 @@ export interface SearchResult {
 }
 export const searchApi = (q: string, signal?: AbortSignal) =>
   fetch(`/api/search?q=${encodeURIComponent(q)}&limit=12`, { signal }).then(r => json<SearchResult>(r))
+
+export interface PlaceDetail { id: string; title: string | null; overview: string | null; tel: string | null; homepage: string | null; source: string }
+export const placeDetailApi = (cid: string) => fetch(`/api/places/${cid}/detail`).then(r => json<PlaceDetail>(r))
 
 export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }
 export const placePhotosApi = (cid: string) => fetch(`/api/places/${cid}/photos`).then(r => json<PlacePhotos>(r))

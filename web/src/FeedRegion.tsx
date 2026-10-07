@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { activitiesApi, profileApi, type ActivityItem, type RegionProfile } from './api'
+import { activitiesApi, placeDetailApi, profileApi, type ActivityItem, type PlaceDetail, type RegionProfile } from './api'
 import { ActivityMap } from './components/ActivityMap'
 import { CourseView } from './components/CourseView'
 import { DongFood } from './components/DongFood'
-import { NeighborhoodMap, RANK_COLORS } from './components/NeighborhoodMap'
+import { NeighborhoodMap } from './components/NeighborhoodMap'
+import { PhotoViewer } from './components/PhotoViewer'
 import { RainCheck } from './components/RainCheck'
 
 // 지역 상세 (인스타그램 프로필형): 프로필 머리 → 동네 하이라이트 → 탭(동네·먹거리 / 언제 갈까 / 할 거리).
@@ -23,6 +24,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const [err, setErr] = useState<string | null>(null)
   const [items, setItems] = useState<ActivityItem[] | null>(null)  // 축제·체험 줄에 쓴다
   const [peek, setPeek] = useState<ActivityItem | null>(null)
+  const [about, setAbout] = useState<PlaceDetail | null>(null)  // 누른 축제·체험의 소개글 (처음 한 번 TourAPI 에서 받아 저장)
+  const [aboutErr, setAboutErr] = useState<string | null>(null)
+  const [viewing, setViewing] = useState(false)
+  useEffect(() => {
+    setAbout(null); setAboutErr(null); setViewing(false)
+    if (peek) placeDetailApi(peek.id).then(setAbout).catch(e => setAboutErr(e.message))
+  }, [peek])
   const [dong, setDong] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoods')
 
@@ -42,18 +50,16 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const ms = d?.months ?? []
   const fc = ms.find(m => m.basis === 'forecast' && m.congestion_index != null)  // 우리 예측 모델 값 (이번 달)
   const quiet = ms.filter(m => m.congestion_index != null).reduce<(typeof ms)[number] | null>((a, b) => (!a || b.congestion_index! < a.congestion_index! ? b : a), null)
-  const top = (d?.neighborhoods ?? []).filter(h => h.rank).sort((a, b) => a.rank! - b.rank!)
   const nActs = (d?.neighborhoods ?? []).reduce((s, h) => s + h.total, 0)  // 관광지·레포츠 (축제·음식점 제외)
   const tags = r ? [
     r.flags.sea && '#바다', r.mountain_n > 0 && '#산숲',
     r.flags.city ? '#도시' : '#시골소도시',
   ].filter(Boolean) as string[] : []
   // 원형 프로필은 사진을 자르므로 변경이 허용되는 공공누리 1유형일 때만 사진을 쓴다
-  const avatar = d?.photo && d.photo.license.includes('제1유형') ? d.photo.image_url : null
+  const avatar = d?.photo?.image_url ?? null
   // 앞으로 열릴(또는 열리고 있는) 축제는 시작일 순, 체험은 그대로 (TourAPI 체험마을·체험장 등)
   const fests = (items ?? []).filter(i => i.group === 'festival' && i.schedule === '예정').sort((a, b) => (a.period ?? '').localeCompare(b.period ?? ''))
   const exps = (items ?? []).filter(i => i.group === 'experience')
-  const pickDong = (code: string) => { setDong(code); setTab('hoods') }
 
   return (
     <div className="igr" role="dialog" aria-modal="true" aria-label={r ? `${r.sido} ${r.name}` : '지역 정보'}>
@@ -80,38 +86,41 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
             {fc && <p><span className="tag">예측</span> {fc.month}월에는 <b>{crowdWord(fc.congestion_index!)}</b></p>}
             {quiet && <p className="sub"><span className="tag ghost">실측</span> 가장 한산했던 달 {quiet.month}월 (평소의 {quiet.congestion_index}%)</p>}
           </div>
+          {d.photo && (
+            <figure className="igr-photo top">
+              <img src={d.photo.image_url} alt={d.photo.name} />
+              <figcaption>{d.photo.name}</figcaption>
+            </figure>
+          )}
           <div className="igr-btns">
             {d.photo && <button type="button" className="primary" onClick={() => onSearchPhoto(d.photo!)}>이 사진과 닮은 곳 찾기</button>}
             <button type="button" aria-pressed={saved} onClick={onToggleSave}>{saved ? '저장됨 ♥' : '저장'}</button>
           </div>
 
-          {top.length > 0 && (
-            <nav className="igr-hl" aria-label="활동지가 많은 동네">
-              {top.map(h => (
-                <button key={h.code} type="button" aria-pressed={dong === h.code} onClick={() => pickDong(h.code)}>
-                  <span className="ring" style={{ borderColor: RANK_COLORS[h.rank! - 1] }}><b style={{ color: RANK_COLORS[h.rank! - 1] }}>{h.rank}</b></span>
-                  <small>{h.name}</small>
-                </button>
-              ))}
-            </nav>
-          )}
-
           {(fests.length > 0 || exps.length > 0) && (
             <section className="igr-now">
               {fests.length > 0 && <>
                 <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정</small></div>
-                <ol>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
+                <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
               </>}
               {exps.length > 0 && <>
                 <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등</small></div>
-                <ol>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
+                <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
               </>}
               {peek && (
                 <div className="igr-peek">
                   <b>{peek.name}</b>
                   <small>{peek.kind}{peek.period ? ` · ${peek.period}` : ''}</small>
                   {peek.address && <small>{peek.address}</small>}
-                  <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵에서 보기</a>
+                  {!about && !aboutErr && <small>소개를 불러오는 중…</small>}
+                  {aboutErr && <small>{aboutErr}</small>}
+                  {about?.overview && <p className="igr-peek-txt">{about.overview}</p>}
+                  {about?.tel && <small>전화 {about.tel}</small>}
+                  <span className="igr-peek-links">
+                    <button type="button" className="ig-link" onClick={() => setViewing(true)}>사진 더 보기</button>
+                    {about?.homepage && <a href={about.homepage} target="_blank" rel="noopener">홈페이지</a>}
+                    <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵</a>
+                  </span>
                 </div>
               )}
             </section>
@@ -123,11 +132,6 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
 
           {tab === 'hoods' && (
             <section className="igr-sec">
-              {d.photo && (
-                <figure className="igr-photo">
-                  <img src={d.photo.image_url} alt={d.photo.name} />
-                </figure>
-              )}
               <p className="igr-hint">번호는 관광지·레포츠가 많은 동네 Top 5예요. 동네를 누르면 지도가 확대되고 할 거리가 점으로, 아래에 음식점이 나와요.</p>
               <NeighborhoodMap regionKey={regionKey} hoods={d.neighborhoods} focus={d.focus} name={r.name}
                 selected={dong} onSelect={setDong} />
@@ -151,11 +155,12 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               <ActivityMap sigunguKey={regionKey} sigunguName={r.name} attractionId={d.photo?.attraction_id ?? ''} />
             </section>
           )}
+          {viewing && peek && <PhotoViewer cid={peek.id} name={peek.name} main={peek.image_url} mainLicense={peek.license} onClose={() => setViewing(false)} />}
           <section className="igr-src" aria-label="출처">
             <b>출처</b>
             <ul>
               {d.photo && <li>대표 사진: {d.photo.name} · 한국관광공사 TourAPI · {d.photo.license}</li>}
-              <li>이 화면의 국내 사진·관광지·음식점·축제·체험·여행코스: 한국관광공사 TourAPI (사진은 공공누리 제1유형 또는 제3유형, 변경 없이 사용)</li>
+              <li>이 화면의 국내 사진·관광지·음식점·축제·체험·여행코스: 한국관광공사 TourAPI (사진은 공공누리 제1유형 또는 제3유형. 원형 프로필 사진만 가운데를 잘라 표시)</li>
               {d.notes.map(n => <li key={n}>{n}</li>)}
               <li>지도: © OpenStreetMap contributors</li>
             </ul>

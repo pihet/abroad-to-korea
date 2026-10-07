@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { festivalsApi, rankingsApi, regionsApi, type Festival, type RankingList, type RegionRow } from './api'
+import { festivalsApi, regionsApi, type Festival, type RegionRow } from './api'
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
 import { FeedExplore } from './FeedExplore'
+import { useDragScroll } from './dragScroll'
 import './feed.css'
 
 // 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · 저장 + 지역 검색 · 지역 상세.
@@ -29,9 +30,6 @@ function dailyShuffle<T>(xs: T[]): T[] {
   return a
 }
 
-// 원형으로 자르는 작은 사진은 변경이 허용되는 공공누리 1유형만 (3유형은 변경 금지라 자르지 않는다)
-const canCrop = (r: RegionRow) => !!r.photo && r.photo.license.includes('제1유형')
-
 const md = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 
 // 시도 줄임말 (앞 두 글자를 자르면 '전남광주통합특별시'가 '전남'이 된다)
@@ -44,13 +42,9 @@ const shortSido = (s: string) => SIDO_SHORT[s] ?? s
 
 const loadSaved = (): string[] => { try { return JSON.parse(localStorage.getItem('feed-saved') || '[]') } catch { return [] } }
 
+// 해시태그는 사진 속 관광지의 분류로 (해변 → #바다 #해변). 시군구 전체 특징(바다·산숲 둘 다)은 지역 상세에서만
 function caption(r: RegionRow) {
-  const bits = [
-    r.flags.sea && '#바다',
-    r.mountain_n > 0 && '#산숲',
-    r.flags.city ? '#도시' : '#시골소도시',
-  ].filter(Boolean)
-  return bits.join(' ')
+  return [...(r.photo?.tags ?? []), r.flags.city ? '#도시' : '#시골소도시'].join(' ')
 }
 
 const Icon = {
@@ -66,8 +60,8 @@ const Svg = ({ d, fill }: { d: React.ReactNode; fill?: boolean }) =>
   <svg viewBox="0 0 24 24" className={fill ? 'ic fill' : 'ic'} aria-hidden="true">{d}</svg>
 
 export default function FeedApp() {
+  useDragScroll()
   const [rows, setRows] = useState<RegionRow[] | null>(null)
-  const [lists, setLists] = useState<RankingList[]>([])
   const [fest, setFest] = useState<{ start: string; end: string; total: number; items: Festival[] } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('home')
@@ -84,7 +78,6 @@ export default function FeedApp() {
 
   useEffect(() => {
     regionsApi().then(r => setRows(dailyShuffle(r.regions.filter(x => x.photo)))).catch(e => setErr(e.message))
-    rankingsApi().then(setLists).catch(() => setLists([]))
     festivalsApi().then(setFest).catch(() => setFest(null))
   }, [])
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
@@ -106,12 +99,11 @@ export default function FeedApp() {
   }, [tab, feed.length])
 
   const toggle = (k: string) => setSaved(saved.includes(k) ? saved.filter(x => x !== k) : [...saved, k])
-  const strip = lists.find(l => l.items.length > 0)  // 순위 목록 하나를 가로 줄로
   // 분류마다 서로 다른 1유형 사진을 고른다
   const covers = useMemo(() => {
     const used = new Set<string>(), out: Record<string, string | undefined> = {}
     for (const s of STORIES) {
-      const r = (rows ?? []).find(r => s.match(r) && canCrop(r) && !used.has(r.photo!.image_url))
+      const r = (rows ?? []).find(r => s.match(r) && !!r.photo && !used.has(r.photo.image_url))
       if (r) { used.add(r.photo!.image_url); out[s.id] = r.photo!.image_url }
     }
     return out
@@ -139,7 +131,7 @@ export default function FeedApp() {
       {!rows && !err && <p className="ig-wait">불러오는 중…</p>}
 
       {rows && tab === 'home' && <>
-        <nav className="ig-stories" aria-label="분류">
+        <nav className="ig-stories" aria-label="분류" data-drag>
           {STORIES.map(s => (
             <button key={s.id} type="button" aria-pressed={story === s.id} onClick={() => setStory(s.id)}>
               <span className="ring"><span className="in">{cover(s) && <img src={cover(s)} alt="" />}</span></span>
@@ -155,7 +147,7 @@ export default function FeedApp() {
         {story === 'all' && fest && fest.items.length > 0 && (
           <section className="ig-strip fest">
             <div className="ig-strip-head"><b>이번 주 축제</b><small>{md(fest.start)} ~ {md(fest.end)} · {fest.total}개 · 누르면 그 지역을 보여 드려요</small></div>
-            <ol>
+            <ol data-drag>
               {fest.items.map(x => (
                 <li key={x.id}><button type="button" onClick={() => setOpen(x.region_key)}>
                   <span className="ph">{x.image_url ? <img src={x.image_url} alt={x.name} loading="lazy" /> : <i>{x.name}</i>}</span>
@@ -167,25 +159,11 @@ export default function FeedApp() {
           </section>
         )}
 
-        {story === 'all' && strip && (
-          <section className="ig-strip">
-            <div className="ig-strip-head"><b>{strip.title}</b><small>{strip.basis}</small></div>
-            <ol>
-              {strip.items.map((it, i) => (
-                <li key={it.key}><button type="button" onClick={() => setOpen(it.key)}>
-                  <span className="ph">{it.photo && <img src={it.photo.image_url} alt={it.photo.name} loading="lazy" />}</span>
-                  <b>{i + 1}. {it.name}</b><small>{it.sido} · {it.value.toLocaleString()}{it.unit}</small>
-                </button></li>
-              ))}
-            </ol>
-          </section>
-        )}
-
         <ul className="ig-feed">
           {feed.slice(0, shown).map(r => (
             <li key={r.key} className="post">
               <div className="post-head">
-                <span className="av">{canCrop(r) ? <img src={r.photo!.image_url} alt="" /> : <i>{r.name.slice(0, 1)}</i>}</span>
+                <span className="av">{r.photo ? <img src={r.photo.image_url} alt="" /> : <i>{r.name.slice(0, 1)}</i>}</span>
                 <span><b>{r.name}</b><small>{r.sido}</small></span>
               </div>
               <button type="button" className="post-ph" onClick={() => setOpen(r.key)} aria-label={`${r.name} 자세히 보기`}>

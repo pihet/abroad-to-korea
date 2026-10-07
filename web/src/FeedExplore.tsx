@@ -22,7 +22,7 @@ export function FeedExplore({ onPick }: { onPick: (p: DemoPhoto) => void }) {
   return (
     <div className="igx">
       <div className="igx-head"><b>해외 풍경 둘러보기</b><small>사진을 누르면 분위기가 닮은 국내 여행지를 찾아 드려요</small></div>
-      <nav className="igx-chips" aria-label="대륙">
+      <nav className="igx-chips" aria-label="대륙" data-drag>
         {CONTINENTS.filter(c => counts[c]).map(c => (
           <button key={c} type="button" aria-pressed={cont === c} onClick={() => { setCont(c); window.scrollTo(0, 0) }}>{c} <small>{counts[c]}</small></button>
         ))}

@@ -50,8 +50,7 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
   const located = c ? c.stops.filter(s => s.lat != null).length : 0
   return (
     <div className="course">
-      <p className="igr-hint">{regionName}을 지나는 한국관광공사 공식 여행코스 {d.total}개</p>
-      <div className="course-pick" role="tablist">
+      <div className="course-pick" role="tablist" data-drag>
         {d.items.map((x, i) => (
           <button key={x.id} type="button" role="tab" aria-selected={i === pick} onClick={() => setPick(i)}>
             <b>{x.title}</b><small>{x.stops.length}곳{x.taketime ? ` · ${x.taketime}` : ''}</small>
