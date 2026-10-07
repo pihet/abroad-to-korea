@@ -245,3 +245,29 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .course-stops figcaption { font-size: 10.5px; color: var(--ig-sub); padding: 3px 8px; background: var(--ig-bg) }
 .course-stops p { margin: 2px 0 0; font-size: 13px; line-height: 1.5; color: var(--ig-ink) }
 .course-stops a { font-size: 12.5px; color: var(--ig-sub) }
+
+/* ---------- 지역 검색 ---------- */
+.igs { position: fixed; inset: 0; z-index: 45; overflow-y: auto; background: var(--ig-page, #fafafa) }
+@media (prefers-color-scheme: dark) { .igs { background: #000 } }
+.igs-col { max-width: 470px; min-height: 100%; margin: 0 auto; background: var(--ig-bg); border-left: 1px solid var(--ig-line); border-right: 1px solid var(--ig-line) }
+.igs-top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 8px 12px 8px 4px; background: var(--ig-bg); border-bottom: 1px solid var(--ig-line) }
+.igs-top > button { width: 40px; height: 40px; display: grid; place-items: center; flex: none }
+.igs-box { flex: 1; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; border-radius: 10px; background: var(--ig-soft) }
+.igs-box .ic { width: 18px; height: 18px; color: var(--ig-sub); flex: none }
+.igs-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ig-ink); font: inherit; font-size: 15px }
+.igs-box .clr { width: 20px; height: 20px; border-radius: 50%; background: var(--ig-sub); color: var(--ig-bg); font-size: 14px; line-height: 1; display: grid; place-items: center }
+.igs-sec { padding: 14px 0 4px }
+.igs-head { display: flex; justify-content: space-between; align-items: center; padding: 0 16px 6px }
+.igs-head b { font-size: 15px }
+.igs-list { list-style: none; margin: 0; padding: 4px 0 }
+.igs-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 16px; text-align: left }
+.igs-list button:hover { background: var(--ig-soft) }
+.igs-list .av { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex: none; background: var(--ig-soft); display: grid; place-items: center }
+.igs-list .av img { width: 100%; height: 100%; object-fit: cover }
+.igs-list .av i { font-style: normal; font-weight: 800; font-size: 16px }
+.igs-list .tx { display: flex; flex-direction: column; min-width: 0 }
+.igs-list b { font-size: 14.5px }
+.igs-list small { font-size: 12.5px; color: var(--ig-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.igs-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 16px }
+.igs-chips button { height: 32px; padding: 0 12px; border-radius: 8px; background: var(--ig-soft); font-size: 13.5px; font-weight: 600 }
+.igs-chips small { color: var(--ig-sub); font-weight: 500; margin-left: 2px }

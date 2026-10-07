@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { festivalsApi, rankingsApi, regionsApi, type Festival, type RankingList, type RegionRow } from './api'
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
+import { RegionSearch } from './RegionSearch'
 import './feed.css'
 
 // 메인 화면 (인스타그램형). 예전 화면은 #classic 으로 연다. 데이터는 기존 API 그대로, 화면 배치만 다르다.
@@ -75,6 +76,7 @@ export default function FeedApp() {
   const [open, setOpenState] = useState<string | null>(() => new URLSearchParams(window.location.hash.slice(1)).get('region'))
   const setOpen = (k: string | null) => { setOpenState(k); history.replaceState(null, '', k ? `#region=${encodeURIComponent(k)}` : window.location.pathname) }
   const [start, setStart] = useState<Source | null>(null)
+  const [finding, setFinding] = useState(false)  // 지역 검색 화면
   const [saved, setSaved] = useState<string[]>(loadSaved)
   const more = useRef<HTMLDivElement>(null)
 
@@ -126,6 +128,7 @@ export default function FeedApp() {
       <header className="ig-top">
         <b className="ig-logo">닮은꼴<i>.</i></b>
         <div className="ig-top-act">
+          <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
           <a href="/#classic" className="ig-old" onClick={e => { e.preventDefault(); window.location.hash = 'classic'; window.location.reload() }}>예전 화면</a>
         </div>
@@ -233,6 +236,8 @@ export default function FeedApp() {
         <button type="button" aria-pressed={tab === 'saved'} onClick={() => setTab('saved')}><Svg d={Icon.bookmark} fill={tab === 'saved'} /><small>저장</small></button>
       </nav>
 
+      {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}
+        onPick={k => { setFinding(false); setOpen(k) }} />}
       {open && <FeedRegion regionKey={open} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => setOpen(null)}
         onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
     </div>
