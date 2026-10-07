@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { rankingsApi, regionsApi, type RankingList, type RegionRow } from './api'
+import { festivalsApi, rankingsApi, regionsApi, type Festival, type RankingList, type RegionRow } from './api'
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import './feed.css'
@@ -30,6 +30,16 @@ function dailyShuffle<T>(xs: T[]): T[] {
 // 원형으로 자르는 작은 사진은 변경이 허용되는 공공누리 1유형만 (3유형은 변경 금지라 자르지 않는다)
 const canCrop = (r: RegionRow) => !!r.photo && r.photo.license.includes('제1유형')
 
+const md = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
+
+// 시도 줄임말 (앞 두 글자를 자르면 '전남광주통합특별시'가 '전남'이 된다)
+const SIDO_SHORT: Record<string, string> = {
+  서울특별시: '서울', 부산광역시: '부산', 대구광역시: '대구', 인천광역시: '인천', 광주광역시: '광주', 대전광역시: '대전', 울산광역시: '울산',
+  세종특별자치시: '세종', 경기도: '경기', 강원특별자치도: '강원', 충청북도: '충북', 충청남도: '충남', 전북특별자치도: '전북', 전라남도: '전남',
+  경상북도: '경북', 경상남도: '경남', 제주특별자치도: '제주', 전남광주통합특별시: '전남광주',
+}
+const shortSido = (s: string) => SIDO_SHORT[s] ?? s
+
 const loadSaved = (): string[] => { try { return JSON.parse(localStorage.getItem('feed-saved') || '[]') } catch { return [] } }
 
 function caption(r: RegionRow) {
@@ -56,6 +66,7 @@ const Svg = ({ d, fill }: { d: React.ReactNode; fill?: boolean }) =>
 export default function FeedApp() {
   const [rows, setRows] = useState<RegionRow[] | null>(null)
   const [lists, setLists] = useState<RankingList[]>([])
+  const [fest, setFest] = useState<{ start: string; end: string; total: number; items: Festival[] } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('home')
   const [story, setStory] = useState('all')
@@ -70,6 +81,7 @@ export default function FeedApp() {
   useEffect(() => {
     regionsApi().then(r => setRows(dailyShuffle(r.regions.filter(x => x.photo)))).catch(e => setErr(e.message))
     rankingsApi().then(setLists).catch(() => setLists([]))
+    festivalsApi().then(setFest).catch(() => setFest(null))
   }, [])
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { setShown(PAGE); window.scrollTo(0, 0) }, [story, tab])
@@ -136,14 +148,29 @@ export default function FeedApp() {
           <Svg d={Icon.photo} /><span><b>가고 싶은 해외 사진이 있나요?</b><small>사진을 올리면 분위기가 닮은 국내 여행지를 찾아 드려요</small></span>
         </button>
 
+        {story === 'all' && fest && fest.items.length > 0 && (
+          <section className="ig-strip fest">
+            <div className="ig-strip-head"><b>이번 주 축제</b><small>{md(fest.start)} ~ {md(fest.end)} · {fest.total}개 · 누르면 그 지역을 보여 드려요</small></div>
+            <ol>
+              {fest.items.map(x => (
+                <li key={x.id}><button type="button" onClick={() => setOpen(x.region_key)}>
+                  <span className="ph">{x.image_url ? <img src={x.image_url} alt={x.name} loading="lazy" /> : <i>{x.name}</i>}</span>
+                  <span className={x.starts_in_range ? 'when new' : 'when'}>{x.starts_in_range ? `${md(x.start)} 시작` : `${md(x.end)}까지`}</span>
+                  <b>{x.name}</b><small>{shortSido(x.region.sido)} {x.region.name}</small>
+                </button></li>
+              ))}
+            </ol>
+          </section>
+        )}
+
         {story === 'all' && strip && (
           <section className="ig-strip">
             <div className="ig-strip-head"><b>{strip.title}</b><small>{strip.basis}</small></div>
             <ol>
               {strip.items.map((it, i) => (
                 <li key={it.key}><button type="button" onClick={() => setOpen(it.key)}>
-                  <span className="ph">{it.photo && <img src={it.photo.image_url} alt={it.photo.name} loading="lazy" />}<em>{i + 1}</em></span>
-                  <b>{it.name}</b><small>{it.sido} · {it.value.toLocaleString()}{it.unit}</small>
+                  <span className="ph">{it.photo && <img src={it.photo.image_url} alt={it.photo.name} loading="lazy" />}</span>
+                  <b>{i + 1}. {it.name}</b><small>{it.sido} · {it.value.toLocaleString()}{it.unit}</small>
                 </button></li>
               ))}
             </ol>
@@ -178,7 +205,6 @@ export default function FeedApp() {
           {rows.map(r => (
             <button key={r.key} type="button" onClick={() => setOpen(r.key)} aria-label={`${r.sido} ${r.name}`}>
               <img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" />
-              <span>{r.name}</span>
             </button>
           ))}
         </div>
@@ -189,7 +215,7 @@ export default function FeedApp() {
           <div className="ig-grid">
             {rows.filter(r => saved.includes(r.key)).map(r => (
               <button key={r.key} type="button" onClick={() => setOpen(r.key)} aria-label={`${r.sido} ${r.name}`}>
-                <img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" /><span>{r.name}</span>
+                <img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" />
               </button>
             ))}
           </div>

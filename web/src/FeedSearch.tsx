@@ -178,7 +178,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
         {shownDemos.map(d => (
           <button key={d.photo_id} type="button" onClick={() => { setSource({ kind: 'demo', photo: d, url: d.image_url }); setStage('crop'); window.scrollTo(0, 0) }}
                   aria-label={`${d.place_name} ${d.scene_label}`}>
-            <img src={d.image_url} alt="" loading="lazy" /><span>{d.place_name}</span>
+            <img src={d.image_url} alt="" loading="lazy" />
           </button>
         ))}
       </div>
@@ -206,12 +206,12 @@ function ResultPost({ c, mine, priority, saved, voted, onSave, onOpen, onVote, o
       </div>
       <div className="carousel">
         <div className="track" ref={track} onScroll={e => setSlide(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
-          <figure><img src={c.attraction.image_url} alt={c.attraction.name} loading="lazy" /><figcaption>{c.sigungu.name}</figcaption></figure>
-          <figure><img src={mine} alt="내 사진" /><figcaption>내 사진</figcaption></figure>
+          <figure><img src={c.attraction.image_url} alt={c.attraction.name} loading="lazy" /></figure>
+          <figure><img src={mine} alt="내 사진" /></figure>
         </div>
         {slide === 0 && <button type="button" className="nav next" onClick={() => go(1)} aria-label="내 사진과 비교">›</button>}
         {slide === 1 && <button type="button" className="nav prev" onClick={() => go(0)} aria-label="후보 사진으로">‹</button>}
-        <div className="dots" aria-hidden="true"><i className={slide === 0 ? 'on' : ''} /><i className={slide === 1 ? 'on' : ''} /></div>
+        <div className="dots"><span>{slide === 0 ? c.sigungu.name : '내 사진'}</span><i className={slide === 0 ? 'on' : ''} /><i className={slide === 1 ? 'on' : ''} /></div>
       </div>
       <div className="post-act">
         <button type="button" aria-pressed={saved} onClick={onSave} aria-label="저장"><Heart on={saved} /></button>

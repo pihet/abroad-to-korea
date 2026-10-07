@@ -380,3 +380,17 @@ def test_region_rain_history(client):
     assert bad.status_code == 400 and "빠릅니다" in bad.json()["detail"]
     assert client.get("/api/regions/51_양양군/rain", params={"start": "2027-12-01", "end": "2027-12-20"}).status_code == 400
     assert client.get("/api/regions/99_없음/rain", params={"start": "2027-12-24", "end": "2027-12-25"}).status_code == 404
+
+
+def test_festivals_this_week(client):
+    """고른 7일에 걸친 축제만, 두 달 넘는 상설 행사는 빼고, 이 기간에 시작하는 축제를 먼저."""
+    from datetime import date
+    d = client.get("/api/festivals", params={"start": "2026-10-07", "days": 7, "limit": 50}).json()
+    assert d["start"] == "2026-10-07" and d["end"] == "2026-10-13" and d["items"]
+    for f in d["items"]:
+        assert f["end"] >= "2026-10-07" and f["start"] <= "2026-10-13"
+        assert (date.fromisoformat(f["end"]) - date.fromisoformat(f["start"])).days + 1 <= 62
+        assert f["region"]["key"] == f["region_key"]
+    flags = [f["starts_in_range"] for f in d["items"]]
+    assert flags == sorted(flags, reverse=True)  # 이번 주 시작이 먼저
+    assert client.get("/api/festivals", params={"days": 40}).status_code == 422

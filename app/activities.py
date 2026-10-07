@@ -7,6 +7,7 @@
 import json
 import re
 import sys
+from datetime import date
 from collections import Counter
 from pathlib import Path
 
@@ -133,6 +134,24 @@ class Activities:
         groups = [{"key": k, "label": label, "count": counts.get(k, 0)} for k, label in GROUPS]
         return groups, out
 
+    def festivals_between(self, start, end, max_days=62):
+        """start~end(YYYYMMDD)에 하루라도 열리는 축제. 1년 내내 하는 상설 행사는 '이번 주 축제'가 아니라서 max_days 넘으면 뺀다.
+        이 기간에 시작하는 축제를 먼저, 그다음 끝나는 날이 가까운 순."""
+        out = []
+        for key, items in self.by_region.items():
+            for r in items:
+                if r["group"] != "festival" or not r["start"] or not r["end"]:
+                    continue
+                if r["end"] < start or r["start"] > end:
+                    continue
+                if (date.fromisoformat(_iso(r["end"])) - date.fromisoformat(_iso(r["start"]))).days + 1 > max_days:
+                    continue
+                out.append({"id": r["id"], "name": r["name"], "region_key": key, "address": r["address"],
+                            "image_url": r["image_url"], "license": r["license"], "start": _iso(r["start"]), "end": _iso(r["end"]),
+                            "starts_in_range": r["start"] >= start})
+        out.sort(key=lambda f: (not f["starts_in_range"], f["start"] if f["starts_in_range"] else f["end"], f["name"]))
+        return out
+
     def food_summary(self, key, top=8, min_menus=5):
         """지역 먹거리: 음식점 대표메뉴에 많이 나오는 음식. 대표메뉴를 받은 곳이 min_menus 미만이면 순위를 내지 않는다."""
         foods = [r for r in self.by_region.get(key, []) if r["group"] == "food"]
@@ -183,6 +202,10 @@ def _in_month(r, month):
         return True
     ym = f"{FESTIVAL_YEAR}{month:02d}"
     return r["start"][:6] <= ym <= r["end"][:6]
+
+
+def _iso(s):
+    return f"{s[:4]}-{s[4:6]}-{s[6:]}"
 
 
 def _d(s):

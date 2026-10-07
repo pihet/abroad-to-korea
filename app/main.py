@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 import urllib.error
 import urllib.request
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -266,6 +266,20 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
          "items": top(lambda r: n_fest[r["key"]] > 0, lambda r: -n_fest[r["key"]], lambda r: n_fest[r["key"]], "개")},
     ]
     return {"is_example": False, "month": month, "lists": lists}
+
+
+@app.get("/api/festivals")
+def festivals(start: Optional[date] = None, days: int = Query(7, ge=1, le=31), limit: int = Query(12, ge=1, le=50)):
+    """start(기본 오늘)부터 days일 안에 열리는 축제. 두 달 넘게 하는 상설 행사는 뺀다. 누르면 그 지역 상세로 간다."""
+    s = start or date.today()
+    e = s + timedelta(days=days - 1)
+    items = acts.festivals_between(s.strftime("%Y%m%d"), e.strftime("%Y%m%d"))
+    for f in items:
+        st = regions.static.get(f["region_key"])
+        f["region"] = {"key": f["region_key"], "name": st["name"], "sido": st["sido"]} if st else None
+    items = [f for f in items if f["region"]]
+    return {"is_example": False, "start": s.isoformat(), "end": e.isoformat(), "total": len(items), "items": items[:limit],
+            "basis": "한국관광공사 TourAPI 축제 일정 (2026년). 두 달 넘게 하는 상설 행사는 제외"}
 
 
 @app.get("/api/regions/{key}/profile")

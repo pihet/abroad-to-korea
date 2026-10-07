@@ -194,5 +194,12 @@ export type RainResult = { start: string; end: string; rule: string } & (
 export const rainApi = (key: string, start: string, end: string) =>
   fetch(`/api/regions/${encodeURIComponent(key)}/rain?start=${start}&end=${end}`).then(r => json<RainResult>(r))
 
+export interface Festival {
+  id: string; name: string; region_key: string; address: string | null; image_url: string | null; license: string | null
+  start: string; end: string; starts_in_range: boolean; region: { key: string; name: string; sido: string }
+}
+export const festivalsApi = (days = 7) =>
+  fetch(`/api/festivals?days=${days}`).then(r => json<{ start: string; end: string; total: number; items: Festival[]; basis: string }>(r))
+
 export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }
 export const placePhotosApi = (cid: string) => fetch(`/api/places/${cid}/photos`).then(r => json<PlacePhotos>(r))
