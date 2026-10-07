@@ -63,6 +63,20 @@ def is_quota_error(text: str) -> bool:
     return "LIMITED_NUMBER_OF_SERVICE_REQUESTS" in text
 
 
+def with_retry(fn, tries: int = 3):
+    """시간 초과 같은 일시적 네트워크 오류는 잠깐 쉬고 다시 시도한다 (HTTP 오류는 바로 올린다)."""
+    import urllib.error
+    for i in range(tries):
+        try:
+            return fn()
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, TimeoutError):
+            if i == tries - 1:
+                raise
+            time.sleep(5 * (i + 1))
+
+
 class KeyRing:
     """인증키 여러 개를 차례로 쓴다. 키마다 하루 per_key 건까지, 한도 초과 응답이 오면 바로 다음 키로."""
 

@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from collections import defaultdict
 
-from tour_attractions import PROJECT_ROOT, KeyRing, is_quota_error
+from tour_attractions import PROJECT_ROOT, KeyRing, is_quota_error, with_retry
 
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2/detailImage2"
 RAW_LIST = PROJECT_ROOT / "data/raw/tourapi/areaBasedList2_ct12_20261002"
@@ -73,12 +73,15 @@ def main() -> None:
         data = None
         while (key := ring.key()) is not None:
             try:
-                data = fetch(key, cid)
+                data = with_retry(lambda: fetch(key, cid))
             except urllib.error.HTTPError as e:
                 body = e.read()[:300].decode("utf-8", "replace")
                 if e.code == 429 or is_quota_error(body):
                     ring.next_key("하루 한도 초과"); continue
                 print(f"HTTP {e.code} ({cid}): {body[:200]!r} → 멈춤")
+                break
+            except (urllib.error.URLError, TimeoutError) as e:
+                print(f"네트워크 오류 3회 ({cid}): {e} → 멈춤 (다시 실행하면 이어서 받음)")
                 break
             calls += 1
             ring.spent()
