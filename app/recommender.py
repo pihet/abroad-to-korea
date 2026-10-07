@@ -202,10 +202,33 @@ class Engine:
             places = pd.read_csv(sc.PLACES_CSV).set_index("place_id")
             first = rows.sort_values("photo_rank").drop_duplicates("scene_id")
             self._demo = [{"photo_id": r.file, "place_name": places.loc[r.place_id, "name_ko"], "scene_label": r.scene_label_ko,
+                           **_country(places.loc[r.place_id, "country_code"]),
                            "image_url": f"/images/overseas/{r.file}", "artist": str(r.artist), "license": str(r.license),
                            "license_url": str(r.license_url), "source_page": str(r.commons_page)}
                           for r in first.itertuples()]
         return self._demo
+
+
+# 해외 장소표(overseas_places)의 국가 코드 → 화면 이름·대륙 (탐색 탭의 대륙 칩·사진 이름표)
+COUNTRY = {
+    "JP": ("일본", "아시아"), "CN": ("중국", "아시아"), "TW": ("대만", "아시아"), "HK": ("홍콩", "아시아"), "MO": ("마카오", "아시아"),
+    "MN": ("몽골", "아시아"), "VN": ("베트남", "아시아"), "TH": ("태국", "아시아"), "PH": ("필리핀", "아시아"), "MY": ("말레이시아", "아시아"),
+    "SG": ("싱가포르", "아시아"), "ID": ("인도네시아", "아시아"), "KH": ("캄보디아", "아시아"), "LA": ("라오스", "아시아"), "NP": ("네팔", "아시아"),
+    "MV": ("몰디브", "아시아"), "AE": ("아랍에미리트", "아시아"),
+    "FR": ("프랑스", "유럽"), "IT": ("이탈리아", "유럽"), "GB": ("영국", "유럽"), "ES": ("스페인", "유럽"), "PT": ("포르투갈", "유럽"),
+    "CH": ("스위스", "유럽"), "AT": ("오스트리아", "유럽"), "BE": ("벨기에", "유럽"), "CZ": ("체코", "유럽"), "HU": ("헝가리", "유럽"),
+    "HR": ("크로아티아", "유럽"), "SI": ("슬로베니아", "유럽"), "GR": ("그리스", "유럽"), "NO": ("노르웨이", "유럽"), "IS": ("아이슬란드", "유럽"),
+    "TR": ("튀르키예", "유럽"),
+    "US": ("미국", "아메리카"), "CA": ("캐나다", "아메리카"), "MX": ("멕시코", "아메리카"), "PE": ("페루", "아메리카"),
+    "BO": ("볼리비아", "아메리카"), "CL": ("칠레", "아메리카"), "EC": ("에콰도르", "아메리카"),
+    "AU": ("호주", "오세아니아"), "NZ": ("뉴질랜드", "오세아니아"), "GU": ("괌", "오세아니아"), "MP": ("사이판", "오세아니아"),
+    "EG": ("이집트", "아프리카"), "MA": ("모로코", "아프리카"), "TZ": ("탄자니아", "아프리카"),
+}
+
+
+def _country(code):
+    name, continent = COUNTRY.get(str(code), (str(code), "기타"))
+    return {"country_code": str(code), "country": name, "continent": continent}
 
 
 def _float(x):

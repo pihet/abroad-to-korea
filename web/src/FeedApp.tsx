@@ -3,6 +3,7 @@ import { festivalsApi, rankingsApi, regionsApi, type Festival, type RankingList,
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
+import { FeedExplore } from './FeedExplore'
 import './feed.css'
 
 // 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · 저장 + 지역 검색 · 지역 상세.
@@ -202,16 +203,7 @@ export default function FeedApp() {
         {shown < feed.length ? <div ref={more} className="ig-wait">더 불러오는 중…</div> : <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>}
       </>}
 
-      {rows && tab === 'explore' && (<>
-        <div className="ig-grid">
-          {rows.map(r => (
-            <button key={r.key} type="button" onClick={() => setOpen(r.key)} aria-label={`${r.sido} ${r.name}`}>
-              <img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" />
-            </button>
-          ))}
-        </div>
-        <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>
-      </>)}
+      {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); setTab('search') }} />}
 
       {rows && tab === 'saved' && (
         saved.length === 0 ? <p className="ig-wait">하트를 누른 곳이 여기에 모여요.</p> : (

@@ -296,3 +296,23 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .igr-src { margin: 20px 16px 0; padding-top: 12px; border-top: 1px solid var(--ig-line) }
 .igr-src b { font-size: 12.5px; color: var(--ig-sub) }
 .igr-src ul { margin: 6px 0 0; padding-left: 16px; font-size: 11px; color: var(--ig-sub); line-height: 1.55 }
+
+/* ---------- 탐색: 해외 사진 격자 ---------- */
+.igx-head { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px 6px }
+.igx-head b { font-size: 20px; font-weight: 900 }
+.igx-head small { font-size: 12.5px; color: var(--ig-sub) }
+.igx-chips { position: sticky; top: 56px; z-index: 10; display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px 10px; background: var(--ig-bg); scrollbar-width: none }
+.igx-chips button { flex: none; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ig-line); font-size: 13.5px; font-weight: 700; color: var(--ig-sub) }
+.igx-chips button small { font-weight: 500; margin-left: 2px }
+.igx-chips button[aria-pressed="true"] { background: var(--ig-ink); border-color: var(--ig-ink); color: var(--ig-bg) }
+.igx-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; grid-auto-flow: dense; gap: 2px }
+.igx-grid button { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--ig-soft) }
+.igx-grid button.big { grid-column: span 2; grid-row: span 2 }
+.igx-grid img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s }
+.igx-grid button:hover img { transform: scale(1.04) }
+.igx-grid span { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: 18px 7px 6px; text-align: left; color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, .62)) }
+.igx-grid span b { font-size: 11.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.igx-grid span small { font-size: 10.5px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.igx-grid button.big span b { font-size: 14px }
+.igx-grid button.big span small { font-size: 12px }

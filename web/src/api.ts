@@ -12,6 +12,9 @@ export interface DemoPhoto {
   license: string
   license_url: string
   source_page: string
+  country_code: string
+  country: string
+  continent: string
 }
 
 export interface Tag { tag: string; score: number }
