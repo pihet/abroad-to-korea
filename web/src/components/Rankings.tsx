@@ -18,8 +18,8 @@ export function Rankings({ onOpen }: { onOpen: (key: string) => void }) {
               {l.items.map((it, i) => (
                 <li key={it.key}>
                   <button type="button" onClick={() => onOpen(it.key)}>
-                    <span className="ph">{it.photo && <img src={it.photo.image_url} alt={it.photo.name} loading="lazy" />}<em>{i + 1}</em></span>
-                    <b>{it.name}</b>
+                    <span className="ph">{it.photo && <img src={it.photo.image_url} alt={it.photo.name} loading="lazy" />}</span>
+                    <b>{i + 1}. {it.name}</b>
                     <small>{it.sido}</small>
                     <span className="val">{it.value.toLocaleString()}{it.unit && <i> {it.unit}</i>}</span>
                   </button>

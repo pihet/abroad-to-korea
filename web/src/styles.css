@@ -578,3 +578,10 @@ button.df-ph:hover em, button.df-ph:focus-visible em { opacity: 1 }
 .pv-thumbs button { flex: 0 0 auto; width: 88px; aspect-ratio: 3/2; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: #000; cursor: pointer }
 .pv-thumbs button[aria-pressed="true"] { border-color: #fff }
 .pv-thumbs img { width: 100%; height: 100%; object-fit: contain }
+
+/* 공공누리 사진 위에 글자를 덮지 않는다 (3유형 변경 금지): 원본/후보 표시는 사진 아래, 순위 번호는 이름 앞, 음식점 '사진 더 보기'는 숨김 */
+.pair figure, .result2 .pair figure { aspect-ratio: auto; flex-direction: column; gap: 6px; padding-bottom: 6px }
+.pair img { aspect-ratio: 3/4; height: auto }
+.result2 .pair img { aspect-ratio: 3/2 }
+.pair figcaption, .result2 .pair figcaption { position: static }
+button.df-ph em { display: none }
