@@ -139,8 +139,6 @@ export interface RegionsResponse {
 export const regionsApi = (origin?: Origin | null) =>
   fetch(`/api/regions${origin ? `?origin=${encodeURIComponent(origin)}` : ''}`).then(r => json<RegionsResponse>(r))
 
-export interface Filters { sido: string | null; keys: FilterKey[] }
-export const matches = (r: RegionRow, f: Filters) => f.keys.every(k => r.flags[k]) && (!f.sido || r.sido === f.sido)
 
 export interface MonthRow {
   month: number; temp_c: number | null; rain_days: number | null
@@ -166,11 +164,6 @@ export interface RankingList { id: string; title: string; basis: string; items: 
 export const rankingsApi = () =>
   fetch(`/api/rankings`).then(r => json<{ lists: RankingList[] }>(r)).then(r => r.lists)
 
-export interface Showcase {
-  is_example: boolean; note: string; overseas: DemoPhoto
-  domestic: { sigungu: { key: string; name: string; sido: string }; attraction: Candidate['attraction']; similarity: number; visual_rank: number }
-}
-export const showcaseApi = () => fetch('/api/showcase').then(r => json<Showcase>(r))
 
 export interface DongFood {
   code: string; total: number; with_menu: number; note: string

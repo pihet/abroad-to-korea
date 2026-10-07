@@ -324,15 +324,6 @@ def test_menu_words():
     assert _menu_words("등갈비찜 2인분 외") == ["등갈비찜"]
 
 
-def test_showcase(client):
-    """첫 화면 예시는 실제 추천 결과 1위여야 한다 (지어낸 짝이 아님)."""
-    s = client.get("/api/showcase").json()
-    assert s["is_example"] is True and s["overseas"]["photo_id"] == main.SHOWCASE_PHOTO
-    r = client.post("/api/analyze", data={"demo_photo_id": main.SHOWCASE_PHOTO}).json()
-    top = client.post("/api/recommend", json={"query_id": r["query_id"], "limit": 1}).json()["candidates"][0]
-    assert s["domestic"]["sigungu"]["key"] == top["sigungu"]["key"] and s["domestic"]["attraction"]["id"] == top["attraction"]["id"]
-
-
 def test_dong_food(client):
     p = client.get("/api/regions/50_제주시/profile").json()
     dong = max(p["neighborhoods"], key=lambda n: n["n_food"])
