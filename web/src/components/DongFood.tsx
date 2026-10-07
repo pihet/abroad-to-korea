@@ -33,7 +33,7 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
         </ul>
       )}
       {shown < d.total && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({shown} / {d.total})</button>}
-      <p className="fine">{d.note} 사진을 누르면 추가 사진을 볼 수 있습니다. 사진: 한국관광공사 TourAPI · 공공누리 제1·3유형</p>
+      <p className="fine">{d.note} 사진을 누르면 추가 사진을 볼 수 있습니다.</p>
       {view && <PhotoViewer cid={view.id} name={view.name} main={view.image_url && !broken.has(view.id) ? view.image_url : null}
                             mainLicense={view.license} onClose={() => setView(null)} />}
     </div>

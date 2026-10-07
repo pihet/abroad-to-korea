@@ -39,7 +39,7 @@ export function RainCheck({ regionKey }: { regionKey: string }) {
               <small>강수확률 {d.prob ?? '–'}% · {d.rain_mm ?? '–'}mm</small></li>
           })}
         </ul>
-        <p className="fine">Open-Meteo 일기예보 (오늘부터 16일까지만 제공) · {r.rule}</p>
+        <p className="fine">일기예보는 오늘부터 16일까지만 나와요 · {r.rule}</p>
       </>}
       {r?.basis === 'history' && <>
         <p className="rain-say">
@@ -52,7 +52,7 @@ export function RainCheck({ regionKey }: { regionKey: string }) {
               <span>{d.years}년 중 {d.rainy_years}년 비</span></li>
           ))}
         </ul>
-        <p className="fine">과거 기록이지 올해 예보가 아닙니다. Open-Meteo 2021~2025년 일별 기록 · {r.rule}. 날짜가 16일 안으로 들어오면 일기예보로 바뀝니다.</p>
+        <p className="fine">과거 기록이지 올해 예보가 아닙니다. 2021~2025년 일별 기록 · {r.rule}. 날짜가 16일 안으로 들어오면 일기예보로 바뀝니다.</p>
       </>}
     </div>
   )

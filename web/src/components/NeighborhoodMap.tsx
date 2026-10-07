@@ -28,13 +28,12 @@ function popupHtml(it: DongActivities['items'][number], color: string) {
     ${it.menu ? `<span class="ap-menu">대표메뉴 · ${esc(it.menu)}</span>` : ''}
     ${it.address ? `<span class="ap-addr">${esc(it.address)}</span>` : ''}
     <a class="ap-link" href="${map}" target="_blank" rel="noopener">카카오맵에서 보기</a>
-    ${it.license ? `<span class="ap-lic">사진 한국관광공사 · ${esc(it.license)}</span>` : ''}
   </div>`
 }
 
 // 시군구 안 읍·면·동 경계. 동네(번호·영역)를 누르면 그 동네로 확대하고, 그 안의 활동지·음식점을 묶음별 색 점으로 찍는다.
-export function NeighborhoodMap({ regionKey, hoods, focus, name, credit, selected, onSelect }: {
-  regionKey: string; hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string; credit: string
+export function NeighborhoodMap({ regionKey, hoods, focus, name, selected, onSelect }: {
+  regionKey: string; hoods: Neighborhood[]; focus: [number, number, number, number] | null; name: string
   selected: string | null; onSelect: (code: string) => void
 }) {
   const box = useRef<HTMLDivElement>(null)
@@ -157,7 +156,6 @@ export function NeighborhoodMap({ regionKey, hoods, focus, name, credit, selecte
           ))}
         </ol>
       ) : <p className="fine">이 지역에는 활동지로 분류된 곳이 아직 없습니다.</p>}
-      <p className="fine">{credit}</p>
     </div>
   )
 }

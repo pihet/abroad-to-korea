@@ -153,6 +153,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
       {res && list.length < Math.min(MAX, res.total_candidates) && (
         <button type="button" className="ig-more" disabled={busy} onClick={more}>{busy ? '불러오는 중…' : '닮은 곳 더 보기'}</button>
       )}
+      {list.length > 0 && <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>}
       {source?.kind === 'demo' && (
         <p className="ig-foot">내 사진: {source.photo.place_name} · {source.photo.artist} · <a href={source.photo.license_url} target="_blank" rel="noopener">{source.photo.license}</a> · Wikimedia Commons</p>
       )}
@@ -229,7 +230,7 @@ function ResultPost({ c, mine, priority, saved, voted, onSave, onOpen, onVote, o
         {c.map_links.kakao && <a href={c.map_links.kakao} target="_blank" rel="noopener">카카오맵</a>}
         {c.map_links.naver && <a href={c.map_links.naver} target="_blank" rel="noopener">네이버지도</a>}
       </p>
-      <small className="post-credit">사진 {c.attraction.source} · {c.attraction.license} · 장면 태그는 자동 비교(참고용)</small>
+      <small className="post-credit">비슷한 점·다른 점은 장면 태그 자동 비교 (참고용)</small>
     </li>
   )
 }

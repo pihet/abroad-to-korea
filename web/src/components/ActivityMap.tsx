@@ -115,7 +115,7 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
           ))}
         </ol>
         {list.length < total && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({list.length} / {total})</button>}
-        <ul className="acts-notes">{data.notes.map(n => <li key={n}>{n}</li>)}<li>목록 사진: 한국관광공사 TourAPI · 공공누리 제1·3유형</li></ul>
+        <ul className="acts-notes">{data.notes.map(n => <li key={n}>{n}</li>)}</ul>
       </>}
     </div>
   )

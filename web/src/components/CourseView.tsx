@@ -73,7 +73,7 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
                 <b>{s.name}</b>
                 {s.kind && <small className="kind">{s.kind}</small>}
                 {s.region && s.region !== regionKey && <small className="kind">· 다른 시군구</small>}
-                {s.image_url && <figure><img src={s.image_url} alt={s.name} loading="lazy" /><figcaption>한국관광공사 · {s.license}</figcaption></figure>}
+                {s.image_url && <figure><img src={s.image_url} alt={s.name} loading="lazy" /></figure>}
                 {s.overview && <p>{s.overview}</p>}
                 {s.lat != null && <a href={`https://map.kakao.com/link/map/${encodeURIComponent(s.name)},${s.lat},${s.lon}`} target="_blank" rel="noopener">카카오맵</a>}
               </div>
@@ -81,7 +81,7 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
           ))}
         </ol>
       </>}
-      <ul className="igr-notes">{d.notes.map(n => <li key={n}>{n}</li>)}</ul>
+      <p className="igr-hint">지도의 선은 들르는 순서를 직선으로 이은 것이며 실제 길이 아니에요.</p>
     </div>
   )
 }

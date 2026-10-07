@@ -291,3 +291,8 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .igr-peek small { font-size: 12.5px; color: var(--ig-sub) }
 .igr-peek a { font-size: 13px; font-weight: 700; color: #0095f6 }
 .igr-peek .lic { font-size: 11px }
+
+/* 지역 상세 맨 끝 출처 */
+.igr-src { margin: 20px 16px 0; padding-top: 12px; border-top: 1px solid var(--ig-line) }
+.igr-src b { font-size: 12.5px; color: var(--ig-sub) }
+.igr-src ul { margin: 6px 0 0; padding-left: 16px; font-size: 11px; color: var(--ig-sub); line-height: 1.55 }

@@ -1584,3 +1584,9 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 
 - 사용자 결정으로 `App.tsx`와 그 화면 전용 부품 10개 삭제 (BrowseStep·CandidateCard·Conditions·FilterBar·PhotoStep·Rankings·RegionPage·ResultMap·TagChips). `#classic` 없음. 공용 부품(지도·음식점·비 예보·코스·자르기·사진 보기)은 유지
 - 정리: styles.css 에서 남은 화면 코드에 나오지 않는 클래스 규칙 303개 삭제(587→330줄, leaflet-*·g-* 는 유지), api.ts 의 Filters·matches·Showcase·showcaseApi, 서버 /api/showcase 와 그 테스트 삭제 (32개 통과)
+
+### 15-22. 해시태그 숫자 제거, 출처는 지역 상세 맨 끝으로 (2026-10-07)
+
+- 해시태그는 `#바다 #산숲 #도시/#시골소도시`만 (거리·개수 숫자 뺌)
+- 지역 상세: 사진 아래·지도 말풍선·음식점 목록·코스 사진·축제 카드의 출처를 빼고 맨 끝 "출처" 칸 하나로 (대표 사진, TourAPI 공공누리 1·3유형, 비 예보·방문자·동네 순위·행정동 경계, 지도). 설명 문구(직선 경로, 과거 기록은 예보 아님 등)는 제자리에
+- 미리보기(피드·탐색·검색 결과): 게시물마다 출처 줄을 빼고 목록 맨 아래 한 줄만 남김 (공공누리는 출처 표시가 이용 조건). 지도 오른쪽 아래 OSM 표시와 사진 보기 창의 사진별 유형은 그대로

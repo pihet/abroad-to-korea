@@ -45,7 +45,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const top = (d?.neighborhoods ?? []).filter(h => h.rank).sort((a, b) => a.rank! - b.rank!)
   const nActs = (d?.neighborhoods ?? []).reduce((s, h) => s + h.total, 0)  // 관광지·레포츠 (축제·음식점 제외)
   const tags = r ? [
-    r.flags.sea && `#바다 ${r.coast_km}km`, r.mountain_n > 0 && `#산숲 ${r.mountain_n}곳`,
+    r.flags.sea && '#바다', r.mountain_n > 0 && '#산숲',
     r.flags.city ? '#도시' : '#시골소도시',
   ].filter(Boolean) as string[] : []
   // 원형 프로필은 사진을 자르므로 변경이 허용되는 공공누리 1유형일 때만 사진을 쓴다
@@ -112,7 +112,6 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
                   <small>{peek.kind}{peek.period ? ` · ${peek.period}` : ''}</small>
                   {peek.address && <small>{peek.address}</small>}
                   <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵에서 보기</a>
-                  {peek.license && <small className="lic">사진 한국관광공사 TourAPI · {peek.license}</small>}
                 </div>
               )}
             </section>
@@ -127,11 +126,10 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               {d.photo && (
                 <figure className="igr-photo">
                   <img src={d.photo.image_url} alt={d.photo.name} />
-                  <figcaption>{d.photo.name} · 한국관광공사 TourAPI · {d.photo.license}</figcaption>
                 </figure>
               )}
               <p className="igr-hint">번호는 관광지·레포츠가 많은 동네 Top 5예요. 동네를 누르면 지도가 확대되고 할 거리가 점으로, 아래에 음식점이 나와요.</p>
-              <NeighborhoodMap regionKey={regionKey} hoods={d.neighborhoods} focus={d.focus} name={r.name} credit={d.notes.at(-1) ?? ''}
+              <NeighborhoodMap regionKey={regionKey} hoods={d.neighborhoods} focus={d.focus} name={r.name}
                 selected={dong} onSelect={setDong} />
               {dong && <DongFood regionKey={regionKey} code={dong} name={d.neighborhoods.find(n => n.code === dong)?.name ?? ''} />}
             </section>
@@ -153,7 +151,15 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               <ActivityMap sigunguKey={regionKey} sigunguName={r.name} attractionId={d.photo?.attraction_id ?? ''} />
             </section>
           )}
-          <ul className="igr-notes">{d.notes.slice(0, -1).map(n => <li key={n}>{n}</li>)}</ul>
+          <section className="igr-src" aria-label="출처">
+            <b>출처</b>
+            <ul>
+              {d.photo && <li>대표 사진: {d.photo.name} · 한국관광공사 TourAPI · {d.photo.license}</li>}
+              <li>이 화면의 국내 사진·관광지·음식점·축제·체험·여행코스: 한국관광공사 TourAPI (사진은 공공누리 제1유형 또는 제3유형, 변경 없이 사용)</li>
+              {d.notes.map(n => <li key={n}>{n}</li>)}
+              <li>지도: © OpenStreetMap contributors</li>
+            </ul>
+          </section>
         </>}
       </div>
     </div>

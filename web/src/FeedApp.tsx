@@ -45,8 +45,8 @@ const loadSaved = (): string[] => { try { return JSON.parse(localStorage.getItem
 
 function caption(r: RegionRow) {
   const bits = [
-    r.flags.sea && r.coast_km != null && `#바다 ${r.coast_km}km`,
-    r.mountain_n > 0 && `#산숲 ${r.mountain_n}곳`,
+    r.flags.sea && '#바다',
+    r.mountain_n > 0 && '#산숲',
     r.flags.city ? '#도시' : '#시골소도시',
   ].filter(Boolean)
   return bits.join(' ')
@@ -196,14 +196,13 @@ export default function FeedApp() {
                 <button type="button" className="post-more" onClick={() => setOpen(r.key)}>자세히 보기</button>
               </div>
               <p className="post-cap"><b>{r.photo!.name}</b> {caption(r)}</p>
-              <small className="post-credit">사진 한국관광공사 TourAPI · {r.photo!.license}</small>
             </li>
           ))}
         </ul>
-        {shown < feed.length && <div ref={more} className="ig-wait">더 불러오는 중…</div>}
+        {shown < feed.length ? <div ref={more} className="ig-wait">더 불러오는 중…</div> : <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>}
       </>}
 
-      {rows && tab === 'explore' && (
+      {rows && tab === 'explore' && (<>
         <div className="ig-grid">
           {rows.map(r => (
             <button key={r.key} type="button" onClick={() => setOpen(r.key)} aria-label={`${r.sido} ${r.name}`}>
@@ -211,7 +210,8 @@ export default function FeedApp() {
             </button>
           ))}
         </div>
-      )}
+        <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>
+      </>)}
 
       {rows && tab === 'saved' && (
         saved.length === 0 ? <p className="ig-wait">하트를 누른 곳이 여기에 모여요.</p> : (
