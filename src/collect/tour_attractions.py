@@ -48,6 +48,45 @@ def load_api_key() -> str:
     return key
 
 
+def load_api_keys() -> list[str]:
+    """TOUR_API_KEY, TOUR_API_KEY_2, TOUR_API_KEY_3 … 순서대로 (조원 키를 더하면 하루에 더 받는다)."""
+    keys = [load_api_key()]
+    for i in range(2, 10):
+        k = os.environ.get(f"TOUR_API_KEY_{i}", "").strip()
+        if k:
+            keys.append(k)
+    return keys
+
+
+def is_quota_error(text: str) -> bool:
+    """하루 호출 한도 초과 응답인가 (HTTP 429 본문 또는 OpenAPI_ServiceResponse)."""
+    return "LIMITED_NUMBER_OF_SERVICE_REQUESTS" in text
+
+
+class KeyRing:
+    """인증키 여러 개를 차례로 쓴다. 키마다 하루 per_key 건까지, 한도 초과 응답이 오면 바로 다음 키로."""
+
+    def __init__(self, per_key: int):
+        self.keys, self.per_key, self.i = load_api_keys(), per_key, 0
+        self.used = [0] * len(self.keys)
+
+    def key(self):
+        """지금 쓸 키. 남은 키가 없으면 None."""
+        while self.i < len(self.keys) and self.used[self.i] >= self.per_key:
+            self.i += 1
+        return self.keys[self.i] if self.i < len(self.keys) else None
+
+    def spent(self):
+        self.used[self.i] += 1
+
+    def next_key(self, why: str):
+        print(f"키 {self.i + 1}/{len(self.keys)} {why} → 다음 키", flush=True)
+        self.i += 1
+
+    def summary(self) -> str:
+        return " · ".join(f"키{n + 1} {u}건" for n, u in enumerate(self.used))
+
+
 def build_url(key: str, page_no: int, content_type: int = CONTENT_TYPE_ID) -> str:
     """인증키는 포털 표시값이 이미 인코딩된 형태이므로 그대로 붙이고, 나머지 파라미터만 인코딩한다."""
     params = urllib.parse.urlencode(

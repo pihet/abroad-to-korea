@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from collections import defaultdict
 
-from tour_attractions import PROJECT_ROOT, load_api_key
+from tour_attractions import PROJECT_ROOT, KeyRing, is_quota_error
 
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2/detailImage2"
 RAW_LIST = PROJECT_ROOT / "data/raw/tourapi/areaBasedList2_ct12_20261002"
@@ -64,26 +64,37 @@ def fetch(key: str, cid: str) -> dict:
 
 def main() -> None:
     max_calls = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_MAX_CALLS
-    key = load_api_key()
+    ring = KeyRing(max_calls)  # 키마다 max_calls 건, 한도가 차면 다음 키
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     todo = [c for c in queue() if not (OUT_DIR / f"{c}.json").exists()]
-    print(f"남은 관광지 {len(todo)}곳, 오늘 최대 {max_calls}건")
+    print(f"남은 관광지 {len(todo)}곳, 키 {len(ring.keys)}개 × 최대 {max_calls}건")
     calls = saved = 0
-    for cid in todo[:max_calls]:
-        try:
-            data = fetch(key, cid)
-        except urllib.error.HTTPError as e:
-            print(f"HTTP {e.code} ({cid}): {e.read()[:200]!r} → 멈춤")
+    for cid in todo:
+        data = None
+        while (key := ring.key()) is not None:
+            try:
+                data = fetch(key, cid)
+            except urllib.error.HTTPError as e:
+                body = e.read()[:300].decode("utf-8", "replace")
+                if e.code == 429 or is_quota_error(body):
+                    ring.next_key("하루 한도 초과"); continue
+                print(f"HTTP {e.code} ({cid}): {body[:200]!r} → 멈춤")
+                break
+            calls += 1
+            ring.spent()
+            if data.get("response", {}).get("header", {}).get("resultCode") != "0000":
+                text = json.dumps(data, ensure_ascii=False)
+                if is_quota_error(text):  # 한도 초과 등은 response 대신 OpenAPI_ServiceResponse 로 온다
+                    data = None; ring.next_key("하루 한도 초과"); continue
+                print(f"API 오류 ({cid}): {text[:200]} → 멈춤")
+                data = None
             break
-        calls += 1
-        header = data.get("response", {}).get("header", {})
-        if header.get("resultCode") != "0000":
-            # 한도 초과 등은 response 대신 OpenAPI_ServiceResponse 로 온다
-            print(f"API 오류 ({cid}): {json.dumps(data, ensure_ascii=False)[:200]} → 멈춤")
+        if data is None:
             break
         (OUT_DIR / f"{cid}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         saved += 1
         time.sleep(0.1)
+    print(f"사용한 키: {ring.summary()}")
     left = len(todo) - saved
     print(f"호출 {calls}건, 저장 {saved}곳, 남은 관광지 {left}곳 (하루 990건 기준 약 {-(-left // DEFAULT_MAX_CALLS)}일)")
 
