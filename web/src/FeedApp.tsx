@@ -78,7 +78,13 @@ export default function FeedApp() {
   const [shown, setShown] = useState(PAGE)
   // 지역 상세는 주소로도 연다: #region=50_제주시 (공유·바로가기용)
   const [open, setOpenState] = useState<string | null>(() => new URLSearchParams(window.location.hash.slice(1)).get('region'))
-  const setOpen = (k: string | null) => { setOpenState(k); history.replaceState(null, '', k ? `#region=${encodeURIComponent(k)}` : window.location.pathname) }
+  // 탭 이동·지역 상세 열기를 방문 기록에 쌓아, 휴대폰·브라우저 뒤로 가기가 한 단계씩 되돌아가게 한다
+  const nav = (t: Tab) => { if (t === tab) return; setTab(t); history.pushState({ tab: t }, '', window.location.pathname) }
+  const setOpen = (k: string | null) => {
+    if (k) { setOpenState(k); history.pushState({ ...(history.state ?? {}), tab, region: k }, '', `#region=${encodeURIComponent(k)}`) }
+    else if (history.state?.region) history.back()
+    else { setOpenState(null); history.replaceState({ tab }, '', window.location.pathname) }
+  }
   const [start, setStart] = useState<Source | null>(null)
   const [finding, setFinding] = useState(false)  // 지역 검색 화면
   const [openDong, setOpenDong] = useState<string | null>(null)  // 검색에서 동네·장소로 들어오면 그 동네를 고른 채로
@@ -105,9 +111,17 @@ export default function FeedApp() {
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { setShown(PAGE); window.scrollTo(0, 0) }, [story, tab])
   useEffect(() => {
-    const onHash = () => setOpenState(new URLSearchParams(window.location.hash.slice(1)).get('region'))
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    // 주소에 #region= 을 달고 들어와도 뒤로 가기가 사이트 밖이 아니라 홈으로 가게 홈 기록을 먼저 깐다
+    const r = new URLSearchParams(window.location.hash.slice(1)).get('region')
+    history.replaceState({ tab: 'home' }, '', window.location.pathname)
+    if (r) history.pushState({ tab: 'home', region: r }, '', `#region=${encodeURIComponent(r)}`)
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state ?? {}
+      setTab(st.tab ?? 'home')
+      setOpenState(st.region ?? new URLSearchParams(window.location.hash.slice(1)).get('region'))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   const feed = useMemo(() => storyRows(STORIES.find(s => s.id === story)!, rows ?? []), [rows, story])
@@ -140,7 +154,9 @@ export default function FeedApp() {
     return out
   }, [rows])
   const cover = (s: Story) => covers[s.id]
-  const goSearch = () => setTab('search')
+  // 사진으로 찾기 결과의 동그라미 프로필: 시군구 대표 사진
+  const avatars = useMemo(() => Object.fromEntries((rows ?? []).map(r => [r.key, r.photo?.image_url])), [rows])
+  const goSearch = () => nav('search')
 
   return (
     <div className="ig">
@@ -207,7 +223,7 @@ export default function FeedApp() {
         {shown < feed.length && <div ref={more} className="ig-wait">더 불러오는 중…</div>}
       </>}
 
-      {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); setTab('search') }} />}
+      {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); nav('search') }} />}
 
       {rows && tab === 'saved' && (
         saved.length === 0 ? <p className="ig-wait">하트를 누른 곳이 여기에 모여요.</p> : (
@@ -222,14 +238,14 @@ export default function FeedApp() {
       )}
 
       <div hidden={tab !== 'search'}>
-        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} />
+        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} />
       </div>
 
       <nav className="ig-tabs" aria-label="메뉴">
-        <button type="button" aria-pressed={tab === 'home'} onClick={() => setTab('home')}><Svg d={Icon.home} fill={tab === 'home'} /><small>홈</small></button>
-        <button type="button" aria-pressed={tab === 'explore'} onClick={() => setTab('explore')}><Svg d={Icon.search} /><small>탐색</small></button>
+        <button type="button" aria-pressed={tab === 'home'} onClick={() => nav('home')}><Svg d={Icon.home} fill={tab === 'home'} /><small>홈</small></button>
+        <button type="button" aria-pressed={tab === 'explore'} onClick={() => nav('explore')}><Svg d={Icon.search} /><small>탐색</small></button>
         <button type="button" aria-pressed={tab === 'search'} onClick={goSearch}><Svg d={Icon.plus} /><small>사진으로 찾기</small></button>
-        <button type="button" aria-pressed={tab === 'saved'} onClick={() => setTab('saved')}><Svg d={Icon.bookmark} fill={tab === 'saved'} /><small>저장</small></button>
+        <button type="button" aria-pressed={tab === 'saved'} onClick={() => nav('saved')}><Svg d={Icon.bookmark} fill={tab === 'saved'} /><small>저장</small></button>
       </nav>
 
       {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}
