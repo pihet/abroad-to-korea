@@ -8,7 +8,7 @@ const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/l
 // 순서·설명·소요시간은 원문 그대로. 선은 실제 길이 아니라 순서를 이은 직선이다.
 // 정류장 사이 이동 시간 (서버가 카카오 길찾기로 조회). api.ts 는 다른 작업과 겹쳐 타입을 여기 둔다
 type Move = { min: number; km: number } | null
-type Leg = { straight_km: number; car: Move; walk: Move }
+type Leg = { straight_km: number; car: Move; walk: Move; from?: number }  // from: 출발 정류장 번호 (중간에 위치 없는 정류장을 건너뛸 때)
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ''}` : `${Math.max(m, 1)}분`)
 
 export function CourseView({ regionKey, regionName }: { regionKey: string; regionName: string }) {
@@ -30,7 +30,8 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
     let off = false
     fetch(`/api/legs?pts=${pts.map(s => `${s.lat!.toFixed(5)},${s.lon!.toFixed(5)}`).join(';')}`)
       .then(async r => { if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail ?? '이동 시간을 불러오지 못했어요'); return r.json() })
-      .then((r: { legs: Leg[] }) => { if (!off) setLegs(Object.fromEntries(r.legs.map((l, i) => [`${pts[i + 1].order}-${pts[i + 1].id}`, l]))) })
+      .then((r: { legs: Leg[] }) => { if (!off) setLegs(Object.fromEntries(r.legs.map((l, i) => [`${pts[i + 1].order}-${pts[i + 1].id}`,
+        { ...l, from: pts[i + 1].order - pts[i].order > 1 ? pts[i].order : undefined }]))) })
       .catch(e => { if (!off) { setLegs({}); setLegErr(e.message) } })
     return () => { off = true }
   }, [c])
@@ -109,5 +110,6 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
 // 앞 정류장에서 이 정류장까지: 차로 ○분 · ○km (가까우면 걸어서 ○분)
 function LegLine({ l }: { l: Leg }) {
   const parts = [l.car && `차로 ${hm(l.car.min)} · ${l.car.km}km`, l.walk && `걸어서 ${hm(l.walk.min)}`].filter(Boolean)
-  return <p className="course-leg">{parts.length ? parts.join(' · ') : `직선 ${l.straight_km}km (길찾기 결과 없음)`}</p>
+  const head = l.from ? `${l.from}번에서 ` : ''
+  return <p className="course-leg">{head}{parts.length ? parts.join(' · ') : `직선 ${l.straight_km}km (길찾기 결과 없음)`}</p>
 }
