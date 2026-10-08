@@ -28,7 +28,7 @@ def _items(path):
 
 
 def _text(s, n=180):
-    s = " ".join(TAG.sub(" ", s or "").split())
+    s = " ".join(TAG.sub(" ", (s or "").replace("\\n", " ")).split())  # 원문에 글자 그대로 '\n'이 든 설명이 있다
     return s if len(s) <= n else s[:n].rstrip() + "…"
 
 
