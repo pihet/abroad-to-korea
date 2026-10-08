@@ -36,7 +36,10 @@ export const authApi = {
   me: () => fetch('/api/auth/me').then(r => json<AuthUser>(r)),
   signup: (body: { email: string; nickname: string; password: string }) =>
     fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(r => json<{ ok: boolean; message: string }>(r)),
+      .then(r => json<{ ok: boolean; message: string; verification_token?: string }>(r)),
+  verifyEmail: (token: string) =>
+    fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) })
+      .then(r => json<{ ok: boolean }>(r)),
   login: (body: { email: string; password: string }) =>
     fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => json<AuthUser>(r)),
   logout: () => fetch('/api/auth/logout', { method: 'POST' }).then(r => json<{ ok: boolean }>(r)),
