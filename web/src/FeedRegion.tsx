@@ -162,10 +162,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               {about?.overview && <p className="pv-txt">{about.overview}</p>}
               {peek.address && <p className="pv-sub">주소 {peek.address}</p>}
               {about?.tel && <p className="pv-sub">전화 {about.tel}</p>}
-              <p className="pv-links">
-                {about?.homepage && <a href={about.homepage} target="_blank" rel="noopener">홈페이지</a>}
-                <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵에서 보기</a>
-              </p>
+              {about?.homepage && <p className="pv-links"><a href={about.homepage} target="_blank" rel="noopener">홈페이지</a></p>}
             </PhotoViewer>
           )}
           <section className="igr-src" aria-label="출처">
