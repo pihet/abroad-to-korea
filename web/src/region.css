@@ -1,5 +1,5 @@
 /* 지역 상세 보완 스타일 (feed.css 뒤에 읽히도록 선택자를 .ig 로 한 단계 높인다) */
-.ig .igr-bio .tag { display: inline-flex; align-items: center; justify-content: center; line-height: 1; padding: 3.75px 6px 1.25px; vertical-align: 2px }  /* Pretendard 기준으로 글자 위아래 여백을 맞춘 값 (4배 확대 측정) */
+.ig .igr-bio .tag { display: inline-flex; align-items: center; justify-content: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px }  /* Pretendard에서 위아래 같은 여백이 가운데 (윈도우·리눅스 Chrome 4배 확대로 확인) */
 .ig .igr-cap { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px 4px 16px; font-size: 12.5px; color: var(--ig-sub) }
 .ig .igr-heart { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--ig-ink); cursor: pointer }
 .ig .igr-heart svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8 }
