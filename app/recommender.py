@@ -40,6 +40,8 @@ TAG_NAMES = {
     "LS011900": "레저", "LS021400": "수상레저", "LS030300": "패러글라이딩", "LS030500": "드론", "LS030600": "항공레저",
     "SH050300": "특산물", "SH070100": "쇼핑",
 }
+# 동네 공원(소공원·어린이공원·근린공원)은 여행 이유가 되기 어려워 화면의 대표 사진으로는 쓰지 않는다 (추천 계산에는 그대로)
+LOCAL_PARK_CODES = {"VE030200", "VE030300", "VE030400"}
 KOGL = {"Type1": "공공누리 제1유형 (출처표시)", "Type3": "공공누리 제3유형 (출처표시·변경금지)"}
 CACHE_SIZE = 200
 
@@ -216,7 +218,8 @@ class Engine:
             self._rep = {}
             sims = self.I["kv"] @ self.I["reg_mean"].T
             items = [self.I["items"][c] for c in self.cid]
-            masks = {None: self.ok, **{k: self.ok & np.array([f(it) for it in items]) for k, f in self.PHOTO_KINDS.items()}}
+            shown = self.ok & np.array([it.get("lclsSystm3") not in LOCAL_PARK_CODES for it in items])
+            masks = {None: shown, **{k: shown & np.array([f(it) for it in items]) for k, f in self.PHOTO_KINDS.items()}}
             for kd, m in masks.items():
                 for i in range(len(self.I["regions"])):
                     ix = np.where((self.I["img_region"] == i) & m)[0]
@@ -224,7 +227,7 @@ class Engine:
                         self._rep[kd, i] = int(ix[np.argmax(sims[ix, i])])
             u = self.urban_score()
             for i in range(len(self.I["regions"])):
-                ix = np.where((self.I["img_region"] == i) & self.ok)[0]
+                ix = np.where((self.I["img_region"] == i) & shown)[0]
                 if len(ix) and u[ix].max() >= self.URBAN_MIN:
                     self._rep["city", i] = int(ix[np.argmax(u[ix])])
         k = self._rep.get((kind, ri))
