@@ -441,3 +441,9 @@ def test_region_cost(client):
     assert one["level"] == "sigungu" and one["n"] >= 30 and one["p25"] <= one["median"] <= one["p75"]
     assert "국민여행조사" in r["source"]
     assert client.get("/api/regions/없는곳/cost").status_code == 404
+
+
+def test_course_legs_validation(client):
+    assert client.get("/api/legs?pts=37.75,128.89").status_code == 400  # 한 곳뿐
+    assert client.get("/api/legs?pts=10,10;11,11").status_code == 400  # 한국 밖
+    assert client.get("/api/legs?pts=abc;def").status_code == 400

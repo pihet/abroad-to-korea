@@ -29,6 +29,7 @@ from .context import DATA_SOURCES, ORIGINS, ROOT
 from .rain import Rain, RainError
 from .courses import Courses
 from .cost import Cost
+from .travel_time import TravelError, TravelTime
 from .search import Search
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
@@ -59,7 +60,7 @@ MISSING_PHOTOS: set[str] = set()
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions, hoods, rain, courses, search, cost
+    global engine, acts, regions, hoods, rain, courses, search, cost, travel
     t = time.time()
     engine = Engine()
     acts = Activities()
@@ -68,6 +69,7 @@ async def lifespan(_app):
     rain = Rain(engine.ctx.centers)
     courses = Courses(acts, engine)
     cost = Cost()
+    travel = TravelTime()
     search = Search(acts, hoods, regions.static)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
@@ -345,6 +347,23 @@ def region_cost(key: str):
     if c is None:
         raise HTTPException(404, "경비 표가 없습니다. src/cost/build_cost_table.py 를 먼저 실행해 주세요.")
     return {"is_example": False, **c}
+
+
+@app.get("/api/legs")
+def course_legs(pts: str = Query(..., max_length=600)):
+    """코스 정류장 사이 이동 시간. pts = '위도,경도;위도,경도;…' (2~15곳, 한국 안). 자동차는 모든 구간, 도보는 직선 2km 이하만."""
+    try:
+        points = [tuple(float(v) for v in p.split(",")) for p in pts.split(";")]
+    except ValueError:
+        raise HTTPException(400, "좌표 형식이 올바르지 않습니다.")
+    if not 2 <= len(points) <= 15 or any(len(p) != 2 or not (33 <= p[0] <= 39 and 124 <= p[1] <= 132) for p in points):
+        raise HTTPException(400, "좌표는 한국 안의 2~15곳이어야 합니다.")
+    try:
+        legs = travel.legs(points)
+    except TravelError as e:
+        raise HTTPException(503, str(e))
+    return {"is_example": False, "legs": legs,
+            "note": "카카오 길찾기 조회 시점 기준 (자동차는 실시간 교통 반영, 도보는 직선 2km 이하 구간만)"}
 
 
 @app.get("/api/regions/{key}/courses")

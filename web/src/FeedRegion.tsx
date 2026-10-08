@@ -178,6 +178,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               {d.notes.map(n => <li key={n}>{n}</li>)}
               <li>음식점 사진 중 관광공사 사진이 없는 곳: 네이버 이미지 검색 결과 (네이버 플레이스·메뉴판닷컴 등, 저작권은 원 게시자)</li>
               {cost && <li>예상 경비: {cost.source}. 출발지 교통비가 포함된 값이라 멀리서 오면 더 들 수 있음{c1?.level === 'sido' ? ` · 이 시군구는 표본이 적어 ${c1.sido} 값` : ''}</li>}
+              <li>코스 이동 시간: 카카오 길찾기 (조회 시점 기준, 자동차는 실시간 교통 반영, 도보는 직선 2km 이하 구간만)</li>
               <li>지도: © OpenStreetMap contributors</li>
               <li>해외 사진(탐색·사진으로 찾기 예시): Wikimedia Commons, 격자·카드에서는 가운데를 잘라 표시 <CommonsCredits /></li>
             </ul>
