@@ -28,6 +28,7 @@ NAVER_IMAGE = ROOT / "data/raw/naver_image"  # 대표 사진 없는 음식점의
 # 네이버 결과 중 가게 사진 위주인 출처만 쓴다 (네이버 플레이스·메뉴판닷컴·관광공사). 뉴스·쇼핑·블로그 인물 사진은 뺀다
 NAVER_HOSTS = {"ldb-phinf.pstatic.net", "www.menupan.com", "menupan.com", "cdn.visitkorea.or.kr", "tong.visitkorea.or.kr"}
 NAVER_LICENSE = "네이버 이미지 검색 (저작권은 원 게시자)"
+NAVER_PICKS = ROOT / "data/interim/app/naver_picks.json"  # 2차 검색에서 CLIP으로 확인해 고른 사진 (naver_food_pick.py)
 FESTIVAL_YEAR = "2026"   # 축제 목록은 끝난 행사가 빠지므로 2026년 기록을 쓴다
 
 GROUPS = [  # (키, 화면 이름) — 화면의 색 순서와 같다
@@ -197,8 +198,14 @@ def _food_photo(cid, title):
         items = ((json.loads(f.read_text(encoding="utf-8"))["response"]["body"].get("items") or {}).get("item")) or []
         if items and items[0].get("cpyrhtDivCd") in OK_LICENSE:
             return f"/images/extra/{cid}/0", OK_LICENSE[items[0]["cpyrhtDivCd"]]
-    url = naver_pick(cid, title)
+    url = naver_pick(cid, title) or _naver_picks().get(cid)
     return (url, NAVER_LICENSE) if url else (None, None)
+
+
+def _naver_picks():
+    if not hasattr(_naver_picks, "cache"):
+        _naver_picks.cache = json.loads(NAVER_PICKS.read_text(encoding="utf-8")) if NAVER_PICKS.exists() else {}
+    return _naver_picks.cache
 
 
 def _menu(cid):

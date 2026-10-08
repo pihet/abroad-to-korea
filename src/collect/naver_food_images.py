@@ -10,6 +10,8 @@ app/activities.py 의 naver_pick() 이 고른다 (가게 이름이 제목에 있
 실행:
     python src/collect/naver_food_images.py          # 남은 음식점 전부
     python src/collect/naver_food_images.py 50       # 50곳만 (확인용)
+    python src/collect/naver_food_images.py --second # 2차: 1차에서 못 찾은 곳을 "이름 시군구 맛집", 상위 20개로 다시
+                                                     #  → naver_image2/, 고르기는 naver_food_pick.py (CLIP으로 인물 사진 제외)
 
 필요: .env 의 NAVER_CLIENT_ID, NAVER_CLIENT_SECRET (developers.naver.com 의 '검색' API)
 결과: data/raw/naver_image/<contentid>.json (응답 원문 + 검색어)
@@ -28,6 +30,7 @@ from tour_attractions import PROJECT_ROOT, with_retry
 API = "https://openapi.naver.com/v1/search/image"
 FOOD_LIST = PROJECT_ROOT / "data/raw/tourapi/areaBasedList2_ct39_20261006"
 OUT_DIR = PROJECT_ROOT / "data/raw/naver_image"
+OUT_DIR2 = PROJECT_ROOT / "data/raw/naver_image2"
 
 
 def load_env() -> dict:
@@ -51,13 +54,13 @@ def targets() -> list[dict]:
     return [it for it in items if not it.get("firstimage")]
 
 
-def query_of(it: dict) -> str:
+def query_of(it: dict, second=False) -> str:
     sigungu = (it.get("addr1", "").split() + ["", ""])[1]
-    return f"{it['title']} {sigungu}".strip()
+    return f"{it['title']} {sigungu}{' 맛집' if second else ''}".strip()
 
 
-def search(env: dict, q: str) -> dict:
-    url = f"{API}?{urllib.parse.urlencode({'query': q, 'display': 5, 'filter': 'medium'})}"
+def search(env: dict, q: str, display=5) -> dict:
+    url = f"{API}?{urllib.parse.urlencode({'query': q, 'display': display, 'filter': 'medium'})}"
     req = urllib.request.Request(url, headers={"X-Naver-Client-Id": env["NAVER_CLIENT_ID"],
                                                "X-Naver-Client-Secret": env["NAVER_CLIENT_SECRET"]})
     with urllib.request.urlopen(req, timeout=20) as r:
@@ -66,22 +69,30 @@ def search(env: dict, q: str) -> dict:
 
 def main() -> None:
     env = load_env()
-    limit = int(sys.argv[1]) if len(sys.argv) > 1 else None
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    todo = [it for it in targets() if not (OUT_DIR / f"{it['contentid']}.json").exists()][:limit]
-    print(f"남은 음식점 {len(todo)}곳")
+    second = "--second" in sys.argv
+    nums = [a for a in sys.argv[1:] if a.isdigit()]
+    limit = int(nums[0]) if nums else None
+    out = OUT_DIR2 if second else OUT_DIR
+    out.mkdir(parents=True, exist_ok=True)
+    todo = targets()
+    if second:  # 1차 결과에서 고른 사진이 없는 곳만
+        sys.path.insert(0, str(PROJECT_ROOT))
+        from app.activities import naver_pick
+        todo = [it for it in todo if (OUT_DIR / f"{it['contentid']}.json").exists() and not naver_pick(it["contentid"], it["title"])]
+    todo = [it for it in todo if not (out / f"{it['contentid']}.json").exists()][:limit]
+    print(f"남은 음식점 {len(todo)}곳 ({'2차' if second else '1차'})")
     saved = 0
     for it in todo:
-        q = query_of(it)
+        q = query_of(it, second)
         try:
-            data = with_retry(lambda: search(env, q))
+            data = with_retry(lambda: search(env, q, 20 if second else 5))
         except urllib.error.HTTPError as e:
             print(f"HTTP {e.code} ({it['contentid']}): {e.read()[:200]!r} → 멈춤 (다시 실행하면 이어서 받음)")
             break
         except (urllib.error.URLError, TimeoutError) as e:
             print(f"네트워크 오류 3회 ({it['contentid']}): {e} → 멈춤")
             break
-        (OUT_DIR / f"{it['contentid']}.json").write_text(json.dumps({"query": q, **data}, ensure_ascii=False), encoding="utf-8")
+        (out / f"{it['contentid']}.json").write_text(json.dumps({"query": q, **data}, ensure_ascii=False), encoding="utf-8")
         saved += 1
         if saved % 500 == 0:
             print(f"  {saved}곳")
