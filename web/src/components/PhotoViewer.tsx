@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { placePhotosApi } from '../api'
 
 type Shot = { url: string; caption: string; license: string | null }
 
 // 가게 사진을 누르면 여는 사진 보기: 대표사진 + 추가 사진(누를 때 받아 오고 서버에 저장). 사진은 자르지 않는다.
-export function PhotoViewer({ cid, name, main, mainLicense, onClose }: {
-  cid: string; name: string; main: string | null; mainLicense: string | null; onClose: () => void
+// children: 사진 아래에 붙는 장소 정보 (축제·체험 카드를 눌렀을 때 소개·주소·전화 등)
+export function PhotoViewer({ cid, name, main, mainLicense, onClose, children }: {
+  cid: string; name: string; main: string | null; mainLicense: string | null; onClose: () => void; children?: ReactNode
 }) {
   const [shots, setShots] = useState<Shot[]>(main ? [{ url: main, caption: '대표사진', license: mainLicense }] : [])
   const [i, setI] = useState(0)
@@ -48,6 +49,7 @@ export function PhotoViewer({ cid, name, main, mainLicense, onClose }: {
           </div>
         )}
         {note && <p className="pv-note">{note}</p>}
+        {children && <div className="pv-info">{children}</div>}
       </div>
     </div>
   )

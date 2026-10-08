@@ -9,3 +9,12 @@
 .ig .igr-cost .tag { display: inline-flex; align-items: center; justify-content: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px; font-size: 10.5px; font-weight: 700; border-radius: 4px; background: #0095f6; color: #fff; margin-right: 4px }
 .ig .igr-cost small { color: var(--ig-sub); font-size: 12px }
 .ig .course-leg { grid-column: 1 / -1; margin: -6px 0 8px; padding-left: 40px; font-size: 12.5px; color: var(--ig-sub) }  /* 앞 정류장에서 오는 이동 시간 */
+/* 축제·체험 카드를 눌렀을 때 사진 보기 아래 장소 정보 (사진 보기는 어두운 바탕) */
+.pv { overflow-y: auto }
+.pv-info { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 12px }
+.pv-info .pv-sub { margin: 0; font-size: 13px; color: #aab2b6 }
+.pv-info .pv-txt { margin: 4px 0; font-size: 14.5px; line-height: 1.65; color: #eef1f2; white-space: pre-line }
+.pv-info .pv-links { margin: 4px 0 0; display: flex; gap: 14px; font-size: 14px }
+.pv-info .pv-links a { color: #6cc4ff }
+.ig .pv-overlay { background: #0a0c0e }  /* 뒤 화면이 비치지 않게 */
+.pv-thumbs { scrollbar-width: none } .pv-thumbs::-webkit-scrollbar { display: none }

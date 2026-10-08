@@ -123,7 +123,7 @@ class Activities:
                        "start": it.get("eventstartdate"), "end": it.get("eventenddate")}
                 if ctype == "39":
                     rec["menu"] = _menu(it["contentid"])
-                self.by_id[it["contentid"]] = {**rec, "_photo": photo}
+                self.by_id[it["contentid"]] = {**rec, "_photo": photo, "_photo_full": it.get("firstimage") if photo else None}
                 self.by_region.setdefault(f"{u[0]}_{u[2]}", []).append(rec)
 
     def for_region(self, key, month, origin=None):
@@ -170,9 +170,10 @@ class Activities:
         words = [{"name": w, "places": n} for w, n in counts.most_common(top) if n >= 2] if len(menus) >= min_menus else []
         return {"n_places": len(foods), "n_menus": len(menus), "top": words}
 
-    def photo_url(self, cid):
+    def photo_url(self, cid, full=False):
+        """목록 사진 주소. full=True 면 원본(firstimage), 아니면 썸네일(firstimage2)."""
         r = self.by_id.get(cid)
-        return r["_photo"] if r else None
+        return (r["_photo_full"] or r["_photo"] if full else r["_photo"]) if r else None
 
 
 def _norm(s):

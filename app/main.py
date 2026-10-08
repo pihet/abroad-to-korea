@@ -455,11 +455,12 @@ def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12)
 
 
 @app.get("/images/tour/{cid}")
-def tour_image(cid: str):
-    url = acts.photo_url(cid)  # 활동 목록에 있는 공공누리 1·3유형 사진만
+def tour_image(cid: str, full: bool = False):
+    """활동 목록 사진 (공공누리 1·3유형만). full=1 이면 원본 크기 (사진 크게 보기용)."""
+    url = acts.photo_url(cid, full)
     if not url:
         raise HTTPException(404)
-    cached = TOUR_THUMB / f"{cid}.jpg"
+    cached = TOUR_THUMB / f"{cid}{'_full' if full else ''}.jpg"
     if cid in MISSING_PHOTOS:
         raise HTTPException(404)
     if not cached.exists():

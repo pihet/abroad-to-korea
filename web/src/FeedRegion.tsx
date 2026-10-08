@@ -33,7 +33,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const [aboutErr, setAboutErr] = useState<string | null>(null)
   const [viewing, setViewing] = useState(false)
   useEffect(() => {
-    setAbout(null); setAboutErr(null); setViewing(false)
+    setAbout(null); setAboutErr(null)
     if (peek) placeDetailApi(peek.id).then(setAbout).catch(e => setAboutErr(e.message))
   }, [peek])
   const [cost, setCost] = useState<RegionCost | null>(null)
@@ -114,29 +114,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
             <section className="igr-now">
               {fests.length > 0 && <>
                 <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정</small></div>
-                <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
+                <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
               {costLine}
               {exps.length > 0 && <>
                 <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등</small></div>
-                <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
+                <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
-              {peek && (
-                <div className="igr-peek">
-                  <b>{peek.name}</b>
-                  <small>{peek.kind}{peek.period ? ` · ${peek.period}` : ''}</small>
-                  {peek.address && <small>{peek.address}</small>}
-                  {!about && !aboutErr && <small>소개를 불러오는 중…</small>}
-                  {aboutErr && <small>{aboutErr}</small>}
-                  {about?.overview && <p className="igr-peek-txt">{about.overview}</p>}
-                  {about?.tel && <small>전화 {about.tel}</small>}
-                  <span className="igr-peek-links">
-                    <button type="button" className="ig-link" onClick={() => setViewing(true)}>사진 더 보기</button>
-                    {about?.homepage && <a href={about.homepage} target="_blank" rel="noopener">홈페이지</a>}
-                    <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵</a>
-                  </span>
-                </div>
-              )}
             </section>
           ) : costLine && <section className="igr-now">{costLine}</section>}
 
@@ -169,7 +153,21 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               <ActivityMap sigunguKey={regionKey} sigunguName={r.name} attractionId={d.photo?.attraction_id ?? ''} />
             </section>
           )}
-          {viewing && peek && <PhotoViewer cid={peek.id} name={peek.name} main={peek.image_url} mainLicense={peek.license} onClose={() => setViewing(false)} />}
+          {/* 축제·체험 카드를 누르면: 큰 사진(넘겨 보기) + 소개·기간·주소·전화·홈페이지 */}
+          {viewing && peek && (
+            <PhotoViewer cid={peek.id} name={peek.name} main={peek.image_url?.startsWith('/images/tour/') ? `${peek.image_url}?full=1` : peek.image_url} mainLicense={peek.license} onClose={() => { setViewing(false); setPeek(null) }}>
+              <p className="pv-sub">{peek.kind}{peek.period ? ` · ${peek.period}` : ''}</p>
+              {!about && !aboutErr && <p className="pv-sub">소개를 불러오는 중…</p>}
+              {aboutErr && <p className="pv-sub">{aboutErr}</p>}
+              {about?.overview && <p className="pv-txt">{about.overview}</p>}
+              {peek.address && <p className="pv-sub">주소 {peek.address}</p>}
+              {about?.tel && <p className="pv-sub">전화 {about.tel}</p>}
+              <p className="pv-links">
+                {about?.homepage && <a href={about.homepage} target="_blank" rel="noopener">홈페이지</a>}
+                <a href={`https://map.kakao.com/link/map/${encodeURIComponent(peek.name)},${peek.lat},${peek.lon}`} target="_blank" rel="noopener">카카오맵에서 보기</a>
+              </p>
+            </PhotoViewer>
+          )}
           <section className="igr-src" aria-label="출처">
             <b>출처</b>
             <ul>
