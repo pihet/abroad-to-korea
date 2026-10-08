@@ -12,4 +12,4 @@
 .ig .igs-top button { width: auto; flex: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 2px; height: 36px; padding: 0 8px; font-size: 14.5px; font-weight: 600; color: var(--ig-ink); cursor: pointer }
 .ig .igs-top svg { flex: none;  width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
 .ig .ig-res .post-act { padding-top: 12px }  /* 사진과 하트·닮았어요 줄 사이 여백 */
-.ig .post-head { padding-left: 8px; gap: 8px }  /* 프로필 동그라미를 왼쪽 끝에 붙인다 (홈 피드·결과 공통) */
+.ig .post-head { padding-left: 4px; gap: 8px }  /* 프로필 동그라미를 왼쪽 끝에 붙인다 (홈 피드·결과 공통) */
