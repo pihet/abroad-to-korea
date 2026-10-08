@@ -28,6 +28,18 @@ VOTE_K = 100
 N_CAND = 30
 VISUAL_WEIGHT = 0.5
 PRIORITIES = ("visual", "crowd", "near", "season")
+# 관광공사 분류 'NA02 자연경관(하천·해양)'에는 강·호수·저수지도 들어 있어 소분류로 바다와 물가를 나눈다
+SEA_CODES = {"NA020500", "NA020600", "NA020700", "NA020800", "NA020900"}  # 섬·염전·항구·해안절경·해변
+# 소분류 이름을 그대로 자르면 어색한 것('타워 / 전망대' → #타워, '기타역사유적지')만 고쳐 쓴다. 빈 문자열이면 태그를 달지 않는다
+TAG_NAMES = {
+    "VE010200": "전망대", "VE010900": "건축물", "VE120300": "문화시설", "NA010100": "산", "NA030200": "희귀동식물",
+    "NA030500": "자연생태", "NA040700": "수목원", "NA050100": "", "HS010200": "성곽", "HS011200": "역사유적",
+    "HS020100": "기념탑", "HS020400": "역사유물", "HS030400": "종교성지", "HS040400": "안보관광", "EX020400": "공예체험",
+    "EX050600": "웰니스", "EX050800": "의료관광", "EX060300": "향토산업", "EX060500": "산업관광", "EX060600": "산업관광",
+    "EX060700": "산업관광", "EX060800": "먹거리", "EX060900": "신재생에너지", "EX061000": "산업관광", "EX070200": "체험관광",
+    "LS011900": "레저", "LS021400": "수상레저", "LS030300": "패러글라이딩", "LS030500": "드론", "LS030600": "항공레저",
+    "SH050300": "특산물", "SH070100": "쇼핑",
+}
 KOGL = {"Type1": "공공누리 제1유형 (출처표시)", "Type3": "공공누리 제3유형 (출처표시·변경금지)"}
 CACHE_SIZE = 200
 
@@ -181,7 +193,7 @@ class Engine:
 
     # ---------------- 시군구 대표 사진 (그 시군구 사진 평균에 가장 가까운 관광지 = 가장 그 지역다운 사진)
     # 분류 칩(바다·산숲·도시)을 골랐을 때 그 분류에 맞는 관광지 사진을 보여 주기 위한 조건 (관광지 분류 코드 기준)
-    PHOTO_KINDS = {"sea": lambda it: it.get("lclsSystm2") == "NA02",
+    PHOTO_KINDS = {"sea": lambda it: it.get("lclsSystm3") in SEA_CODES,
                    "mountain": lambda it: it.get("lclsSystm2") in ("NA01", "NA04"),
                    # 도시: 문화관광(공원·타워·골목길·근대건축물)·쇼핑·레저. 자연·역사(사찰·사당)·체험마을은 도시 느낌이 아니라 뺀다
                    "city": lambda it: it.get("lclsSystm1") in ("VE", "SH", "LS")}
@@ -206,18 +218,20 @@ class Engine:
                 "license": KOGL.get(it["cpyrhtDivCd"], it["cpyrhtDivCd"]), "tags": self.photo_tags(it)}
 
     def photo_tags(self, it):
-        """사진 속 관광지 자체의 분류로 만든 해시태그 (시군구 전체 특징이 아님). 해변 → #바다 #해변, 사찰 → #사찰."""
+        """사진 속 관광지 자체의 분류로 만든 해시태그 (시군구 전체 특징이 아님). 해변 → #바다 #해변, 저수지 → #강호수 #저수지."""
         if not hasattr(self, "_lcls"):
             from .activities import _names
             self._lcls = _names()
         n2, n3 = self._lcls.get(it.get("lclsSystm2", ""), ""), self._lcls.get(it.get("lclsSystm3", ""), "")
-        c2 = it.get("lclsSystm2", "")
+        c2, c3 = it.get("lclsSystm2", ""), it.get("lclsSystm3", "")
         tags = []
-        if c2 == "NA02":
+        if c3 in SEA_CODES:
             tags.append("#바다")
+        elif c2 == "NA02":
+            tags.append("#강호수")
         elif c2 in ("NA01", "NA04"):
             tags.append("#산숲")
-        word = re.split(r"[.,·/()]", n3 or n2)[0].strip().replace(" ", "")
+        word = TAG_NAMES[c3] if c3 in TAG_NAMES else re.split(r"[.,·ㆍ/()]", n3 or n2)[0].strip().replace(" ", "")
         if word and f"#{word}" not in tags:
             tags.append(f"#{word}")
         return tags

@@ -51,9 +51,9 @@ const shortSido = (s: string) => SIDO_SHORT[s] ?? s
 
 const loadSaved = (): string[] => { try { return JSON.parse(localStorage.getItem('feed-saved') || '[]') } catch { return [] } }
 
-// 해시태그는 사진 속 관광지의 분류로 (해변 → #바다 #해변). 시군구 전체 특징(바다·산숲 둘 다)은 지역 상세에서만
+// 해시태그는 사진 속 관광지의 분류로만 (해변 → #바다 #해변). 시군구 전체 특징(도시·시골, 바다·산숲)은 지역 상세에서만
 function caption(r: RegionRow) {
-  return [...(r.photo?.tags ?? []), r.flags.city ? '#도시' : '#시골소도시'].join(' ')
+  return (r.photo?.tags ?? []).join(' ')
 }
 
 const Icon = {
