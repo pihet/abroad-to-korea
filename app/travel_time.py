@@ -19,6 +19,9 @@ from .context import ROOT, haversine
 WALK_MAX_KM = 2.0
 CAR = "https://apis-navi.kakaomobility.com/v1/directions?origin={sx},{sy}&destination={ex},{ey}&priority=RECOMMEND&summary=true"
 WALK = "https://dapi.kakao.com/v2/routing/walk?start_x={sx}&start_y={sy}&end_x={ex}&end_y={ey}"
+# 관광지 좌표가 도로에서 먼 곳(암각화·섬 끝 등)이면 자동차 길찾기가 102/103(주변 도로 없음)을 준다.
+# 그때는 반경 2km 안 가장 가까운 주차장(카테고리 PK6)으로 바꿔 다시 찾는다 (차로 가면 실제로 거기 세운다)
+PARKING = "https://dapi.kakao.com/v2/local/search/category.json?category_group_code=PK6&x={x}&y={y}&radius=2000&sort=distance&size=1"
 
 
 def _key():
@@ -62,13 +65,31 @@ class TravelTime:
             self.calls[mode] += 1
             if mode == "car":
                 route = (self._get(CAR.format(**p)).get("routes") or [{}])[0]
+                parking = False
+                if route.get("result_code") in (102, 103):  # 출발(102)·도착(103) 주변 도로 없음 → 주차장 기준으로 한 번 더
+                    pa = self._parking(a) if route["result_code"] == 102 else a
+                    pb = self._parking(b) if route["result_code"] == 103 else b
+                    if pa and pb:
+                        self.calls[mode] += 1
+                        route = (self._get(CAR.format(sx=pa[1], sy=pa[0], ex=pb[1], ey=pb[0])).get("routes") or [{}])[0]
+                        if route.get("result_code") in (102, 103):  # 반대쪽 끝도 도로가 없으면 그쪽도 주차장으로
+                            pa, pb = self._parking(pa) or pa, self._parking(pb) or pb
+                            self.calls[mode] += 1
+                            route = (self._get(CAR.format(sx=pa[1], sy=pa[0], ex=pb[1], ey=pb[0])).get("routes") or [{}])[0]
+                        parking = True
                 s = route.get("summary") if route.get("result_code") == 0 else None
-                self.cache[k] = {"min": round(s["duration"] / 60), "km": round(s["distance"] / 1000, 1)} if s else None
+                self.cache[k] = {"min": round(s["duration"] / 60), "km": round(s["distance"] / 1000, 1),
+                                 **({"parking": True} if parking else {})} if s else None
             else:
                 d = self._get(WALK.format(**p))
                 pr = (d.get("route") or {}).get("properties") if d.get("status") == "OK" else None
                 self.cache[k] = {"min": round(pr["totalTime"] / 60), "km": round(pr["totalDistance"] / 1000, 1)} if pr else None
         return self.cache[k]
+
+    def _parking(self, ll):
+        """(위도, 경도) 근처 2km 안 가장 가까운 주차장 좌표. 없으면 None."""
+        docs = self._get(PARKING.format(x=ll[1], y=ll[0])).get("documents") or []
+        return (float(docs[0]["y"]), float(docs[0]["x"])) if docs else None
 
     def legs(self, points):
         """points = [(위도, 경도), ...] 순서대로. 구간마다 {car, walk, straight_km}."""

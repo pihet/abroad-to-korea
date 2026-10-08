@@ -7,7 +7,7 @@ const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/l
 // 한국관광공사 공식 여행코스: 코스를 고르면 지도에 들르는 순서대로 번호 핀과 직선을 긋고, 아래에 순서대로 보여 준다.
 // 순서·설명·소요시간은 원문 그대로. 선은 실제 길이 아니라 순서를 이은 직선이다.
 // 정류장 사이 이동 시간 (서버가 카카오 길찾기로 조회). api.ts 는 다른 작업과 겹쳐 타입을 여기 둔다
-type Move = { min: number; km: number } | null
+type Move = { min: number; km: number; parking?: boolean } | null  // parking: 관광지 앞에 도로가 없어 근처 주차장 기준
 type Leg = { straight_km: number; car: Move; walk: Move; from?: number }  // from: 출발 정류장 번호 (중간에 위치 없는 정류장을 건너뛸 때)
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ''}` : `${Math.max(m, 1)}분`)
 
@@ -109,7 +109,7 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
 
 // 앞 정류장에서 이 정류장까지: 차로 ○분 · ○km (가까우면 걸어서 ○분)
 function LegLine({ l }: { l: Leg }) {
-  const parts = [l.car && `차로 ${hm(l.car.min)} · ${l.car.km}km`, l.walk && `걸어서 ${hm(l.walk.min)}`].filter(Boolean)
+  const parts = [l.car && `차로 ${hm(l.car.min)} · ${l.car.km}km${l.car.parking ? ' (주차장 기준)' : ''}`, l.walk && `걸어서 ${hm(l.walk.min)}`].filter(Boolean)
   const head = l.from ? `${l.from}번에서 ` : ''
   return <p className="course-leg">{head}{parts.length ? parts.join(' · ') : `직선 ${l.straight_km}km (길찾기 결과 없음)`}</p>
 }
