@@ -105,7 +105,7 @@ Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB �
 
 ## 개인정보
 
-사용자 업로드는 기본 24시간 뒤 `user_media_cleanup_hourly` DAG가 MinIO에서 삭제하고 DB 상태를 갱신한다. 로그인 사용자가 `retain_photo=true`로 보관에 명시적으로 동의한 경우에만 `delete_after`가 비워진다. 사진 삭제 요청은 `delete_after`를 현재 시각으로 바꾸고 다음 시간 단위 정리 작업에서 실제 객체를 삭제한다.
+사용자 업로드는 로그인 사용자가 `retain_photo=true`로 보관에 명시적으로 동의한 경우에만 MinIO와 `media_assets`에 저장된다(2026-10-08 결정). 동의하지 않은 사진은 분석만 하고 저장하지 않는다. 사진 삭제 요청은 `delete_after`를 현재 시각으로 바꾸고 다음 시간 단위 정리 작업에서 실제 객체를 삭제한다.
 
 운영에서는 `COOKIE_SECURE=true`와 HTTPS를 사용하고, `EXPOSE_DEV_TOKENS=false`를 유지한다. `.env`는 Git에 커밋하지 않는다.
 

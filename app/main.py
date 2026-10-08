@@ -121,7 +121,8 @@ async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optio
         if exclude is None:
             raise HTTPException(404, "출발 관광지를 찾을 수 없습니다.")
     qid, tags = engine.analyze(img, exclude)
-    if image is not None and store_photo:
+    # 올린 사진은 사용자가 '계속 보관'에 동의했을 때만 저장한다 (로그인 필요). 동의하지 않으면 분석만 하고 버린다
+    if image is not None and store_photo and retain_photo:
         media_asset_id = await persist_upload(data, image.content_type or "application/octet-stream", retain_photo, raw_session)
     return {"query_id": qid, "scene_tags": tags, "image": meta, "excluded_sigungu": _sigungu(exclude),
             "media_asset_id": media_asset_id}

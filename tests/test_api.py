@@ -53,6 +53,20 @@ def test_analyze_returns_tags(client):
     assert r["image"]["cropped"] is False
 
 
+
+def test_upload_not_stored_without_consent(client, monkeypatch):
+    # 보관에 동의하지 않은 업로드 사진은 저장소로 보내지 않는다
+    calls = []
+    async def fake_persist(*a):
+        calls.append(a)
+        return "asset"
+    monkeypatch.setattr(main, "persist_upload", fake_persist)
+    jpg = (main.sc.IMG_DIR / DEMO).read_bytes()
+    r = client.post("/api/analyze", files={"image": ("a.jpg", jpg, "image/jpeg")}).json()
+    assert r["media_asset_id"] is None and calls == []
+    r = client.post("/api/analyze", files={"image": ("a.jpg", jpg, "image/jpeg")}, data={"retain_photo": "true"}).json()
+    assert r["media_asset_id"] == "asset" and len(calls) == 1
+
 def test_recommend_contract(client, qid):
     r = rec(client, qid)
     assert r["is_example"] is False and r["total_candidates"] == 30 and len(r["candidates"]) == 5

@@ -61,7 +61,7 @@ flowchart TB
   AFS -- "캐시 무효화" --> REDIS
 ```
 
-PostgreSQL이 회원·저장 지역·수집 데이터의 원본이며 Redis는 재생성 가능한 캐시다. MinIO는 사용자 업로드와 원본 응답·사진 파일을 보관한다. 사용자 사진은 기본 24시간 뒤 Airflow가 삭제하고, 로그인 사용자가 보관에 동의한 경우에만 유지한다.
+PostgreSQL이 회원·저장 지역·수집 데이터의 원본이며 Redis는 재생성 가능한 캐시다. MinIO는 사용자 업로드와 원본 응답·사진 파일을 보관한다. 사용자 사진은 로그인 사용자가 보관에 동의한 경우에만 저장하고, 동의하지 않으면 분석 후 저장하지 않는다.
 
 Airflow는 관광 사진·음식·축제·카탈로그를 매일 수집해 검증 후 PostgreSQL에 upsert하고 MinIO에 원본을 보관한다. 사용자 사진 정리는 매시간, 방문자·인구 데이터는 매월 실행한다. 현재 cron은 UTC 기준이며 정확한 시각은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 정리되어 있다.
 

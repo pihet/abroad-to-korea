@@ -149,7 +149,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn }: {
     <div className="ig-pick">
       <section className="ig-upload">
         <b>가고 싶은 해외 사진을 올려 보세요</b>
-        <small>분위기가 닮은 국내 여행지를 찾아 드려요 · 기본 24시간 후 삭제됩니다</small>
+        <small>분위기가 닮은 국내 여행지를 찾아 드려요 · 보관을 고르지 않으면 사진은 저장하지 않습니다</small>
         <label className="ig-retain"><input type="checkbox" checked={retainPhoto} disabled={!loggedIn}
           onChange={e => setRetainPhoto(e.target.checked)} /> 계정에 사진 계속 보관{!loggedIn && ' (로그인 필요)'}</label>
         <div>
