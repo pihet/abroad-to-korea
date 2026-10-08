@@ -2,7 +2,7 @@
 
 ```bash
 npm install
-npm run dev     # http://localhost:5173 (API·사진은 localhost:8000 FastAPI로 넘긴다)
+npm run dev     # http://localhost:5173 (API·사진은 FastAPI로 넘긴다. 주소는 web/.env 의 VITE_API_TARGET, 기본 http://localhost:8000)
 npm run build   # web/dist → FastAPI가 http://localhost:8000 에서 제공
 ```
 
