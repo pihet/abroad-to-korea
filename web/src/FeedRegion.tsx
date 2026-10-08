@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { activitiesApi, placeDetailApi, profileApi, type ActivityItem, type PlaceDetail, type RegionProfile } from './api'
+import { activitiesApi, api, placeDetailApi, profileApi, type ActivityItem, type DemoPhoto, type PlaceDetail, type RegionProfile } from './api'
 import { ActivityMap } from './components/ActivityMap'
 import { CourseView } from './components/CourseView'
 import { DongFood } from './components/DongFood'
@@ -163,11 +163,25 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               <li>이 화면의 국내 사진·관광지·음식점·축제·체험·여행코스: 한국관광공사 TourAPI (사진은 공공누리 제1유형 또는 제3유형. 원형 프로필 사진만 가운데를 잘라 표시)</li>
               {d.notes.map(n => <li key={n}>{n}</li>)}
               <li>지도: © OpenStreetMap contributors</li>
+              <li>해외 사진(탐색·사진으로 찾기 예시): Wikimedia Commons, 격자·카드에서는 가운데를 잘라 표시 <CommonsCredits /></li>
             </ul>
           </section>
         </>}
       </div>
     </div>
+  )
+}
+
+// 출처는 지역 상세 맨 아래에만 둔다 (사용자 결정). 해외 예시 사진의 사진별 저작자·라이선스는 펼쳐서 본다
+function CommonsCredits() {
+  const [list, setList] = useState<DemoPhoto[] | null>(null)
+  return (
+    <details onToggle={e => { if ((e.target as HTMLDetailsElement).open && !list) api.demoPhotos().then(setList).catch(() => setList([])) }}>
+      <summary>사진별 저작자 보기</summary>
+      {list === null ? <p>불러오는 중…</p> : (
+        <ul>{list.map(p => <li key={p.photo_id}>{p.country} {p.place_name} {p.scene_label} · {p.artist} · <a href={p.license_url} target="_blank" rel="noopener">{p.license}</a></li>)}</ul>
+      )}
+    </details>
   )
 }
 

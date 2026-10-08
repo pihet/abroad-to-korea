@@ -210,7 +210,7 @@ export default function FeedApp() {
             </li>
           ))}
         </ul>
-        {shown < feed.length ? <div ref={more} className="ig-wait">더 불러오는 중…</div> : <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>}
+        {shown < feed.length && <div ref={more} className="ig-wait">더 불러오는 중…</div>}
       </>}
 
       {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); setTab('search') }} />}

@@ -36,7 +36,6 @@ export function FeedExplore({ onPick }: { onPick: (p: DemoPhoto) => void }) {
           </button>
         ))}
       </div>
-      <p className="ig-foot">사진 Wikimedia Commons (사진별 저작자·라이선스는 사진을 고른 뒤 결과 화면 맨 아래) · 격자에서는 사진 가운데를 잘라 보여 줍니다</p>
     </div>
   )
 }

@@ -146,10 +146,6 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn }: {
       {res && list.length < Math.min(MAX, res.total_candidates) && (
         <button type="button" className="ig-more" disabled={busy} onClick={more}>{busy ? '불러오는 중…' : '닮은 곳 더 보기'}</button>
       )}
-      {list.length > 0 && <p className="ig-foot">사진·정보 한국관광공사 TourAPI (공공누리 제1·3유형) · 자세한 출처는 각 지역 상세 맨 아래</p>}
-      {source?.kind === 'demo' && (
-        <p className="ig-foot">내 사진: {source.photo.place_name} · {source.photo.artist} · <a href={source.photo.license_url} target="_blank" rel="noopener">{source.photo.license}</a> · Wikimedia Commons</p>
-      )}
     </div>
   )
 
@@ -182,9 +178,6 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn }: {
           ))}
         </ul>
       </section>
-      {!!examples?.length && (
-        <p className="ig-foot">예시 해외 사진: {examples.map(({ photo }) => <span key={photo.photo_id}>{photo.place_name} · {photo.artist} · <a href={photo.license_url} target="_blank" rel="noopener">{photo.license}</a>; </span>)}Wikimedia Commons · 국내 사진: 한국관광공사 TourAPI (공공누리 제1유형)</p>
-      )}
     </div>
   )
 }
