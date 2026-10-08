@@ -141,12 +141,6 @@ export default function FeedApp() {
   }, [rows])
   const cover = (s: Story) => covers[s.id]
   const goSearch = () => setTab('search')
-  // 지역 상세의 "이 사진과 닮은 다른 곳 찾기": 출발 관광지를 넘겨 같은 시군구가 다시 1위로 나오지 않게 한다
-  const searchPhoto = async (p: { attraction_id: string; image_url: string }) => {
-    const blob = await fetch(p.image_url).then(r => r.blob())
-    setOpen(null); setTab('search')
-    setStart({ kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: p.attraction_id, persist: false })
-  }
 
   return (
     <div className="ig">
@@ -240,8 +234,7 @@ export default function FeedApp() {
 
       {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}
         onPick={(k, dong) => { setFinding(false); setOpenDong(dong ?? null); setOpen(k) }} />}
-      {open && <FeedRegion regionKey={open} initialDong={openDong} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => { setOpen(null); setOpenDong(null) }}
-        onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
+      {open && <FeedRegion regionKey={open} initialDong={openDong} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => { setOpen(null); setOpenDong(null) }} />}
       {accountOpen && <AccountModal user={user} onUser={changeUser} onClose={() => setAccountOpen(false)} />}
     </div>
   )

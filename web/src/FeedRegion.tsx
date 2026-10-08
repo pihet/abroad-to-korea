@@ -6,6 +6,7 @@ import { DongFood } from './components/DongFood'
 import { NeighborhoodMap } from './components/NeighborhoodMap'
 import { PhotoViewer } from './components/PhotoViewer'
 import { RainCheck } from './components/RainCheck'
+import './region.css'
 
 // 지역 상세 (인스타그램 프로필형): 프로필 머리 → 동네 하이라이트 → 탭(동네·먹거리 / 언제 갈까 / 할 거리).
 // 지도·음식점·비 예보 부품은 예전 상세 화면과 같은 것을 쓴다.
@@ -16,9 +17,8 @@ const crowdWord = (i: number) => i >= 105 ? `평소보다 ${i - 100}% 붐빌 것
 type Tab = 'hoods' | 'course' | 'when' | 'acts'
 const TABS: [Tab, string][] = [['hoods', '동네·먹거리'], ['course', '코스'], ['when', '언제 갈까'], ['acts', '할 거리']]
 
-export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClose, onSearchPhoto }: {
+export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClose }: {
   regionKey: string; initialDong?: string | null; saved: boolean; onToggleSave: () => void; onClose: () => void
-  onSearchPhoto: (p: { attraction_id: string; image_url: string }) => void
 }) {
   const [d, setD] = useState<RegionProfile | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -86,15 +86,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
             {fc && <p><span className="tag">예측</span> {fc.month}월에는 <b>{crowdWord(fc.congestion_index!)}</b></p>}
             {quiet && <p className="sub"><span className="tag ghost">실측</span> 가장 한산했던 달 {quiet.month}월 (평소의 {quiet.congestion_index}%)</p>}
           </div>
-          {d.photo && (
-            <figure className="igr-photo top">
-              <img src={d.photo.image_url} alt={d.photo.name} />
-              <figcaption>{d.photo.name}</figcaption>
-            </figure>
-          )}
-          <div className="igr-btns">
-            {d.photo && <button type="button" className="primary" onClick={() => onSearchPhoto(d.photo!)}>이 사진과 닮은 곳 찾기</button>}
-            <button type="button" aria-pressed={saved} onClick={onToggleSave}>{saved ? '저장됨 ♥' : '저장'}</button>
+          {d.photo && <figure className="igr-photo top"><img src={d.photo.image_url} alt={d.photo.name} /></figure>}
+          {/* 하트는 사진 위가 아니라 사진 아래 줄 오른쪽에 (공공누리 3유형 사진에는 아무것도 얹지 않는다) */}
+          <div className="igr-cap">
+            <span>{d.photo?.name}</span>
+            <button type="button" className="igr-heart" aria-pressed={saved} onClick={onToggleSave} aria-label={saved ? '저장 취소' : '저장'}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6C1.2 8.2 3 4.5 6.6 4.5c2.2 0 3.6 1.3 5.4 3.3 1.8-2 3.2-3.3 5.4-3.3 3.6 0 5.4 3.7 3.8 6.9C19 15.6 12 20 12 20z" /></svg>
+            </button>
           </div>
 
           {(fests.length > 0 || exps.length > 0) && (
