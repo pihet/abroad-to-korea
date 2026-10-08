@@ -113,7 +113,9 @@ def test_rejects_bad_input(client):
     assert client.get("/images/kr/../../.env").status_code == 404
 
 
-def test_feedback(client, qid):
+def test_feedback(client, qid, monkeypatch):
+    # DB 주소가 설정돼 있으면 피드백은 DB로 간다. 이 테스트는 파일 저장만 확인하고 실제 DB에는 쓰지 않는다 (DB 저장은 test_infrastructure)
+    monkeypatch.setattr(main, "session_factory", lambda: None)
     r = client.post("/api/feedback", json={"query_id": qid, "sigungu_key": "11_종로구", "attraction_id": "1", "value": 1})
     assert r.json()["ok"] and main.FEEDBACK.read_text().count("\n") == 1
 
