@@ -235,6 +235,7 @@ def region_table(month: Optional[int] = Query(None, ge=1, le=12), origin: Option
     for r in regions.month_table(month):
         k = tuple(r["key"].split("_", 1))
         rows.append({**{x: v for x, v in r.items() if x != "ri"}, "photo": engine.region_photo(r["ri"]),
+                     "kind_photos": {kd: engine.region_photo(r["ri"], kd) for kd in engine.PHOTO_KINDS},
                      "distance_km": engine.ctx.distance(k, origin) if origin else None})
     return {"is_example": False, "month": month,
             "filters": regions.filter_meta(month),

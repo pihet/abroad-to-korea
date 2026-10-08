@@ -180,15 +180,25 @@ class Engine:
         return {"total": len(ranked), "candidates": out}
 
     # ---------------- 시군구 대표 사진 (그 시군구 사진 평균에 가장 가까운 관광지 = 가장 그 지역다운 사진)
-    def region_photo(self, ri):
+    # 분류 칩(바다·산숲·도시)을 골랐을 때 그 분류에 맞는 관광지 사진을 보여 주기 위한 조건 (관광지 분류 코드 기준)
+    PHOTO_KINDS = {"sea": lambda it: it.get("lclsSystm2") == "NA02",
+                   "mountain": lambda it: it.get("lclsSystm2") in ("NA01", "NA04"),
+                   # 도시: 문화관광(공원·타워·골목길·근대건축물)·쇼핑·레저. 자연·역사(사찰·사당)·체험마을은 도시 느낌이 아니라 뺀다
+                   "city": lambda it: it.get("lclsSystm1") in ("VE", "SH", "LS")}
+
+    def region_photo(self, ri, kind=None):
+        """시군구 대표 사진: 그 시군구 사진 중 시군구 평균과 가장 닮은 사진. kind를 주면 그 분류 관광지 사진 중에서 고르고, 없으면 None."""
         if not hasattr(self, "_rep"):
             self._rep = {}
             sims = self.I["kv"] @ self.I["reg_mean"].T
-            for i in range(len(self.I["regions"])):
-                ix = np.where((self.I["img_region"] == i) & self.ok)[0]
-                if len(ix):
-                    self._rep[i] = int(ix[np.argmax(sims[ix, i])])
-        k = self._rep.get(ri)
+            items = [self.I["items"][c] for c in self.cid]
+            masks = {None: self.ok, **{k: self.ok & np.array([f(it) for it in items]) for k, f in self.PHOTO_KINDS.items()}}
+            for kd, m in masks.items():
+                for i in range(len(self.I["regions"])):
+                    ix = np.where((self.I["img_region"] == i) & m)[0]
+                    if len(ix):
+                        self._rep[kd, i] = int(ix[np.argmax(sims[ix, i])])
+        k = self._rep.get((kind, ri))
         if k is None:
             return None
         it = self.I["items"][self.cid[k]]

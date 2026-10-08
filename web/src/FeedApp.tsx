@@ -13,14 +13,21 @@ import './feed.css'
 
 type Tab = 'home' | 'explore' | 'search' | 'saved'
 // coverTags: 동그라미 사진은 그 분류에 맞는 해시태그가 붙은 관광지 사진으로 고른다 (앞에 있는 태그부터)
-type Story = { id: string; label: string; match: (r: RegionRow) => boolean; coverTags?: string[] }
+// kind: 그 분류를 고르면 시군구 대표 사진 대신 그 분류 관광지 사진을 보여 준다 (바다·산숲은 그런 사진이 있는 곳만)
+type Story = { id: string; label: string; match: (r: RegionRow) => boolean; coverTags?: string[]; kind?: 'sea' | 'mountain' | 'city'; strict?: boolean }
 const STORIES: Story[] = [
   { id: 'all', label: '전체', match: () => true },
-  { id: 'sea', label: '바다', match: r => r.flags.sea, coverTags: ['#해변', '#해안절경', '#바다'] },
-  { id: 'mountain', label: '산·숲', match: r => r.flags.mountain, coverTags: ['#산', '#자연휴양림', '#산숲'] },
+  { id: 'sea', label: '바다', match: r => r.flags.sea, coverTags: ['#해변', '#해안절경', '#바다'], kind: 'sea', strict: true },
+  { id: 'mountain', label: '산·숲', match: r => r.flags.mountain, coverTags: ['#산', '#자연휴양림', '#산숲'], kind: 'mountain', strict: true },
   { id: 'rural', label: '시골', match: r => r.flags.rural, coverTags: ['#체험마을', '#마을관광지', '#고택'] },
-  { id: 'city', label: '도시', match: r => r.flags.city, coverTags: ['#분수', '#골목길'] },
+  { id: 'city', label: '도시', match: r => r.flags.city, coverTags: ['#분수', '#골목길'], kind: 'city' },
 ]
+// 분류에 맞는 시군구만 남기고, 사진은 그 분류 사진으로 바꾼다
+function storyRows(s: Story, rows: RegionRow[]): RegionRow[] {
+  return rows.filter(s.match)
+    .map(r => s.kind ? { ...r, photo: r.kind_photos?.[s.kind] ?? (s.strict ? null : r.photo) } : r)
+    .filter(r => r.photo)
+}
 const PAGE = 8
 
 // 하루 동안은 같은 순서 (새로 고칠 때마다 피드가 뒤섞이지 않게)
@@ -103,7 +110,7 @@ export default function FeedApp() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  const feed = useMemo(() => (rows ?? []).filter(STORIES.find(s => s.id === story)!.match), [rows, story])
+  const feed = useMemo(() => storyRows(STORIES.find(s => s.id === story)!, rows ?? []), [rows, story])
   // 피드 끝에 닿으면 다음 묶음 (무한 스크롤)
   useEffect(() => {
     const el = more.current
@@ -126,9 +133,8 @@ export default function FeedApp() {
   const covers = useMemo(() => {
     const used = new Set<string>(), out: Record<string, string | undefined> = {}
     for (const s of STORIES) {
-      const ok = (r: RegionRow) => s.match(r) && !!r.photo && !used.has(r.photo.image_url)
-      const tagged = (s.coverTags ?? []).map(t => (rows ?? []).find(r => ok(r) && (r.photo?.tags ?? []).includes(t))).find(Boolean)
-      const r = tagged ?? (rows ?? []).find(ok)
+      const cand = storyRows(s, rows ?? []).filter(r => !used.has(r.photo!.image_url))
+      const r = (s.coverTags ?? []).map(t => cand.find(r => (r.photo!.tags ?? []).includes(t))).find(Boolean) ?? cand[0]
       if (r) { used.add(r.photo!.image_url); out[s.id] = r.photo!.image_url }
     }
     return out
