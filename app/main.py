@@ -555,5 +555,15 @@ def overseas_image(name: str):
     return FileResponse(sc.IMG_DIR / name, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
+class WebFiles(StaticFiles):
+    """화면 파일. index.html 은 매번 새로 확인하게 해서(no-cache) 다시 빌드하면 바로 바뀐 화면이 보이게 한다.
+    assets/ 는 파일 이름에 내용 해시가 붙어 있어 그대로 캐시해도 된다."""
+    async def get_response(self, path, scope):
+        r = await super().get_response(path, scope)
+        if not path.startswith("assets/"):
+            r.headers["Cache-Control"] = "no-cache"
+        return r
+
+
 if WEB_DIST.exists():
-    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
+    app.mount("/", WebFiles(directory=WEB_DIST, html=True), name="web")
