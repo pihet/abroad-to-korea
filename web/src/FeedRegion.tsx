@@ -66,7 +66,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const c1 = cost?.['1night'], c0 = cost?.day
   const costLine = c1 ? (
     <p className="igr-cost">
-      <span className="tag">예상 경비</span> 1박 2일 1인 <b>약 {won(c1.median)}원</b>
+      <span className="tag">예상 경비</span> 1박 2일 1인 <b>약 {won(c1.median)}원</b>으로 추정됩니다
       <small> (보통 {won(c1.p25)}~{won(c1.p75)}원{c0 ? ` · 당일 약 ${won(c0.median)}원` : ''}{c1.level === 'sido' ? ` · ${c1.sido} 평균` : ''})</small>
     </p>
   ) : null
