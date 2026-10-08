@@ -9,8 +9,9 @@
 실행:
     python src/collect/tour_images.py            # 오늘 최대 990건
     python src/collect/tour_images.py 300        # 최대 300건
+    python src/collect/tour_images.py --food     # 대표 사진(firstimage)이 없는 음식점만 (2026-10-08 추가, 3,954곳)
 
-결과: data/raw/tourapi/detailImage2/<contentid>.json (응답 원문)
+결과: data/raw/tourapi/detailImage2/<contentid>.json (응답 원문), 음식점은 detailImage2_ct39/
 """
 
 import json
@@ -27,15 +28,19 @@ from tour_attractions import PROJECT_ROOT, KeyRing, is_quota_error, with_retry
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2/detailImage2"
 RAW_LIST = PROJECT_ROOT / "data/raw/tourapi/areaBasedList2_ct12_20261002"
 OUT_DIR = PROJECT_ROOT / "data/raw/tourapi/detailImage2"
+FOOD_LIST = PROJECT_ROOT / "data/raw/tourapi/areaBasedList2_ct39_20261006"
+FOOD_OUT_DIR = PROJECT_ROOT / "data/raw/tourapi/detailImage2_ct39"
 DEFAULT_MAX_CALLS = 990
 SEED = 42
 
 
-def queue() -> list[str]:
-    """시군구 라운드로빈 순서의 contentid 목록."""
+def queue(raw_list=RAW_LIST, only_without_image=False) -> list[str]:
+    """시군구 라운드로빈 순서의 contentid 목록. only_without_image면 목록에 대표 사진이 없는 곳만."""
     items = []
-    for p in sorted(RAW_LIST.glob("page_*.json")):
+    for p in sorted(raw_list.glob("page_*.json")):
         items += json.loads(p.read_text(encoding="utf-8"))["response"]["body"]["items"]["item"]
+    if only_without_image:
+        items = [it for it in items if not it.get("firstimage")]
     by_region = defaultdict(list)
     for it in items:
         by_region[(it["lDongRegnCd"], it["lDongSignguCd"])].append(it["contentid"])
@@ -63,11 +68,14 @@ def fetch(key: str, cid: str) -> dict:
 
 
 def main() -> None:
-    max_calls = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_MAX_CALLS
+    food = "--food" in sys.argv
+    nums = [a for a in sys.argv[1:] if a.isdigit()]
+    max_calls = int(nums[0]) if nums else DEFAULT_MAX_CALLS
     ring = KeyRing(max_calls)  # 키마다 max_calls 건, 한도가 차면 다음 키
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    todo = [c for c in queue() if not (OUT_DIR / f"{c}.json").exists()]
-    print(f"남은 관광지 {len(todo)}곳, 키 {len(ring.keys)}개 × 최대 {max_calls}건")
+    out_dir = FOOD_OUT_DIR if food else OUT_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    todo = [c for c in (queue(FOOD_LIST, True) if food else queue()) if not (out_dir / f"{c}.json").exists()]
+    print(f"남은 {'음식점(대표 사진 없음)' if food else '관광지'} {len(todo)}곳, 키 {len(ring.keys)}개 × 최대 {max_calls}건")
     calls = saved = 0
     for cid in todo:
         data = None
@@ -94,7 +102,7 @@ def main() -> None:
             break
         if data is None:
             break
-        (OUT_DIR / f"{cid}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        (out_dir / f"{cid}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         saved += 1
         time.sleep(0.1)
     print(f"사용한 키: {ring.summary()}")
