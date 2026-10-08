@@ -232,7 +232,7 @@ button.upload strong { color: var(--same-ink) }
 
 /* ===== 디자인 개편 (2026-10-06): 글꼴 한 가지, 알약 줄이기, 강조색은 버튼·선택 상태에만 ===== */
 :root {
-  --font: "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font: Pretendard, "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;  /* index.html 이 정적 Pretendard 를 불러온다 */
   --display: var(--font);
   --ink: #15181a; --sub: #5d6468; --line: #e4e7e9; --soft: #f4f5f6; --tint: #f4f5f6;
   --accent: #0a6e66; --accent-soft: #e6f1ef;
@@ -328,3 +328,7 @@ button.df-ph:hover em, button.df-ph:focus-visible em { opacity: 1 }
 /* 공공누리 사진 위에 글자를 덮지 않는다 (3유형 변경 금지): 원본/후보 표시는 사진 아래, 순위 번호는 이름 앞, 음식점 '사진 더 보기'는 숨김 */
 
 button.df-ph em { display: none }
+
+/* 지도(Leaflet)도 같은 글꼴: 기본값은 Helvetica, 확대 버튼은 고정폭 글꼴이다 */
+.ig .leaflet-container, .ig .leaflet-container .leaflet-bar a, .ig .leaflet-control-attribution, .ig .leaflet-popup-content { font-family: var(--font) }  /* leaflet.css 가 나중에 읽혀 .ig 로 한 단계 높인다 */
+button, input, select, textarea { font-family: inherit }
