@@ -10,6 +10,8 @@
 
 import json
 import os
+import re
+import urllib.parse
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +23,7 @@ CAR = "https://apis-navi.kakaomobility.com/v1/directions?origin={sx},{sy}&destin
 WALK = "https://dapi.kakao.com/v2/routing/walk?start_x={sx}&start_y={sy}&end_x={ex}&end_y={ey}"
 # 관광지 좌표가 도로에서 먼 곳(암각화·섬 끝 등)이면 자동차 길찾기가 102/103(주변 도로 없음)을 준다.
 # 그때는 반경 2km 안 가장 가까운 주차장(카테고리 PK6)으로 바꿔 다시 찾는다 (차로 가면 실제로 거기 세운다)
+KEYWORD = "https://dapi.kakao.com/v2/local/search/keyword.json?query={q}&x={x}&y={y}&radius=20000&sort=accuracy&size=3"
 PARKING = "https://dapi.kakao.com/v2/local/search/category.json?category_group_code=PK6&x={x}&y={y}&radius=2000&sort=distance&size=1"
 
 
@@ -90,6 +93,19 @@ class TravelTime:
         """(위도, 경도) 근처 2km 안 가장 가까운 주차장 좌표. 없으면 None."""
         docs = self._get(PARKING.format(x=ll[1], y=ll[0])).get("documents") or []
         return (float(docs[0]["y"]), float(docs[0]["x"])) if docs else None
+
+    def find_place(self, name, near):
+        """관광공사 목록에 없는 코스 정류장을 카카오 장소 검색으로 찾는다 (near 20km 안, 이름이 겹치는 첫 결과).
+        '점심식사(황금터숯불촌)'은 괄호 안 이름으로 찾는다. 못 찾으면 None. 결과는 메모리에만 둔다."""
+        q = (re.findall(r"\((.*?)\)", name) or [name])[0] if name.startswith(("점심", "저녁", "아침", "숙박")) else re.sub(r"\(.*?\)", "", name)
+        q = q.strip()
+        k = ("place", q, round(near[0], 2), round(near[1], 2))
+        if k not in self.cache:
+            norm = lambda x: re.sub(r"[\s·.,()'-]", "", x)
+            docs = self._get(KEYWORD.format(q=urllib.parse.quote(q), x=near[1], y=near[0])).get("documents") or [] if self.key and q else []
+            hit = next((d for d in docs if norm(q)[:2] in norm(d["place_name"])), None)
+            self.cache[k] = (float(hit["y"]), float(hit["x"])) if hit else None
+        return self.cache[k]
 
     def legs(self, points):
         """points = [(위도, 경도), ...] 순서대로. 구간마다 {car, walk, straight_km}."""

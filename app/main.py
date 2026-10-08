@@ -366,13 +366,32 @@ def course_legs(pts: str = Query(..., max_length=600)):
             "note": "카카오 길찾기 조회 시점 기준 (자동차는 실시간 교통 반영, 도보는 직선 2km 이하 구간만)"}
 
 
+def _locate_missing(course):
+    """관광공사 자료로 위치를 못 찾은 정류장(코스의 약 6%)을 카카오 장소 검색으로 보충한다 (approx=True, 메모리 캐시만)."""
+    got = [(s["lat"], s["lon"]) for s in course["stops"] if s["lat"] is not None]
+    if not got or all(s["lat"] is not None for s in course["stops"]):
+        return course
+    near = (sum(a for a, _ in got) / len(got), sum(b for _, b in got) / len(got))
+    stops = []
+    for s in course["stops"]:
+        if s["lat"] is None:
+            try:
+                ll = travel.find_place(s["name"], near)
+            except TravelError:
+                ll = None
+            if ll:
+                s = {**s, "lat": ll[0], "lon": ll[1], "approx": True}
+        stops.append(s)
+    return {**course, "stops": stops}
+
+
 @app.get("/api/regions/{key}/courses")
 def region_courses(key: str, limit: int = Query(20, ge=1, le=100)):
     """그 시군구를 지나는 한국관광공사 공식 여행코스. 들르는 곳이 그 시군구에 많은 코스부터."""
     if key not in regions.static:
         raise HTTPException(404, "시군구를 찾을 수 없습니다.")
     rows = courses.for_region(key)
-    return {"is_example": False, "total": len(rows), "items": rows[:limit],
+    return {"is_example": False, "total": len(rows), "items": [_locate_missing(c) for c in rows[:limit]],
             "coverage": {"loaded": courses.n_loaded, "listed": courses.n_total},
             "notes": ["코스: 한국관광공사 TourAPI 여행코스 (들르는 곳·순서·설명·총거리·소요시간은 원문 그대로)",
                       "지도 위치와 사진은 받아 둔 관광지·레포츠·음식점·축제와 같은 곳만 표시 (문화시설·쇼핑 등은 이름·설명만)",

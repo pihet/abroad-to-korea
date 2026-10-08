@@ -12,10 +12,12 @@ from collections import Counter
 from pathlib import Path
 
 from .activities import OK_LICENSE, _fl, _pages, cp
+from .context import haversine
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data/raw/tourapi"
 INFO = RAW / "detailInfo2_ct25"
+COMMON = RAW / "detailCommon2"  # 목록에 없는 정류장(문화시설·쇼핑 등)의 좌표 (tour_course_stops.py)
 INTRO = RAW / "detailIntro2_ct25"
 TAG = re.compile(r"<[^>]+>")
 
@@ -28,6 +30,46 @@ def _items(path):
 def _text(s, n=180):
     s = " ".join(TAG.sub(" ", s or "").split())
     return s if len(s) <= n else s[:n].rstrip() + "…"
+
+
+def _common_place(cid, unit_of):
+    """받아 둔 detailCommon2 원문에서 좌표·시군구. 없으면 None (사진은 쓰지 않는다)."""
+    f = COMMON / f"{cid}.json" if cid else None
+    if not f or not f.exists():
+        return None
+    it = (_items(f) or [{}])[0]
+    lat, lon = _fl(it.get("mapy")), _fl(it.get("mapx"))
+    u = unit_of.get((it.get("lDongRegnCd"), it.get("lDongSignguCd")))
+    if lat is None or lon is None:
+        return None
+    return {"lat": lat, "lon": lon, "region": f"{u[0]}_{u[2]}" if u else None, "image_url": None, "license": None}
+
+
+def _name(s):
+    return re.sub(r"[\s·.,'\"-]", "", s or "").lower()
+
+
+def _fill_by_name(stops, by_name, max_km=30):
+    """좌표를 못 찾은 정류장을 이름으로 찾는다. 코스가 옛 콘텐츠 번호(삭제됨)를 가리키는 경우가 있어서다 (예: 오죽헌).
+    '점심식사(일출봉횟집)'처럼 괄호 안이 실제 장소면 그것도 찾아 본다. 후보가 여럿이면 코스의 다른 정류장에 가장 가까운 곳,
+    max_km 보다 멀면 쓰지 않는다 (같은 이름의 다른 지역 장소)."""
+    located = [(s["lat"], s["lon"]) for s in stops if s["lat"] is not None]
+    if not located:
+        return
+    center = (sum(a for a, _ in located) / len(located), sum(b for _, b in located) / len(located))
+    for s in stops:
+        if s["lat"] is not None:
+            continue
+        names = [s["name"], *re.findall(r"\((.*?)\)", s["name"]), re.sub(r"\(.*?\)", "", s["name"])]
+        keys = {_name(n) for n in names if len(_name(n)) >= 3}
+        cands = [c for k in keys for c in by_name.get(k, [])]
+        if not cands:  # '오죽헌' ↔ '강릉 오죽헌'처럼 한쪽 이름이 다른 쪽에 들어 있는 경우
+            cands = [c for k in keys for n, cs in by_name.items() if len(n) >= 3 and (k in n or n in k) for c in cs]
+        if not cands:
+            continue
+        best = min(cands, key=lambda c: haversine(center, (c["lat"], c["lon"])))
+        if haversine(center, (best["lat"], best["lon"])) <= max_km:
+            s.update(lat=best["lat"], lon=best["lon"], region=s["region"] or best["region"])
 
 
 class Courses:
@@ -43,9 +85,12 @@ class Courses:
             lat, lon = _fl(it.get("mapy")), _fl(it.get("mapx"))
             if u and lat is not None and lon is not None:
                 ok = it["contentid"] in engine.I["items"] and it.get("firstimage") and it.get("cpyrhtDivCd") in OK_LICENSE
-                place[it["contentid"]] = {"lat": lat, "lon": lon, "region": f"{u[0]}_{u[2]}",
+                place[it["contentid"]] = {"name": it.get("title"), "lat": lat, "lon": lon, "region": f"{u[0]}_{u[2]}",
                                           "image_url": f"/images/kr/{it['contentid']}" if ok else None,
                                           "license": OK_LICENSE[it["cpyrhtDivCd"]] if ok else None}
+        by_name = {}
+        for cid, r in [*acts.by_id.items(), *place.items()]:
+            by_name.setdefault(_name(r.get("name")), []).append({"lat": r["lat"], "lon": r["lon"], "region": r.get("region") or region_of.get(cid)})
         self.by_region = {}
         self.n_total = len(listing)
         self.n_loaded = 0
@@ -61,7 +106,7 @@ class Courses:
                     continue
                 seen.add(sid)
                 cid = s.get("subcontentid")
-                a, pl = acts.by_id.get(cid), place.get(cid)
+                a, pl = acts.by_id.get(cid), place.get(cid) or _common_place(cid, unit_of)
                 loc = a or pl
                 img = (a and a["image_url"] and a) or (pl and pl["image_url"] and pl) or None
                 stops.append({"order": len(stops) + 1, "id": cid, "name": (s.get("subname") or "").strip(),
@@ -70,6 +115,7 @@ class Courses:
                               "group": a["group"] if a else None, "kind": a["kind"] if a else None,
                               "image_url": img["image_url"] if img else None, "license": img["license"] if img else None,
                               "region": region_of.get(cid) or (pl["region"] if pl else None)})
+            _fill_by_name(stops, by_name)
             regions = Counter(s["region"] for s in stops if s["region"])
             if not regions:
                 continue

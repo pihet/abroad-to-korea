@@ -94,6 +94,7 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
                 <b>{s.name}</b>
                 {s.kind && <small className="kind">{s.kind}</small>}
                 {s.region && s.region !== regionKey && <small className="kind">· 다른 시군구</small>}
+                {(s as { approx?: boolean }).approx && <small className="kind">· 위치는 카카오 장소 검색 기준</small>}
                 {s.image_url && <figure><img src={s.image_url} alt={s.name} loading="lazy" /></figure>}
                 {s.overview && <p>{s.overview}</p>}
                 {s.lat != null && <a href={`https://map.kakao.com/link/map/${encodeURIComponent(s.name)},${s.lat},${s.lon}`} target="_blank" rel="noopener">카카오맵</a>}
