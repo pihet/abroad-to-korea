@@ -17,17 +17,15 @@ export const mainGroup = (g: Record<string, number>) => {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 
-// 점을 눌렀을 때 말풍선: 사진(공공누리 1·3유형만, 자르지 않음) · 이름 · 분류 · 대표메뉴 · 주소 · 지도 링크
+// 점을 눌렀을 때 말풍선: 사진(공공누리 1·3유형만, 자르지 않음) · 이름 · 분류 · 대표메뉴 · 주소
 function popupHtml(it: DongActivities['items'][number], color: string) {
   const photo = it.image_url
     ? `<div class="ap-ph"><img src="${it.image_url}" alt="${esc(it.name)}" onerror="this.parentNode.remove()"></div>` : ''
-  const map = `https://map.kakao.com/link/map/${encodeURIComponent(it.name)},${it.lat},${it.lon}`
   return `${photo}<div class="ap-body">
     <span class="ap-group" style="color:${color}">● ${esc(GROUP_LABEL[it.group] ?? '')} · ${esc(it.kind)}</span>
     <b class="ap-name">${esc(it.name)}</b>
     ${it.menu ? `<span class="ap-menu">대표메뉴 · ${esc(it.menu)}</span>` : ''}
     ${it.address ? `<span class="ap-addr">${esc(it.address)}</span>` : ''}
-    <a class="ap-link" href="${map}" target="_blank" rel="noopener">카카오맵에서 보기</a>
   </div>`
 }
 
