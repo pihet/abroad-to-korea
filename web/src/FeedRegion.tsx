@@ -15,6 +15,11 @@ import './region.css'
 const crowdWord = (i: number) => i >= 105 ? `평소보다 ${i - 100}% 붐빌 것으로 보여요` : i <= 95 ? `평소보다 ${100 - i}% 한산할 것으로 보여요` : '평소와 비슷할 것으로 보여요'
 
 type Tab = 'hoods' | 'course' | 'when' | 'acts'
+// 1인 여행 경비 추정 (국민여행조사). api.ts 는 다른 작업과 겹쳐 이 화면에서만 쓰는 타입을 여기 둔다
+type CostRow = { median: number; p25: number; p75: number; n: number; level: 'sigungu' | 'sido'; sido: string }
+type RegionCost = { day?: CostRow; '1night'?: CostRow; source: string }
+const won = (x: number) => x >= 100000 ? `${Math.round(x / 10000)}만` : `${(Math.round(x / 1000) / 10).toFixed(1).replace(/\.0$/, '')}만`
+
 const TABS: [Tab, string][] = [['hoods', '동네·먹거리'], ['course', '코스'], ['when', '언제 갈까'], ['acts', '할 거리']]
 
 export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClose }: {
@@ -31,6 +36,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
     setAbout(null); setAboutErr(null); setViewing(false)
     if (peek) placeDetailApi(peek.id).then(setAbout).catch(e => setAboutErr(e.message))
   }, [peek])
+  const [cost, setCost] = useState<RegionCost | null>(null)
   const [dong, setDong] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('hoods')
 
@@ -39,6 +45,8 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
     setItems(null); setPeek(null)
     profileApi(regionKey).then(p => { setD(p); setDong(initialDong ?? p.neighborhoods.find(n => n.rank === 1)?.code ?? null) }).catch(e => setErr(e.message))
     activitiesApi(regionKey).then(a => setItems(a.items)).catch(() => setItems(null))
+    setCost(null)
+    fetch(`/api/regions/${encodeURIComponent(regionKey)}/cost`).then(r => (r.ok ? r.json() : null)).then(setCost).catch(() => setCost(null))
   }, [regionKey, initialDong])
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -55,6 +63,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
     r.flags.sea && '#바다', r.mountain_n > 0 && '#산숲',
     r.flags.city ? '#도시' : '#시골소도시',
   ].filter(Boolean) as string[] : []
+  const c1 = cost?.['1night'], c0 = cost?.day
+  const costLine = c1 ? (
+    <p className="igr-cost">
+      <span className="tag">예상 경비</span> 1박 2일 1인 <b>약 {won(c1.median)}원</b>
+      <small> (보통 {won(c1.p25)}~{won(c1.p75)}원{c0 ? ` · 당일 약 ${won(c0.median)}원` : ''}{c1.level === 'sido' ? ` · ${c1.sido} 평균` : ''})</small>
+    </p>
+  ) : null
   // 원형 프로필은 사진을 자르므로 변경이 허용되는 공공누리 1유형일 때만 사진을 쓴다
   const avatar = d?.photo?.image_url ?? null
   // 앞으로 열릴(또는 열리고 있는) 축제는 시작일 순, 체험은 그대로 (TourAPI 체험마을·체험장 등)
@@ -95,12 +110,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
             </button>
           </div>
 
-          {(fests.length > 0 || exps.length > 0) && (
+          {(fests.length > 0 || exps.length > 0) ? (
             <section className="igr-now">
               {fests.length > 0 && <>
                 <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정</small></div>
                 <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
               </>}
+              {costLine}
               {exps.length > 0 && <>
                 <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등</small></div>
                 <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => setPeek(peek?.id === x.id ? null : x)} />)}</ol>
@@ -122,7 +138,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
                 </div>
               )}
             </section>
-          )}
+          ) : costLine && <section className="igr-now">{costLine}</section>}
 
           <nav className="igr-tabs" role="tablist">
             {TABS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}
@@ -161,6 +177,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               <li>이 화면의 국내 사진·관광지·음식점·축제·체험·여행코스: 한국관광공사 TourAPI (사진은 공공누리 제1유형 또는 제3유형. 원형 프로필 사진만 가운데를 잘라 표시)</li>
               {d.notes.map(n => <li key={n}>{n}</li>)}
               <li>음식점 사진 중 관광공사 사진이 없는 곳: 네이버 이미지 검색 결과 (네이버 플레이스·메뉴판닷컴 등, 저작권은 원 게시자)</li>
+              {cost && <li>예상 경비: {cost.source}. 출발지 교통비가 포함된 값이라 멀리서 오면 더 들 수 있음{c1?.level === 'sido' ? ` · 이 시군구는 표본이 적어 ${c1.sido} 값` : ''}</li>}
               <li>지도: © OpenStreetMap contributors</li>
               <li>해외 사진(탐색·사진으로 찾기 예시): Wikimedia Commons, 격자·카드에서는 가운데를 잘라 표시 <CommonsCredits /></li>
             </ul>

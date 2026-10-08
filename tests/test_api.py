@@ -433,3 +433,11 @@ def test_search_names(client):
             starts = [x["name"].replace(" ", "").startswith("서면") for x in rows]
             assert starts == sorted(starts, reverse=True)
     assert client.get("/api/search", params={"q": ""}).status_code == 422
+
+
+def test_region_cost(client):
+    r = client.get("/api/regions/51_강릉시/cost").json()
+    one = r["1night"]
+    assert one["level"] == "sigungu" and one["n"] >= 30 and one["p25"] <= one["median"] <= one["p75"]
+    assert "국민여행조사" in r["source"]
+    assert client.get("/api/regions/없는곳/cost").status_code == 404

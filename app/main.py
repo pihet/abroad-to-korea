@@ -28,6 +28,7 @@ from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
 from .rain import Rain, RainError
 from .courses import Courses
+from .cost import Cost
 from .search import Search
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
@@ -58,7 +59,7 @@ MISSING_PHOTOS: set[str] = set()
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions, hoods, rain, courses, search
+    global engine, acts, regions, hoods, rain, courses, search, cost
     t = time.time()
     engine = Engine()
     acts = Activities()
@@ -66,6 +67,7 @@ async def lifespan(_app):
     hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
     rain = Rain(engine.ctx.centers)
     courses = Courses(acts, engine)
+    cost = Cost()
     search = Search(acts, hoods, regions.static)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
@@ -332,6 +334,17 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
             "notes": ["비 예보: 오늘부터 16일 안은 Open-Meteo 일기예보, 그 밖은 Open-Meteo 2021~2025년 같은 날짜 기록 (CC BY 4.0)",
                       "방문자: 한국관광공사 외지인 방문자 수. 2026-10은 월 단위 예측 모델(ridge, 2025년 검증 WAPE 5.6%) 값, 나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
+
+
+@app.get("/api/regions/{key}/cost")
+def region_cost(key: str):
+    """1인 여행 경비 추정 (당일·1박). 시군구 표본이 적으면 시도 값 (level='sido'). 표가 없으면 404."""
+    if key not in regions.static:
+        raise HTTPException(404, "시군구를 찾을 수 없습니다.")
+    c = cost.for_region(key)
+    if c is None:
+        raise HTTPException(404, "경비 표가 없습니다. src/cost/build_cost_table.py 를 먼저 실행해 주세요.")
+    return {"is_example": False, **c}
 
 
 @app.get("/api/regions/{key}/courses")
