@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { festivalsApi, regionsApi, type Festival, type RegionRow } from './api'
+import { authApi, festivalsApi, regionsApi, type AuthUser, type Festival, type RegionRow } from './api'
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
 import { FeedExplore } from './FeedExplore'
 import { useDragScroll } from './dragScroll'
+import { AccountModal } from './AccountModal'
 import './feed.css'
 
 // 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · 저장 + 지역 검색 · 지역 상세.
@@ -74,12 +75,25 @@ export default function FeedApp() {
   const [finding, setFinding] = useState(false)  // 지역 검색 화면
   const [openDong, setOpenDong] = useState<string | null>(null)  // 검색에서 동네·장소로 들어오면 그 동네를 고른 채로
   const [saved, setSaved] = useState<string[]>(loadSaved)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
   const more = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     regionsApi().then(r => setRows(dailyShuffle(r.regions.filter(x => x.photo)))).catch(e => setErr(e.message))
     festivalsApi().then(setFest).catch(() => setFest(null))
   }, [])
+  useEffect(() => {
+    authApi.me().then(setUser).catch(() => {})
+  }, [])
+  useEffect(() => {
+    if (!user) return
+    authApi.savedRegions().then(async ({ regions: remote }) => {
+      const merged = [...new Set([...loadSaved(), ...remote])]
+      setSaved(merged)
+      await Promise.all(merged.filter(k => !remote.includes(k)).map(k => authApi.saveRegion(k)))
+    }).catch(() => {})
+  }, [user])
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { setShown(PAGE); window.scrollTo(0, 0) }, [story, tab])
   useEffect(() => {
@@ -98,7 +112,15 @@ export default function FeedApp() {
     return () => io.disconnect()
   }, [tab, feed.length])
 
-  const toggle = (k: string) => setSaved(saved.includes(k) ? saved.filter(x => x !== k) : [...saved, k])
+  const toggle = (k: string) => {
+    const removing = saved.includes(k)
+    setSaved(removing ? saved.filter(x => x !== k) : [...saved, k])
+    if (user) (removing ? authApi.unsaveRegion(k) : authApi.saveRegion(k)).catch(() => {})
+  }
+  const changeUser = (next: AuthUser | null) => {
+    if (next === null) setSaved([])
+    setUser(next)
+  }
   // 분류마다 서로 다른 1유형 사진을 고른다
   const covers = useMemo(() => {
     const used = new Set<string>(), out: Record<string, string | undefined> = {}
@@ -114,7 +136,7 @@ export default function FeedApp() {
   const searchPhoto = async (p: { attraction_id: string; image_url: string }) => {
     const blob = await fetch(p.image_url).then(r => r.blob())
     setOpen(null); setTab('search')
-    setStart({ kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: p.attraction_id })
+    setStart({ kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: p.attraction_id, persist: false })
   }
 
   return (
@@ -122,6 +144,7 @@ export default function FeedApp() {
       <header className="ig-top">
         <b className="ig-logo">닮은꼴<i>.</i></b>
         <div className="ig-top-act">
+          <button type="button" className="account-trigger" onClick={() => setAccountOpen(true)}>{user ? user.nickname : '로그인'}</button>
           <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
         </div>
@@ -196,7 +219,7 @@ export default function FeedApp() {
       )}
 
       <div hidden={tab !== 'search'}>
-        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} />
+        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} />
       </div>
 
       <nav className="ig-tabs" aria-label="메뉴">
@@ -210,6 +233,7 @@ export default function FeedApp() {
         onPick={(k, dong) => { setFinding(false); setOpenDong(dong ?? null); setOpen(k) }} />}
       {open && <FeedRegion regionKey={open} initialDong={openDong} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => { setOpen(null); setOpenDong(null) }}
         onSearchPhoto={p => { searchPhoto(p).catch(() => {}) }} />}
+      {accountOpen && <AccountModal user={user} onUser={changeUser} onClose={() => setAccountOpen(false)} />}
     </div>
   )
 }

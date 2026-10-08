@@ -5,7 +5,7 @@ import { CropStep } from './components/CropStep'
 // 인스타그램형 "사진으로 찾기": 사진 고르기 → (선택) 영역 자르기 → 결과 피드.
 // 결과 게시물은 좌우로 넘기면 후보 사진 ↔ 내 사진. 정렬은 사진 유사도 순 하나, 게시물에는 내 사진과 닮은 장면 태그만 보여 준다.
 
-export type Source = { kind: 'file'; file: Blob; url: string; sourceAttractionId?: string } | { kind: 'demo'; photo: DemoPhoto; url: string }
+export type Source = { kind: 'file'; file: Blob; url: string; sourceAttractionId?: string; persist?: boolean } | { kind: 'demo'; photo: DemoPhoto; url: string }
 type Stage = 'pick' | 'crop' | 'result'
 const PAGE = 5
 const MAX = 30
@@ -22,9 +22,10 @@ async function croppedPreview(url: string, crop: Crop | null): Promise<string> {
   return c.toDataURL('image/jpeg', 0.9)
 }
 
-export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
+export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn }: {
   start: Source | null  // 지역 상세의 "이 사진과 닮은 다른 곳 찾기"로 들어온 사진
   saved: string[]; onToggleSave: (key: string) => void; onOpen: (key: string) => void
+  loggedIn: boolean
 }) {
   const [stage, setStage] = useState<Stage>('pick')
   const [source, setSource] = useState<Source | null>(null)
@@ -37,6 +38,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
   const [demos, setDemos] = useState<DemoPhoto[]>([])
   const [q, setQ] = useState('')
   const [votes, setVotes] = useState<Record<string, 1 | -1>>({})
+  const [retainPhoto, setRetainPhoto] = useState(false)
 
   useEffect(() => { api.demoPhotos().then(setDemos).catch(e => setErr(e.message)) }, [])
   const shownDemos = useMemo(() => {
@@ -47,7 +49,8 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
   const analyze = async (s: Source, crop: Crop | null) => {
     setBusy(true); setErr(null)
     try {
-      const a = await api.analyze(s.kind === 'file' ? { file: s.file, crop, sourceAttractionId: s.sourceAttractionId }
+      const a = await api.analyze(s.kind === 'file' ? { file: s.file, crop, sourceAttractionId: s.sourceAttractionId,
+                                                       retainPhoto: retainPhoto && s.persist !== false, storePhoto: s.persist !== false }
                                                      : { demoPhotoId: s.photo.photo_id, crop })
       setAnalysis(a)
       setPreview(await croppedPreview(s.url, crop))
@@ -88,7 +91,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
     setErr(null)
     try {
       const file = heic ? await api.convert(f) : f  // 크롬은 HEIC 를 못 띄워 서버에서 JPEG 로 바꾼다
-      setSource({ kind: 'file', file, url: URL.createObjectURL(file) }); setStage('crop')
+      setSource({ kind: 'file', file, url: URL.createObjectURL(file), persist: true }); setStage('crop')
     } catch (x) { setErr((x as Error).message) }
   }
 
@@ -96,7 +99,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
   const searchFrom = async (c: Candidate) => {
     try {
       const blob = await fetch(c.attraction.image_url).then(r => r.blob())
-      const s: Source = { kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: c.attraction.id }
+      const s: Source = { kind: 'file', file: blob, url: URL.createObjectURL(blob), sourceAttractionId: c.attraction.id, persist: false }
       setSource(s); await analyze(s, null)
     } catch { setErr('이 사진을 불러오지 못했습니다.') }
   }
@@ -146,7 +149,9 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen }: {
     <div className="ig-pick">
       <section className="ig-upload">
         <b>가고 싶은 해외 사진을 올려 보세요</b>
-        <small>분위기가 닮은 국내 여행지를 찾아 드려요 · 올린 사진은 저장하지 않습니다</small>
+        <small>분위기가 닮은 국내 여행지를 찾아 드려요 · 기본 24시간 후 삭제됩니다</small>
+        <label className="ig-retain"><input type="checkbox" checked={retainPhoto} disabled={!loggedIn}
+          onChange={e => setRetainPhoto(e.target.checked)} /> 계정에 사진 계속 보관{!loggedIn && ' (로그인 필요)'}</label>
         <div>
           <label className="ig-btn primary"><input type="file" accept="image/*,.heic,.heif" onChange={onFile} />앨범에서 고르기</label>
           <label className="ig-btn"><input type="file" accept="image/*" capture="environment" onChange={onFile} />사진 찍기</label>

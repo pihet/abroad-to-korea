@@ -1,0 +1,14 @@
+fastapi==0.118.0
+uvicorn[standard]==0.37.0
+python-multipart==0.0.20
+pydantic-settings==2.11.0
+email-validator==2.3.0
+sqlalchemy[asyncio]==2.0.44
+alembic==1.17.1
+psycopg[binary]==3.2.12
+redis==6.4.0
+argon2-cffi==25.1.0
+httpx==0.28.1
+pgvector==0.4.1
+minio==7.2.18
+python-dotenv==1.1.1

@@ -25,6 +25,31 @@ export interface AnalyzeResponse {
   scene_tags: Tag[]
   image: { width: number; height: number; cropped: boolean }
   excluded_sigungu: { key: string; name: string } | null
+  media_asset_id: string | null
+}
+
+export interface AuthUser {
+  id: string; email: string; nickname: string; status: string; email_verified: boolean
+}
+
+export const authApi = {
+  me: () => fetch('/api/auth/me').then(r => json<AuthUser>(r)),
+  signup: (body: { email: string; nickname: string; password: string }) =>
+    fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(r => json<{ ok: boolean; message: string; verification_token?: string }>(r)),
+  verifyEmail: (token: string) =>
+    fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) })
+      .then(r => json<{ ok: boolean }>(r)),
+  login: (body: { email: string; password: string }) =>
+    fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => json<AuthUser>(r)),
+  logout: () => fetch('/api/auth/logout', { method: 'POST' }).then(r => json<{ ok: boolean }>(r)),
+  oauthStart: (provider: 'google' | 'kakao') =>
+    fetch(`/api/auth/oauth/${provider}/start`).then(r => json<{ authorization_url: string }>(r)),
+  savedRegions: () => fetch('/api/me/saved-regions').then(r => json<{ regions: string[] }>(r)),
+  saveRegion: (region_key: string) =>
+    fetch('/api/me/saved-regions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ region_key }) }).then(r => json(r)),
+  unsaveRegion: (regionKey: string) =>
+    fetch(`/api/me/saved-regions/${encodeURIComponent(regionKey)}`, { method: 'DELETE' }).then(r => json(r)),
 }
 
 export interface MonthPoint { month: string; visitors: number; index: number }
@@ -74,12 +99,14 @@ async function json<T>(res: Response): Promise<T> {
 export const api = {
   demoPhotos: () => fetch('/api/demo-photos').then(r => json<{ photos: DemoPhoto[] }>(r)).then(r => r.photos),
 
-  analyze: (input: { file?: Blob; demoPhotoId?: string; crop?: Crop | null; sourceAttractionId?: string }) => {
+  analyze: (input: { file?: Blob; demoPhotoId?: string; crop?: Crop | null; sourceAttractionId?: string; retainPhoto?: boolean; storePhoto?: boolean }) => {
     const fd = new FormData()
     if (input.file) fd.append('image', input.file, 'upload.jpg')
     if (input.demoPhotoId) fd.append('demo_photo_id', input.demoPhotoId)
     if (input.crop) fd.append('crop', JSON.stringify(input.crop))
     if (input.sourceAttractionId) fd.append('source_attraction_id', input.sourceAttractionId)
+    if (input.retainPhoto) fd.append('retain_photo', 'true')
+    if (input.storePhoto === false) fd.append('store_photo', 'false')
     return fetch('/api/analyze', { method: 'POST', body: fd }).then(r => json<AnalyzeResponse>(r))
   },
 

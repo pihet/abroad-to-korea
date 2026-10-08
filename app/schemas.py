@@ -27,6 +27,7 @@ class AnalyzeResponse(BaseModel):
     scene_tags: list[Tag]
     image: dict
     excluded_sigungu: Optional[dict] = None
+    media_asset_id: Optional[str] = None
 
 
 class RecommendRequest(BaseModel):

@@ -11,13 +11,13 @@ Stage B  30곳 안에서만 재정렬. visual 은 Stage A 순서 그대로, 그 
 import io
 import re
 import uuid
-from collections import OrderedDict
 
 import numpy as np
 from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 
 from .context import Context, ORIGINS, cp  # noqa: F401  (cp: clip_proto)
+from .query_cache import QueryCache
 from .tags import Tagger
 
 import scene_catalog as sc  # noqa: E402  (context 가 sys.path 를 맞춘다)
@@ -45,7 +45,7 @@ class Engine:
         self.region_keys = [f"{r[0]}_{r[1]}" for r in self.I["regions"]]
         self.ctx = Context([(r[0], r[1]) for r in self.I["regions"]])
         self.tagger = Tagger(self.model, self.proc)
-        self.cache = OrderedDict()
+        self.cache = QueryCache(CACHE_SIZE)
         self._demo = None
 
     # ---------------- 입력

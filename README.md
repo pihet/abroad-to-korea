@@ -2,9 +2,9 @@
 
 해외 여행지 사진을 올리면 분위기가 닮은 국내 시군구와 관광지를 찾아 주고, 고른 지역의 혼잡도·비 예보·동네별 할 거리와 먹거리를 보여 주는 웹서비스다.
 
-교육 과정 팀 프로젝트(2026-10-01 ~ 2026-10-16)의 결과물이다. 진행 기록과 평가 수치는 [`docs/HANDOFF.md`](docs/HANDOFF.md), 구성도는 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)에 있다.
+교육 과정 팀 프로젝트(2026-10-01 ~ 2026-10-16)의 결과물이다. 진행 기록과 평가 수치는 [`docs/HANDOFF.md`](docs/HANDOFF.md), 인프라 운영 방법은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 있다.
 
-## 지금 되는 것 (2026-10-07 기준)
+## 지금 되는 것 (2026-10-08 기준)
 
 메인 화면은 인스타그램형이다: 아래 탭 **홈**(분류 스토리 · 순위 줄 · 시군구 피드) · **탐색**(230곳 사진 격자) · **사진으로 찾기** · **저장**. 지역 바로가기는 `#region=51_양양군`.
 
@@ -20,28 +20,58 @@
 | 할 만한 것 | 물·바다, 산·숲, 레저, 캠핑, 체험, 먹거리, 축제를 지도와 목록으로 |
 | 코스 | 한국관광공사 공식 여행코스(시군구 212곳): 들르는 순서대로 지도 번호 핀·점선, 사진·설명·소요시간 |
 
-빠진 것: 로그인·개인화, 예약·결제, 여행 총비용, 이동 시간 기반 일정.
+회원가입·이메일 인증·일반 로그인과 Google·Kakao OAuth, 서버 저장 지역, 사용자 사진 보관 동의·삭제 API가 구현되어 있다. 실제 이메일 발송 업체와 OAuth 운영 키는 별도로 연결해야 한다.
 
-## 구성도 (지금 돌아가는 구조)
+빠진 것: 개인화 추천, 예약·결제, 여행 총비용, 이동 시간 기반 일정.
+
+## 현재 아키텍처
 
 ```mermaid
 flowchart TB
-  B["<b>① 브라우저</b> · web/ (React + TypeScript + Vite)<br/>시작 · 사진 검색 · 결과 · 지역 상세<br/>지도(Leaflet) · 저장한 곳(localStorage)"]
-  S["<b>② FastAPI 서버</b> · app/ (한 프로세스)<br/>main.py: REST API · 사진 제공<br/>모델: CLIP 사진 유사도 · 방문자 예측(ridge)<br/>지역 정보: 조건 필터 · 활동지 · 동네 경계 · 비 예보"]
-  D[("<b>③ 로컬 데이터</b> · data/ (Git 제외)<br/>TourAPI 목록·사진·대표메뉴 · 방문자 수<br/>날씨 · 인구 · 경계 · 임베딩")]
-  X["<b>④ 외부 서비스</b><br/>TourAPI · Open-Meteo · OpenStreetMap"]
-  J["<b>⑤ 수집·학습 배치</b> · src/collect · src/forecast<br/>매일 자정, 손으로 실행"]
+  U["브라우저<br/>React + TypeScript + Leaflet"]
+  DBA["DBeaver<br/>127.0.0.1:5434"]
 
-  B -- "요청: 사진 · 조건" --> S
-  S -- "응답: JSON · 사진" --> B
-  S -- "읽기" --> D
-  S -- "일기예보 · 추가 사진" --> X
-  B -. "지도 타일" .-> X
-  X -. "공공데이터 수집" .-> J
-  J -. "저장 · 학습" .-> D
+  subgraph DC["Docker Compose"]
+    API["FastAPI :8000<br/>추천 · 지역 상세 · 회원 · 사진 API"]
+    MIG["Alembic migration<br/>기동 시 스키마 적용"]
+    PG[("PostgreSQL + pgvector<br/>app DB + Airflow DB<br/>container :5432")]
+    REDIS[("Redis :6379<br/>세션 · OAuth state · rate limit · 검색 캐시")]
+    MINIO[("MinIO<br/>S3 API :9000 · Console :9001<br/>사용자 사진 · Bronze 원본 · 관광 사진")]
+    AFUI["Airflow API server :8080"]
+    AFS["Airflow scheduler<br/>LocalExecutor"]
+  end
+
+  STAGE[("호스트 data/<br/>수집 staging · 모델 · 경계 · 임베딩")]
+  EXT["외부 서비스<br/>TourAPI · DataLab · Open-Meteo<br/>OpenStreetMap · Google · Kakao"]
+
+  U <-- "HTTPS / JSON / 이미지" --> API
+  U -. "지도 타일" .-> EXT
+  API --> PG
+  API --> REDIS
+  API --> MINIO
+  API --> STAGE
+  API --> EXT
+  DBA -- "host 5434 → container 5432" --> PG
+  MIG -- "app 스키마" --> PG
+  AFUI --> AFS
+  AFS -- "DAG 실행" --> STAGE
+  AFS -- "공공데이터 수집" --> EXT
+  AFS -- "정규화·upsert" --> PG
+  AFS -- "원본·사진 보관" --> MINIO
+  AFS -- "캐시 무효화" --> REDIS
 ```
 
-실선은 서비스 중 요청, 점선은 미리 돌려 두는 배치다. 모델은 별도 학습 없이 쓰는 CLIP(사진 유사도)과 직접 학습한 방문자 예측 모델(ridge)이다. 운영 구조(Docker·Airflow·Redis·Postgres)는 설계 중이다.
+PostgreSQL이 회원·저장 지역·수집 데이터의 원본이며 Redis는 재생성 가능한 캐시다. MinIO는 사용자 업로드와 원본 응답·사진 파일을 보관한다. 사용자 사진은 기본 24시간 뒤 Airflow가 삭제하고, 로그인 사용자가 보관에 동의한 경우에만 유지한다.
+
+Airflow는 관광 사진·음식·축제·카탈로그를 매일 수집해 검증 후 PostgreSQL에 upsert하고 MinIO에 원본을 보관한다. 사용자 사진 정리는 매시간, 방문자·인구 데이터는 매월 실행한다. 현재 cron은 UTC 기준이며 정확한 시각은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 정리되어 있다.
+
+| 접속 대상 | 호스트 주소 | 용도 |
+|---|---|---|
+| 웹/API | `http://localhost:8000` | 서비스와 API 문서(`/docs`) |
+| Airflow | `http://localhost:8080` | DAG 확인·운영 |
+| PostgreSQL | `127.0.0.1:5434` | DBeaver, 컨테이너 내부 포트는 `5432` |
+| Redis | `localhost:6379` | 개발용 캐시 확인 |
+| MinIO | `http://localhost:9000`, `http://localhost:9001` | S3 API, 관리 콘솔 |
 
 ## 데이터
 
@@ -68,8 +98,13 @@ flowchart TB
 app/           FastAPI 백엔드 (API, 추천, 조건, 지역 상세, 비 예보)
 web/           React 화면
 tests/         API 테스트 (pytest, 30개)
+airflow/dags/  일·시간·월 단위 배치 스케줄
+migrations/    Alembic DB 스키마 변경 이력
+infra/         PostgreSQL 초기 DB·계정 생성
 src/
   collect/     공공데이터 수집
+  ingest/      원본 보관, 검증, PostgreSQL 게시, 사진 캐시
+  ops/         만료된 사용자 사진 정리
   forecast/    방문자 예측 (p1_spec: 기준 재현, p1_holiday: 연휴 보정)
   prototype/   CLIP 유사도 실험·평가
 tools/         진행 기록 PPT 생성 스크립트
@@ -79,6 +114,21 @@ data/          (파일은 Git 제외)
 
 ## 실행
 
+### Docker Compose로 전체 실행
+
+```bash
+# 최초 실행일 때만 .env.example을 복사하고 비밀번호·API 키를 채운다.
+cp .env.example .env
+
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
+기존 `.env`에 API 키가 있다면 복사 명령으로 덮어쓰지 않는다. 현재 로컬 PostgreSQL과의 충돌을 피하기 위해 서비스 DB는 호스트의 `5434` 포트를 사용한다. DBeaver 기본 접속값은 `127.0.0.1:5434`, DB `abroad_to_korea`, 사용자 `app`이며 비밀번호는 `.env`의 `APP_DB_PASSWORD`다.
+
+### 로컬에서 직접 실행
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install pandas numpy scikit-learn python-dotenv holidays lightgbm
@@ -86,7 +136,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install transformers pillow
 pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0 shapely==2.1.2
 
-echo "TOUR_API_KEY=<공공데이터포털 인증키>" > .env   # 포털 표시값 그대로 (재인코딩하지 않음)
+# .env의 TOUR_API_KEY에 포털 표시값을 입력한다. 기존 .env를 덮어쓰지 않는다.
 # 키를 더 가지고 있으면 TOUR_API_KEY_2, TOUR_API_KEY_3 … 으로 추가: 매일 수집이 한 키의 하루 한도가 차면 다음 키로 넘어간다
 ```
 
@@ -140,4 +190,4 @@ uvicorn app.main:app --port 8000                           # 첫 실행 때 CLIP
 - 조원 사람 평가와 새 테스트셋, 사진 수집이 끝난 뒤 재평가
 - 관광지별 집중률(한국관광공사 예측 API)을 동네 지도 점에 표시 (활용신청 반영 대기)
 - 서버를 다시 띄워도 분석 결과 유지(#3), 재시작 없이 새 데이터 반영(#2)
-- 운영 구조(Docker·Airflow·Redis·Postgres), 발표자료
+- 운영 인프라 실제 기동 검증, 메일 발송 업체 연결, 발표자료

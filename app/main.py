@@ -13,10 +13,10 @@ from contextlib import asynccontextmanager
 import urllib.error
 import urllib.request
 from pathlib import Path
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Cookie, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -31,6 +31,12 @@ from .courses import Courses
 from .search import Search
 from .recommender import PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
+from .auth import me_router, router as auth_router
+from .db import close_db, session_factory
+from .auth import SESSION_COOKIE, token_hash
+from .media import persist_upload, router as media_router
+from .models import AuthSession, FeedbackRecord
+from sqlalchemy import select
 
 MAX_UPLOAD = 15 * 1024 * 1024
 BAD_IMAGE = "사진 파일을 열 수 없습니다. JPG·PNG·WEBP·HEIC 사진인지 확인해 주세요."
@@ -65,9 +71,13 @@ async def lifespan(_app):
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
     yield
+    await close_db()
 
 
 app = FastAPI(title="닮은꼴 국내 여행지 API", version="0.1.0", lifespan=lifespan)
+app.include_router(auth_router)
+app.include_router(me_router)
+app.include_router(media_router)
 
 
 @app.get("/api/health")
@@ -82,7 +92,10 @@ def demo_photos():
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optional[str] = Form(None),
-                  crop: Optional[str] = Form(None), source_attraction_id: Optional[str] = Form(None)):
+                  crop: Optional[str] = Form(None), source_attraction_id: Optional[str] = Form(None),
+                  retain_photo: bool = Form(False), store_photo: bool = Form(True),
+                  raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    media_asset_id = None
     if image is not None:
         data = await image.read()
         if len(data) > MAX_UPLOAD:
@@ -108,7 +121,10 @@ async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optio
         if exclude is None:
             raise HTTPException(404, "출발 관광지를 찾을 수 없습니다.")
     qid, tags = engine.analyze(img, exclude)
-    return {"query_id": qid, "scene_tags": tags, "image": meta, "excluded_sigungu": _sigungu(exclude)}
+    if image is not None and store_photo:
+        media_asset_id = await persist_upload(data, image.content_type or "application/octet-stream", retain_photo, raw_session)
+    return {"query_id": qid, "scene_tags": tags, "image": meta, "excluded_sigungu": _sigungu(exclude),
+            "media_asset_id": media_asset_id}
 
 
 def _sigungu(ri):
@@ -163,7 +179,28 @@ def recommend(req: RecommendRequest):
 
 
 @app.post("/api/feedback")
-def feedback(fb: Feedback):
+async def feedback(fb: Feedback, raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    factory = session_factory()
+    if factory is not None:
+        async with factory() as db:
+            user_id = None
+            if raw_session:
+                now = datetime.now(timezone.utc)
+                session = await db.scalar(select(AuthSession).where(
+                    AuthSession.token_hash == token_hash(raw_session), AuthSession.revoked_at.is_(None),
+                    AuthSession.idle_expires_at > now, AuthSession.absolute_expires_at > now))
+                user_id = session.user_id if session else None
+            query = select(FeedbackRecord).where(FeedbackRecord.query_id == fb.query_id,
+                                                  FeedbackRecord.sigungu_key == fb.sigungu_key,
+                                                  FeedbackRecord.attraction_id == fb.attraction_id)
+            query = query.where(FeedbackRecord.user_id == user_id) if user_id else query.where(FeedbackRecord.user_id.is_(None))
+            record = await db.scalar(query)
+            if record:
+                record.value = fb.value
+            else:
+                db.add(FeedbackRecord(user_id=user_id, **fb.model_dump()))
+            await db.commit()
+        return {"ok": True}
     APP_DATA.mkdir(parents=True, exist_ok=True)
     with FEEDBACK.open("a", encoding="utf-8") as f:
         f.write(json.dumps({**fb.model_dump(), "ts": time.time()}, ensure_ascii=False) + "\n")
