@@ -90,7 +90,7 @@ def step_embed():
     print(f"[embed] {len(kept)}장")
 
 
-def enlarged_index(I):
+def enlarged_index(I, drop=None):
     """기존 인덱스에 추가 사진을 붙인다. 추가 사진의 시군구는 관광지 목록 원본에서 찾는다."""
     unit_of = cp.load_regions()
     region_of_cid = {}
@@ -102,6 +102,8 @@ def enlarged_index(I):
     e = np.load(EMB)
     cids = np.array([str(n).split("__")[0] for n in e["names"]])
     reg = np.array([region_of_cid.get(c, -1) for c in cids])
+    if drop is not None:
+        reg = np.where(drop, -1, reg)  # 거른 사진은 어느 시군구에도 표를 주지 않는다
     J = dict(I)
     J["kv"] = np.vstack([I["kv"], e["vecs"]])
     J["cid"] = np.concatenate([np.array([str(c) for c in I["cid"]]), cids])
@@ -117,6 +119,27 @@ def enlarged_index(I):
 def step_evaluate():
     I = sc.domestic_index()
     J, n_extra = enlarged_index(I)
+    variants = [("기존 풀 (대표사진)", I, sc.vote_scores), ("늘린 풀 (대표사진 + 추가 사진)", J, sc.vote_scores),
+                ("기존 풀 · 관광지 최대값 투표", I, vote_attraction_max),
+                ("늘린 풀 · 관광지 최대값 투표", J, vote_attraction_max)]
+    compare(I, J, n_extra, variants, "eval_kr_extra.json")
+
+
+def vote_attraction_max(X, v):
+    """관광지마다 가장 닮은 사진 1장만 쓰고, 상위 100개 관광지의 유사도를 시군구별로 합산."""
+    sims = X["kv"] @ v
+    ok = X["img_region"] >= 0
+    cids, inv = np.unique(X["cid"][ok], return_inverse=True)
+    best = np.full(len(cids), -np.inf)
+    np.maximum.at(best, inv, sims[ok])
+    reg = np.zeros(len(cids), int)
+    reg[inv] = X["img_region"][ok]
+    top = np.argsort(-best)[:sc.VOTE_K]
+    s = np.bincount(reg[top], weights=best[top], minlength=len(X["regions"]))
+    return s + 1e-3 * (X["reg_mean"] @ v)
+
+
+def compare(I, J, n_extra, variants, out_name):
     qv, by_scene = sc.scene_vectors()
     rows = sc.ok_rows()
     scenes_of = rows.groupby("place_id").scene_id.unique().to_dict()
@@ -128,23 +151,6 @@ def step_evaluate():
     places = [p for p in gt if gt[p] and p in scenes_of]
     n = len(I["regions"])
     enriched_regions = Counter(J["img_region"][len(I["kv"]):][J["img_region"][len(I["kv"]):] >= 0])
-
-    def vote_attraction_max(X, v):
-        """관광지마다 가장 닮은 사진 1장만 쓰고, 상위 100개 관광지의 유사도를 시군구별로 합산."""
-        sims = X["kv"] @ v
-        ok = X["img_region"] >= 0
-        cids, inv = np.unique(X["cid"][ok], return_inverse=True)
-        best = np.full(len(cids), -np.inf)
-        np.maximum.at(best, inv, sims[ok])
-        reg = np.zeros(len(cids), int)
-        reg[inv] = X["img_region"][ok]
-        top = np.argsort(-best)[:sc.VOTE_K]
-        s = np.bincount(reg[top], weights=best[top], minlength=len(X["regions"]))
-        return s + 1e-3 * (X["reg_mean"] @ v)
-
-    variants = [("기존 풀 (대표사진)", I, sc.vote_scores), ("늘린 풀 (대표사진 + 추가 사진)", J, sc.vote_scores),
-                ("기존 풀 · 관광지 최대값 투표", I, vote_attraction_max),
-                ("늘린 풀 · 관광지 최대값 투표", J, vote_attraction_max)]
     res, top5 = {}, {}
     for label, X, fn in variants:
         ranks, appear = {}, Counter()
@@ -171,17 +177,17 @@ def step_evaluate():
         share = sum(v for _, v in top5[label].most_common(10)) / (len(places) * 5)
         print(f"| {label} | {int((X['img_region'] >= 0).sum())} | {(r <= 5).sum()} | {(r <= 10).sum()} | {(r <= 20).sum()} | "
               f"{np.mean(1 / r):.3f} | {np.median(r):.0f} | {r.max()} | {len(top5[label])} | {share:.0%} |")
-    a = np.array([res["기존 풀 (대표사진)"][p] for p in places])
+    a = np.array([res[variants[0][0]][p] for p in places])  # 첫 후보가 기준
     for label, _, _ in variants[1:]:
         b = np.array([res[label][p] for p in places])
         better, worse = int((b < a).sum()), int((b > a).sum())
         k, m = min(better, worse), better + worse
         pv = 1.0 if m == 0 else min(1.0, 2 * sum(comb(m, i) for i in range(k + 1)) / 2 ** m)
-        print(f"  {label} vs 기존 풀: 좋아짐 {better} / 나빠짐 {worse} / 같음 {len(places) - better - worse} (p={pv:.2f})")
+        print(f"  {label} vs {variants[0][0]}: 좋아짐 {better} / 나빠짐 {worse} / 같음 {len(places) - better - worse} (p={pv:.2f})")
     print("\n| 해외지 | " + " | ".join(l for l, _, _ in variants) + " |\n|---|" + "---|" * len(variants))
     for p in places:
         print(f"| {p} | " + " | ".join(str(res[l][p]) for l, _, _ in variants) + " |")
-    (cp.WORK / "eval_kr_extra.json").write_text(json.dumps(
+    (cp.WORK / out_name).write_text(json.dumps(
         {"n_extra": n_extra, "places": places, "ranks": res}, ensure_ascii=False, indent=1))
 
 
@@ -287,7 +293,48 @@ def step_subset():
         {"n_attractions": n_attr, "summary": out, "ranks": res}, ensure_ascii=False, indent=1))
 
 
-STEPS = {"download": step_download, "embed": step_embed, "evaluate": step_evaluate, "subset": step_subset}
+# 추가 사진 거르기 규칙 (C). 2026-10-08 결과를 보기 전에 고정: 사진마다 아래 문구 중 가장 가까운 것을 고르고,
+# 버릴 쪽이면 뺀다. 대표사진은 건드리지 않는다.
+KEEP_PROMPTS = ["a landscape photo", "a photo of a building exterior", "a photo of a street", "a photo of a beach or sea",
+                "a photo of mountains or forest", "a photo of a traditional village", "a photo of a park or garden"]
+DROP_PROMPTS = ["a photo of food on a table", "a photo of an indoor room", "a photo of a sign or text board",
+                "a portrait photo of people", "a photo of a museum exhibit", "a photo of a map or brochure"]
+
+
+def filter_mask():
+    """추가 사진마다 버릴지(True) 정한다. (버린 이유별 개수도 함께)"""
+    import torch
+    from transformers import CLIPModel, CLIPProcessor
+    model = CLIPModel.from_pretrained(cp.MODEL_NAME).eval()
+    proc = CLIPProcessor.from_pretrained(cp.MODEL_NAME)
+    prompts = KEEP_PROMPTS + DROP_PROMPTS
+    with torch.no_grad():
+        t = model.get_text_features(**proc(text=prompts, return_tensors="pt", padding=True))
+        t = t if isinstance(t, torch.Tensor) else t.pooler_output
+    T = torch.nn.functional.normalize(t, dim=-1).numpy()
+    e = np.load(EMB)
+    best = np.argmax(e["vecs"] @ T.T, axis=1)
+    drop = best >= len(KEEP_PROMPTS)
+    why = Counter(prompts[i] for i in best[drop])
+    return drop, why
+
+
+def step_filtered():
+    """A(대표사진) vs B(늘린 풀) vs C(늘린 풀에서 실내·음식·안내판 등을 거른 풀)."""
+    I = sc.domestic_index()
+    drop, why = filter_mask()
+    print(f"[filtered] 추가 사진 {len(drop)}장 중 {int(drop.sum())}장({drop.mean():.0%}) 거름: " +
+          ", ".join(f"{k.replace('a photo of ', '').replace('a ', '')} {v}" for k, v in why.most_common()))
+    J, n_extra = enlarged_index(I)
+    K, n_kept = enlarged_index(I, drop)
+    variants = [("A 기존 풀 (대표사진)", I, sc.vote_scores), ("B 늘린 풀", J, sc.vote_scores),
+                ("C 늘린 풀 · 거름", K, sc.vote_scores),
+                ("B 늘린 풀 · 관광지 최대값", J, vote_attraction_max), ("C 늘린 풀 · 거름 · 관광지 최대값", K, vote_attraction_max)]
+    compare(I, K, n_kept, variants, "eval_kr_extra_filtered.json")
+
+
+STEPS = {"download": step_download, "embed": step_embed, "evaluate": step_evaluate, "subset": step_subset,
+         "filtered": step_filtered}
 
 if __name__ == "__main__":
     for s in sys.argv[1:] or list(STEPS):
