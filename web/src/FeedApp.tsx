@@ -12,13 +12,14 @@ import './feed.css'
 // 사진은 공공누리 3유형이 섞여 있어 정사각형으로 자르지 않는다 (object-fit: contain).
 
 type Tab = 'home' | 'explore' | 'search' | 'saved'
-type Story = { id: string; label: string; match: (r: RegionRow) => boolean }
+// coverTags: 동그라미 사진은 그 분류에 맞는 해시태그가 붙은 관광지 사진으로 고른다 (앞에 있는 태그부터)
+type Story = { id: string; label: string; match: (r: RegionRow) => boolean; coverTags?: string[] }
 const STORIES: Story[] = [
   { id: 'all', label: '전체', match: () => true },
-  { id: 'sea', label: '바다', match: r => r.flags.sea },
-  { id: 'mountain', label: '산·숲', match: r => r.flags.mountain },
-  { id: 'rural', label: '시골', match: r => r.flags.rural },
-  { id: 'city', label: '도시', match: r => r.flags.city },
+  { id: 'sea', label: '바다', match: r => r.flags.sea, coverTags: ['#해변', '#해안절경', '#바다'] },
+  { id: 'mountain', label: '산·숲', match: r => r.flags.mountain, coverTags: ['#산', '#자연휴양림', '#산숲'] },
+  { id: 'rural', label: '시골', match: r => r.flags.rural, coverTags: ['#체험마을', '#마을관광지', '#고택'] },
+  { id: 'city', label: '도시', match: r => r.flags.city, coverTags: ['#분수', '#골목길'] },
 ]
 const PAGE = 8
 
@@ -125,7 +126,9 @@ export default function FeedApp() {
   const covers = useMemo(() => {
     const used = new Set<string>(), out: Record<string, string | undefined> = {}
     for (const s of STORIES) {
-      const r = (rows ?? []).find(r => s.match(r) && !!r.photo && !used.has(r.photo.image_url))
+      const ok = (r: RegionRow) => s.match(r) && !!r.photo && !used.has(r.photo.image_url)
+      const tagged = (s.coverTags ?? []).map(t => (rows ?? []).find(r => ok(r) && (r.photo?.tags ?? []).includes(t))).find(Boolean)
+      const r = tagged ?? (rows ?? []).find(ok)
       if (r) { used.add(r.photo!.image_url); out[s.id] = r.photo!.image_url }
     }
     return out
