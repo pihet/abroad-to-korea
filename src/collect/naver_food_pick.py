@@ -26,14 +26,18 @@ from app.activities import _norm  # noqa: E402
 IN_DIR = PROJECT_ROOT / "data/raw/naver_image2"
 FOOD_LIST = PROJECT_ROOT / "data/raw/tourapi/areaBasedList2_ct39_20261006"
 OUT = PROJECT_ROOT / "data/interim/app/naver_picks.json"
-HOSTS = ("ldb-phinf.pstatic.net", "menupan.com", "visitkorea.or.kr", "siksinhot.com", "triple.guide",
+HOSTS = ("ldb-phinf.pstatic.net", "menupan.com", "visitkorea.or.kr", "siksinhot.com",  # triple.guide 는 여행자 인물 사진이 섞여 뺌
          "blogthumb.pstatic.net", "postfiles.pstatic.net", "blogfiles.naver.net", "mblogthumb-phinf.pstatic.net",
          "dthumb-phinf.pstatic.net")
 GOOD = ["a photo of korean food dishes on a table", "a photo of a restaurant interior",
         "a photo of a restaurant storefront sign", "a photo of a restaurant menu board"]
 BAD = ["a photo of people posing", "a photo of a person's face", "a news photo of officials at an event",
-       "a photo of a product for sale", "a map"]
+       "a photo of a product for sale", "a map", "a photo of scenery or a landscape", "a photo of a person"]
+# 풍경 문장이 없으면 풍경 속 작은 인물 사진이 '식당 간판' 쪽으로 분류돼 통과했다 (2026-10-08 표본)
 MIN_FOOD = 0.6
+# 사람이 나온 사진은 따로 한 번 더 거른다 (음식 문장 확률만으로는 풍경 속 인물 사진이 통과함, 2026-10-08 표본 24장 중 1장)
+PERSON = ["a photo with a person in it", "a photo of food or a place with no people"]
+MAX_PERSON = 0.2  # 표본: 인물 사진 0.34, 음식 사진 0.00~0.08
 UA = "Mozilla/5.0"
 
 
@@ -43,23 +47,28 @@ def main() -> None:
     from transformers import CLIPModel, CLIPProcessor
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
     proc = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    with torch.no_grad():
-        t = model.get_text_features(**proc(text=GOOD + BAD, return_tensors="pt", padding=True))
-        text = torch.nn.functional.normalize(t if isinstance(t, torch.Tensor) else t.pooler_output, dim=-1)
+    def embed_text(texts):
+        with torch.no_grad():
+            t = model.get_text_features(**proc(text=texts, return_tensors="pt", padding=True))
+            return torch.nn.functional.normalize(t if isinstance(t, torch.Tensor) else t.pooler_output, dim=-1)
+    text, person = embed_text(GOOD + BAD), embed_text(PERSON)
 
     def food_score(url: str) -> float:
+        """음식·식당 문장 확률 합. 사람이 나온 사진이면 0."""
         raw = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=15).read()
         img = Image.open(io.BytesIO(raw)).convert("RGB")
         with torch.no_grad():
             v = model.get_image_features(**proc(images=img, return_tensors="pt"))
             v = torch.nn.functional.normalize(v if isinstance(v, torch.Tensor) else v.pooler_output, dim=-1)
+            if float((100 * v @ person.T).softmax(-1)[0, 0]) > MAX_PERSON:
+                return 0.0
             return float((100 * v @ text.T).softmax(-1)[0, :len(GOOD)].sum())
 
     titles = {}
     for p in sorted(FOOD_LIST.glob("page_*.json")):
         for it in json.loads(p.read_text(encoding="utf-8"))["response"]["body"]["items"]["item"]:
             titles[it["contentid"]] = it["title"]
-    picks = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    picks = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() and "--resume" in sys.argv else {}
     files = sorted(IN_DIR.glob("*.json"))
     print(f"2차 검색 원문 {len(files)}곳, 이미 고른 곳 {len(picks)}곳")
     for k, f in enumerate(files, 1):
