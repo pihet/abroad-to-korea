@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, type AnalyzeResponse, type Candidate, type Crop, type DemoPhoto, type RecommendResponse } from './api'
 import { CropStep } from './components/CropStep'
+import './examples.css'
 
 // 인스타그램형 "사진으로 찾기": 사진 고르기 → (선택) 영역 자르기 → 결과 피드.
 // 결과 게시물은 좌우로 넘기면 후보 사진 ↔ 내 사진. 정렬은 사진 유사도 순 하나, 게시물에는 내 사진과 닮은 장면 태그만 보여 준다.
@@ -9,6 +10,18 @@ export type Source = { kind: 'file'; file: Blob; url: string; sourceAttractionId
 type Stage = 'pick' | 'crop' | 'result'
 const PAGE = 5
 const MAX = 30
+// 고르기 화면의 "이렇게 찾아 드려요" 예시: 해외 사진 → 실제 추천 1위. 국내 쪽이 공공누리 1유형(자르기 가능)인 짝만 골랐다 (2026-10-08 결과 확인)
+const EXAMPLE_IDS = ['tokyo__shibuya__1.jpg', 'beijing__forbidden__1.jpg', 'cancun__beach__1.jpg', 'kyoto__arashiyama__1.jpg']
+type Example = { photo: DemoPhoto; top: Candidate }
+let examplesCache: Promise<Example[]> | null = null  // 화면을 다시 열 때마다 다시 계산하지 않게 한 번만
+function loadExamples(demos: DemoPhoto[]): Promise<Example[]> {
+  examplesCache ??= Promise.all(EXAMPLE_IDS.map(id => demos.find(d => d.photo_id === id)).filter((d): d is DemoPhoto => !!d).map(async photo => {
+    const a = await api.analyze({ demoPhotoId: photo.photo_id })
+    const r = await api.recommend({ query_id: a.query_id, priority: 'visual', limit: 1, offset: 0 })
+    return { photo, top: r.candidates[0] }
+  })).catch(e => { examplesCache = null; throw e })
+  return examplesCache
+}
 
 // 자른 영역을 결과의 "내 사진"으로 보여 준다 (사용자 사진이므로 잘라도 된다)
 async function croppedPreview(url: string, crop: Crop | null): Promise<string> {
@@ -35,16 +48,11 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn }: {
   const [list, setList] = useState<Candidate[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const [demos, setDemos] = useState<DemoPhoto[]>([])
-  const [q, setQ] = useState('')
+  const [examples, setExamples] = useState<Example[] | null>(null)
   const [votes, setVotes] = useState<Record<string, 1 | -1>>({})
   const [retainPhoto, setRetainPhoto] = useState(false)
 
-  useEffect(() => { api.demoPhotos().then(setDemos).catch(e => setErr(e.message)) }, [])
-  const shownDemos = useMemo(() => {
-    const f = q.trim().toLowerCase()
-    return demos.filter(d => !f || `${d.place_name} ${d.scene_label}`.toLowerCase().includes(f)).slice(0, 48)
-  }, [demos, q])
+  useEffect(() => { api.demoPhotos().then(loadExamples).then(setExamples).catch(() => setExamples([])) }, [])
 
   const analyze = async (s: Source, crop: Crop | null) => {
     setBusy(true); setErr(null)
@@ -159,18 +167,24 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn }: {
         <small>JPG·PNG·WEBP·HEIC, 15MB 이하</small>
       </section>
       {err && <p className="ig-err" role="alert">{err}</p>}
-      <div className="ig-search">
-        <input placeholder="예시 사진 검색 (교토, 해변…)" value={q} onChange={e => setQ(e.target.value)} aria-label="예시 사진 검색" />
-      </div>
-      <div className="ig-grid">
-        {shownDemos.map(d => (
-          <button key={d.photo_id} type="button" onClick={() => { setSource({ kind: 'demo', photo: d, url: d.image_url }); setStage('crop'); window.scrollTo(0, 0) }}
-                  aria-label={`${d.place_name} ${d.scene_label}`}>
-            <img src={d.image_url} alt="" loading="lazy" />
-          </button>
-        ))}
-      </div>
-      <p className="ig-foot">예시 사진: Wikimedia Commons (사진별 저작자·라이선스는 결과 화면에 표시)</p>
+      <section className="ig-ex">
+        <b>이렇게 찾아 드려요</b>
+        {examples === null && <p className="ig-wait">예시를 찾는 중…</p>}
+        <ul>
+          {examples?.map(({ photo, top }) => (
+            <li key={photo.photo_id}>
+              <button type="button" onClick={() => { const s: Source = { kind: 'demo', photo, url: photo.image_url }; setSource(s); analyze(s, null) }}
+                      aria-label={`${photo.place_name} ${photo.scene_label} 사진으로 찾은 결과 보기`}>
+                <span className="pair"><img src={photo.image_url} alt="" loading="lazy" /><img src={top.attraction.image_url} alt="" loading="lazy" /></span>
+                <span className="cap"><small>{photo.country} {photo.scene_label} →</small><b>{top.attraction.name}</b><small>{top.sigungu.sido.slice(0, 2)} {top.sigungu.name}</small></span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {!!examples?.length && (
+        <p className="ig-foot">예시 해외 사진: {examples.map(({ photo }) => <span key={photo.photo_id}>{photo.place_name} · {photo.artist} · <a href={photo.license_url} target="_blank" rel="noopener">{photo.license}</a>; </span>)}Wikimedia Commons · 국내 사진: 한국관광공사 TourAPI (공공누리 제1유형)</p>
+      )}
     </div>
   )
 }

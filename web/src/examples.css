@@ -1,0 +1,10 @@
+.ig-ex { margin: 4px 16px 8px }
+.ig-ex > b { display: block; font-size: 15px; margin-bottom: 10px }
+.ig-ex ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.ig-ex button { width: 100%; padding: 0; border: 1px solid var(--ig-line); border-radius: 12px; overflow: hidden; background: var(--ig-bg); color: var(--ig-ink); text-align: left; cursor: pointer }
+.ig-ex .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; aspect-ratio: 2 / 1.1; background: var(--ig-line) }
+.ig-ex .pair img { width: 100%; height: 100%; object-fit: cover; display: block }
+.ig-ex .cap { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px 10px; font-size: 12px; line-height: 1.35 }
+.ig-ex .cap small { color: var(--ig-sub); font-size: 11.5px }
+.ig-ex .cap b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+@media (max-width: 360px) { .ig-ex ul { grid-template-columns: 1fr } }
