@@ -21,7 +21,7 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
             <li key={it.id}>
               <button type="button" className="df-ph" onClick={() => setView(it)} aria-label={`${it.name} 사진 보기`}>
                 {it.image_url && !broken.has(it.id)
-                  ? <img src={it.image_url} alt={it.name} loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
+                  ? <img src={it.image_url} alt={it.name} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(new Set(broken).add(it.id))} />
                   : <span>사진 없음 · 추가 사진 보기</span>}
                 <em>사진 더 보기</em>
               </button>

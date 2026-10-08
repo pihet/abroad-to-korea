@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+import app.activities as acts_mod
 import app.main as main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -154,7 +155,8 @@ def test_activities(client, qid):
     assert d == sorted(d)  # 닮은 관광지에서 가까운 순
     for i in a["items"]:
         assert (i["image_url"] is None) == (i["license"] is None)
-        assert i["license"] in (None, *KOGL_OK)
+        # 네이버 이미지 검색 사진은 관광공사 사진이 없는 음식점에만
+        assert i["license"] in (None, *KOGL_OK) or (i["license"] == acts_mod.NAVER_LICENSE and i["group"] == "food")
         if i["group"] == "festival":
             assert i["period"] and i["schedule"] in ("예정", "지난 개최 기록")
 

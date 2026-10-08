@@ -1659,3 +1659,4 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 그대로 둠: `src/prototype/`(CLIP 평가·실험 기록, HANDOFF가 참조), Codex 인프라 파일, `Map/`·`COST/`
 - 테스트 정리: (1) 피드백 테스트가 DB 주소가 있으면 실제 개발 DB에 쓰던 문제 → 테스트에서 DB를 끄고 파일 저장만 확인. 그동안 들어간 시험용 2줄(종로구·id 1) 삭제 (2) 기존 결과 보존 테스트의 지문 중 오늘 의도적으로 바꾼 3개(`eval_kr_extra.json`·`emb_kr_extra.npz`는 15-26 전체 재평가, `kr_extra.py`는 15-27 거르기 단계)를 새 값으로 갱신. 예전 `eval_kr_extra.json` 내용은 덮어써져 없고, 그 수치는 11-8 표에 남아 있다. 나머지 36개 지문은 그대로
 - 전체 테스트 36개 통과 (API 32 + 인프라 4)
+- 음식점 사진 보강 (2026-10-08): 관광공사 대표 사진이 없는 음식점 3,954곳에 (1) TourAPI 추가 사진(`tour_images.py --food`, 약 8%) (2) 네이버 이미지 검색(`src/collect/naver_food_images.py`, `.env`의 NAVER_CLIENT_ID·SECRET) 순으로 사진을 붙인다. 네이버는 사진 파일을 저장하지 않고 썸네일 주소로 띄우며, 제목에 가게 이름이 있고 출처가 네이버 플레이스·메뉴판닷컴·관광공사인 결과만 쓴다(`app/activities.py` naver_pick, 표본 60곳 중 약 28%, 무작위 30장 눈으로 확인: 음식·실내·메뉴판·간판, 인물 없음). 크롤링은 저작권·약관 때문에 하지 않았다

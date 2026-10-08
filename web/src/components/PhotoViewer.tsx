@@ -37,14 +37,14 @@ export function PhotoViewer({ cid, name, main, mainLicense, onClose }: {
         <div className="pv-head"><b>{name}</b><span>{shots.length ? `${i + 1} / ${shots.length}` : ''}</span>
           <button type="button" className="pv-close" onClick={onClose} aria-label="닫기">×</button></div>
         <div className="pv-main">
-          {cur ? <img src={cur.url} alt={`${name} ${cur.caption}`} /> : <span>사진이 없습니다</span>}
+          {cur ? <img src={cur.url} alt={`${name} ${cur.caption}`} referrerPolicy="no-referrer" /> : <span>사진이 없습니다</span>}
           {i > 0 && <button type="button" className="pv-nav prev" onClick={() => setI(i - 1)} aria-label="이전 사진">‹</button>}
           {i < shots.length - 1 && <button type="button" className="pv-nav next" onClick={() => setI(i + 1)} aria-label="다음 사진">›</button>}
         </div>
         {cur && <p className="pv-cap">{cur.caption}{cur.license ? ` · 한국관광공사 · ${cur.license}` : ''}</p>}
         {shots.length > 1 && (
           <div className="pv-thumbs">
-            {shots.map((s, k) => <button key={s.url} type="button" aria-pressed={k === i} onClick={() => setI(k)}><img src={s.url} alt="" loading="lazy" /></button>)}
+            {shots.map((s, k) => <button key={s.url} type="button" aria-pressed={k === i} onClick={() => setI(k)}><img src={s.url} alt="" loading="lazy" referrerPolicy="no-referrer" /></button>)}
           </div>
         )}
         {note && <p className="pv-note">{note}</p>}

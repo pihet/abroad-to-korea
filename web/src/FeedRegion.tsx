@@ -160,6 +160,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               {d.photo && <li>대표 사진: {d.photo.name} · 한국관광공사 TourAPI · {d.photo.license}</li>}
               <li>이 화면의 국내 사진·관광지·음식점·축제·체험·여행코스: 한국관광공사 TourAPI (사진은 공공누리 제1유형 또는 제3유형. 원형 프로필 사진만 가운데를 잘라 표시)</li>
               {d.notes.map(n => <li key={n}>{n}</li>)}
+              <li>음식점 사진 중 관광공사 사진이 없는 곳: 네이버 이미지 검색 결과 (네이버 플레이스·메뉴판닷컴 등, 저작권은 원 게시자)</li>
               <li>지도: © OpenStreetMap contributors</li>
               <li>해외 사진(탐색·사진으로 찾기 예시): Wikimedia Commons, 격자·카드에서는 가운데를 잘라 표시 <CommonsCredits /></li>
             </ul>

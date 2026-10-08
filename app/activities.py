@@ -10,6 +10,7 @@ import sys
 from datetime import date
 from collections import Counter
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src/prototype"))
@@ -22,6 +23,11 @@ LCLS = RAW / "lclsSystmCode2_20261004.json"
 LEPORTS = RAW / "areaBasedList2_ct28_20261004"
 FESTIVALS = RAW / "searchFestival2_20251001_20261231.json"
 FOOD_INTRO = RAW / "detailIntro2_ct39"   # 음식점 대표메뉴 (tour_food_intro.py, 매일 이어 받는 중)
+FOOD_EXTRA = RAW / "detailImage2_ct39"   # 대표 사진 없는 음식점의 TourAPI 추가 사진 (tour_images.py --food)
+NAVER_IMAGE = ROOT / "data/raw/naver_image"  # 대표 사진 없는 음식점의 네이버 이미지 검색 원문 (naver_food_images.py)
+# 네이버 결과 중 가게 사진 위주인 출처만 쓴다 (네이버 플레이스·메뉴판닷컴·관광공사). 뉴스·쇼핑·블로그 인물 사진은 뺀다
+NAVER_HOSTS = {"ldb-phinf.pstatic.net", "www.menupan.com", "menupan.com", "cdn.visitkorea.or.kr", "tong.visitkorea.or.kr"}
+NAVER_LICENSE = "네이버 이미지 검색 (저작권은 원 게시자)"
 FESTIVAL_YEAR = "2026"   # 축제 목록은 끝난 행사가 빠지므로 2026년 기록을 쓴다
 
 GROUPS = [  # (키, 화면 이름) — 화면의 색 순서와 같다
@@ -107,10 +113,12 @@ class Activities:
                 if ctype == "15" and not _in_year(it):
                     continue
                 photo = it.get("firstimage2") if it.get("cpyrhtDivCd") in OK_LICENSE else None
+                image_url, license = (f"/images/tour/{it['contentid']}", OK_LICENSE.get(it.get("cpyrhtDivCd"))) if photo else (None, None)
+                if ctype == "39" and not photo:  # 대표 사진 없는 음식점: TourAPI 추가 사진 → 네이버 검색 순
+                    image_url, license = _food_photo(it["contentid"], it["title"])
                 rec = {"id": it["contentid"], "name": it["title"], "group": g[0], "kind": g[1],
                        "lat": lat, "lon": lon, "address": it.get("addr1") or None,
-                       "image_url": f"/images/tour/{it['contentid']}" if photo else None,
-                       "license": OK_LICENSE.get(it.get("cpyrhtDivCd")) if photo else None,
+                       "image_url": image_url, "license": license,
                        "start": it.get("eventstartdate"), "end": it.get("eventenddate")}
                 if ctype == "39":
                     rec["menu"] = _menu(it["contentid"])
@@ -164,6 +172,33 @@ class Activities:
     def photo_url(self, cid):
         r = self.by_id.get(cid)
         return r["_photo"] if r else None
+
+
+def _norm(s):
+    return re.sub(r"<[^>]+>|[\s()\[\]·.,'\"-]", "", s).lower()
+
+
+def naver_pick(cid, title):
+    """네이버 이미지 검색 상위 5개 중, 제목에 가게 이름이 있고 출처가 NAVER_HOSTS 인 첫 썸네일 주소. 없으면 None."""
+    f = NAVER_IMAGE / f"{cid}.json"
+    if not f.exists():
+        return None
+    name = _norm(re.sub(r"\(.*?\)", "", title))
+    for it in json.loads(f.read_text(encoding="utf-8")).get("items", []):
+        if name and name in _norm(it.get("title", "")) and urlparse(it.get("link", "")).hostname in NAVER_HOSTS:
+            return it.get("thumbnail") or None
+    return None
+
+
+def _food_photo(cid, title):
+    """(사진 주소, 출처). TourAPI 추가 사진이 있으면 그것(/images/extra), 없으면 네이버 검색 썸네일."""
+    f = FOOD_EXTRA / f"{cid}.json"
+    if f.exists():
+        items = ((json.loads(f.read_text(encoding="utf-8"))["response"]["body"].get("items") or {}).get("item")) or []
+        if items and items[0].get("cpyrhtDivCd") in OK_LICENSE:
+            return f"/images/extra/{cid}/0", OK_LICENSE[items[0]["cpyrhtDivCd"]]
+    url = naver_pick(cid, title)
+    return (url, NAVER_LICENSE) if url else (None, None)
 
 
 def _menu(cid):
