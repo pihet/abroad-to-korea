@@ -192,14 +192,26 @@ class Engine:
         return {"total": len(ranked), "candidates": out}
 
     # ---------------- 시군구 대표 사진 (그 시군구 사진 평균에 가장 가까운 관광지 = 가장 그 지역다운 사진)
-    # 분류 칩(바다·산숲·도시)을 골랐을 때 그 분류에 맞는 관광지 사진을 보여 주기 위한 조건 (관광지 분류 코드 기준)
+    # 분류 칩(바다·산숲)을 골랐을 때 그 분류에 맞는 관광지 사진을 보여 주기 위한 조건 (관광지 분류 코드 기준)
     PHOTO_KINDS = {"sea": lambda it: it.get("lclsSystm3") in SEA_CODES,
-                   "mountain": lambda it: it.get("lclsSystm2") in ("NA01", "NA04"),
-                   # 도시: 문화관광(공원·타워·골목길·근대건축물)·쇼핑·레저. 자연·역사(사찰·사당)·체험마을은 도시 느낌이 아니라 뺀다
-                   "city": lambda it: it.get("lclsSystm1") in ("VE", "SH", "LS")}
+                   "mountain": lambda it: it.get("lclsSystm2") in ("NA01", "NA04")}
+    # 도시 칩은 분류 코드로는 공원이 대부분이라, 사진이 도심처럼 보이는 정도(CLIP 장면 태그 확률 합)로 고른다
+    URBAN_TAGS = ("고층 빌딩", "번화가·네온", "시장·먹거리 골목", "오래된 골목길", "야경")
+    URBAN_MIN = 0.4  # 이보다 도심답지 않으면 도시 칩에 넣지 않는다 (시군구 230곳 중 151곳 통과, 2026-10-08)
+    KINDS = (*PHOTO_KINDS, "city")
+
+    def urban_score(self):
+        """관광지 사진마다 도심 장면 태그 확률의 합 (0~1)."""
+        if not hasattr(self, "_urban"):
+            z = 100 * (self.I["kv"] @ self.tagger.text.T)
+            z = np.exp(z - z.max(1, keepdims=True))
+            cols = [self.tagger.labels.index(t) for t in self.URBAN_TAGS]
+            self._urban = (z[:, cols].sum(1) / z.sum(1))
+        return self._urban
 
     def region_photo(self, ri, kind=None):
-        """시군구 대표 사진: 그 시군구 사진 중 시군구 평균과 가장 닮은 사진. kind를 주면 그 분류 관광지 사진 중에서 고르고, 없으면 None."""
+        """시군구 대표 사진: 그 시군구 사진 중 시군구 평균과 가장 닮은 사진.
+        kind가 sea·mountain이면 그 분류 관광지 사진 중에서, city면 가장 도심다운 사진(URBAN_MIN 이상)을 고른다. 없으면 None."""
         if not hasattr(self, "_rep"):
             self._rep = {}
             sims = self.I["kv"] @ self.I["reg_mean"].T
@@ -210,6 +222,11 @@ class Engine:
                     ix = np.where((self.I["img_region"] == i) & m)[0]
                     if len(ix):
                         self._rep[kd, i] = int(ix[np.argmax(sims[ix, i])])
+            u = self.urban_score()
+            for i in range(len(self.I["regions"])):
+                ix = np.where((self.I["img_region"] == i) & self.ok)[0]
+                if len(ix) and u[ix].max() >= self.URBAN_MIN:
+                    self._rep["city", i] = int(ix[np.argmax(u[ix])])
         k = self._rep.get((kind, ri))
         if k is None:
             return None

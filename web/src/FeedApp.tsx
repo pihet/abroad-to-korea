@@ -13,14 +13,14 @@ import './feed.css'
 
 type Tab = 'home' | 'explore' | 'search' | 'saved'
 // coverTags: 동그라미 사진은 그 분류에 맞는 해시태그가 붙은 관광지 사진으로 고른다 (앞에 있는 태그부터)
-// kind: 그 분류를 고르면 시군구 대표 사진 대신 그 분류 관광지 사진을 보여 준다 (바다·산숲은 그런 사진이 있는 곳만)
+// kind: 그 분류를 고르면 시군구 대표 사진 대신 그 분류 사진을 보여 준다 (strict면 그런 사진이 있는 곳만)
 type Story = { id: string; label: string; match: (r: RegionRow) => boolean; coverTags?: string[]; kind?: 'sea' | 'mountain' | 'city'; strict?: boolean }
 const STORIES: Story[] = [
   { id: 'all', label: '전체', match: () => true },
   { id: 'sea', label: '바다', match: r => r.flags.sea, coverTags: ['#해변', '#해안절경', '#바다'], kind: 'sea', strict: true },
   { id: 'mountain', label: '산·숲', match: r => r.flags.mountain, coverTags: ['#산', '#자연휴양림', '#산숲'], kind: 'mountain', strict: true },
   { id: 'rural', label: '시골', match: r => r.flags.rural, coverTags: ['#체험마을', '#마을관광지', '#고택'] },
-  { id: 'city', label: '도시', match: r => r.flags.city, coverTags: ['#분수', '#골목길'], kind: 'city' },
+  { id: 'city', label: '도시', match: r => r.flags.city, kind: 'city', strict: true },
 ]
 // 분류에 맞는 시군구만 남기고, 사진은 그 분류 사진으로 바꾼다
 function storyRows(s: Story, rows: RegionRow[]): RegionRow[] {
