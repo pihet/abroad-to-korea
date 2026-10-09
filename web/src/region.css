@@ -18,3 +18,7 @@
 .pv-info .pv-links a { color: #6cc4ff }
 .ig .pv-overlay { background: #0a0c0e }  /* 뒤 화면이 비치지 않게 */
 .pv-thumbs { scrollbar-width: none } .pv-thumbs::-webkit-scrollbar { display: none }
+.ig .df-nophoto { font-size: 13px; color: var(--ig-sub) }
+.ig .df-nophoto summary { cursor: pointer; padding: 4px 0 }
+.ig .df-nophoto ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.7 }
+.ig .df-nophoto b { color: var(--ig-ink); font-weight: 600 }
