@@ -8,6 +8,7 @@ x-airflow-common: &airflow-common
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/airflow
     AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
     PROJECT_ROOT: /workspace
@@ -173,6 +174,14 @@ services:
     command: airflow api-server
     ports:
       - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: airflow dag-processor
+    restart: unless-stopped
     depends_on:
       airflow-init:
         condition: service_completed_successfully

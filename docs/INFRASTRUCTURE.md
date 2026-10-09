@@ -10,7 +10,7 @@
 - `minio`: 사용자 사진, `bronze/` 원본 응답, 관광지 사진 파일
 - `migrate`: API 시작 전에 Alembic 스키마를 적용하고 종료하는 일회성 컨테이너
 - `airflow-init`: Airflow 메타 DB와 TourAPI pool을 준비하고 종료하는 일회성 컨테이너
-- `airflow-api-server`, `airflow-scheduler`: LocalExecutor 기반 배치 운영
+- `airflow-api-server`, `airflow-dag-processor`, `airflow-scheduler`: DAG 파싱·등록과 LocalExecutor 기반 배치 운영
 - `mlflow`: CLIP·혼잡도 실험의 parameter, metric, artifact와 Git commit 추적
 
 PostgreSQL이 회원·저장 지역·수집 데이터의 원본이다. Redis 값은 삭제되어도 다시 로그인하거나 재계산할 수 있어야 한다. MinIO 데이터는 DB의 객체 키와 함께 백업해야 한다.
@@ -58,7 +58,7 @@ docker compose ps -a
 
 최초 빌드는 Python·ML·Airflow 의존성과 MinIO 소스를 받아 컴파일하므로 오래 걸릴 수 있다. 공식 MinIO 컨테이너 이미지가 레지스트리에서 제공되지 않아 `infra/docker/Dockerfile.minio`가 고정 버전 소스를 직접 빌드한다. 이후 실행은 Docker 캐시를 사용한다.
 
-`postgres`, `redis`, `mlflow`는 `healthy`, `api`, `minio`, `airflow-api-server`, `airflow-scheduler`는 `Up`이어야 한다. `migrate`, `mlflow-db-init`, `airflow-init`은 작업 성공 후 `Exited (0)`인 것이 정상이다.
+`postgres`, `redis`, `mlflow`는 `healthy`, `api`, `minio`, `airflow-api-server`, `airflow-dag-processor`, `airflow-scheduler`는 `Up`이어야 한다. `migrate`, `mlflow-db-init`, `airflow-init`은 작업 성공 후 `Exited (0)`인 것이 정상이다.
 
 ## 데이터베이스 초기화와 변경
 
@@ -126,6 +126,8 @@ Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB �
 
 현재 `default_timezone`을 별도로 지정하지 않았으므로 cron 일정은 UTC 기준이다. 따라서 한국 시간으로는 각각 `09:15`, `10:45`, 매월 2일 `12:00`에 해당한다. 운영에서 한국 시간 기준 자정대로 실행하려면 Airflow timezone과 cron을 함께 조정한다. TourAPI 작업은 `tourapi` pool의 슬롯 1개로 직렬화하고, 일일 DAG는 3회 재시도한다.
 
+새 DAG는 등록 즉시 활성화된다. 이 설정을 적용하기 전에 이미 등록되어 일시 중지된 DAG는 한 번만 `docker compose exec airflow-api-server airflow dags unpause '.*' --treat-dag-id-as-regex -y`로 활성화한다.
+
 ## 개인정보
 
 사용자 업로드는 로그인 사용자가 `retain_photo=true`로 보관에 명시적으로 동의한 경우에만 MinIO와 `media_assets`에 저장된다(2026-10-08 결정). 동의하지 않은 사진은 분석만 하고 저장하지 않는다. 사진 삭제 요청은 `delete_after`를 현재 시각으로 바꾸고 다음 시간 단위 정리 작업에서 실제 객체를 삭제한다.
@@ -137,6 +139,7 @@ Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB �
 ```bash
 docker compose ps -a
 docker compose logs --tail=200 api
+docker compose logs --tail=200 airflow-dag-processor
 docker compose logs --tail=200 airflow-scheduler
 docker compose restart api
 docker compose stop

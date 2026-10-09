@@ -38,6 +38,7 @@ flowchart TB
     REDIS[("Redis :6379<br/>세션 · OAuth state · rate limit · 검색 캐시")]
     MINIO[("MinIO<br/>S3 API :9000 · Console :9001<br/>사용자 사진 · Bronze 원본 · 관광 사진")]
     AFUI["Airflow API server :8080"]
+    AFDP["Airflow DAG processor<br/>DAG 파싱 · 등록"]
     AFS["Airflow scheduler<br/>LocalExecutor"]
     MLF["MLflow :5000<br/>실험 · 지표 · artifact 추적"]
   end
@@ -54,7 +55,9 @@ flowchart TB
   API --> EXT
   DBA -- "host 5434 → container 5432" --> PG
   MIG -- "app 스키마" --> PG
-  AFUI --> AFS
+  AFUI --> PG
+  AFDP -- "DAG 등록" --> PG
+  AFS --> PG
   AFS -- "DAG 실행" --> STAGE
   AFS -- "공공데이터 수집" --> EXT
   AFS -- "정규화·upsert" --> PG
