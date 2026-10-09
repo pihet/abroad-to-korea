@@ -86,9 +86,13 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
         {legs === null && <p className="igr-hint">이동 시간을 계산하는 중…</p>}
         {legErr && <p className="igr-hint">{legErr}</p>}
         <ol className="course-stops">
-          {c.stops.map(s => (
+          {c.stops.map((s, i) => {
+            // 다음 정류장까지 이동 시간은 이 정류장 맨 아래에 (번호 동그라미가 늘 줄 맨 위에 있어야 점선이 동그라미끼리 이어진다)
+            const next = c.stops.slice(i + 1).find(x => legs?.[`${x.order}-${x.id}`])
+            const leg = next && (legs![`${next.order}-${next.id}`].from ?? s.order) === s.order ? legs![`${next.order}-${next.id}`] : null
+            const skip = next && next !== c.stops[i + 1] ? next.order : undefined  // 위치 없는 정류장을 건너뛰면 도착 번호를 적는다
+            return (
             <li key={`${s.order}-${s.id}`}>
-              {legs?.[`${s.order}-${s.id}`] && <LegLine l={legs[`${s.order}-${s.id}`]} />}
               <span className="n">{s.order}</span>
               <div>
                 <b>{s.name}</b>
@@ -97,9 +101,11 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
                 {(s as { approx?: boolean }).approx && <small className="kind">· 위치는 카카오 장소 검색 기준</small>}
                 {s.image_url && <figure><img src={s.image_url} alt={s.name} loading="lazy" /></figure>}
                 {s.overview && <p>{s.overview}</p>}
+                {leg && <LegLine l={leg} to={skip} />}
               </div>
             </li>
-          ))}
+            )
+          })}
         </ol>
       </>}
       <p className="igr-hint">지도의 선은 들르는 순서를 직선으로 이은 것이며 실제 길이 아니에요.</p>
@@ -107,9 +113,9 @@ export function CourseView({ regionKey, regionName }: { regionKey: string; regio
   )
 }
 
-// 앞 정류장에서 이 정류장까지: 차로 ○분 · ○km (가까우면 걸어서 ○분)
-function LegLine({ l }: { l: Leg }) {
+// 이 정류장에서 다음 정류장까지: 차로 ○분 · ○km (가까우면 걸어서 ○분)
+function LegLine({ l, to }: { l: Leg; to?: number }) {
   const parts = [l.car && `차로 ${hm(l.car.min)} · ${l.car.km}km${l.car.parking ? ' (주차장 기준)' : ''}`, l.walk && `걸어서 ${hm(l.walk.min)}`].filter(Boolean)
-  const head = l.from ? `${l.from}번에서 ` : ''
+  const head = to ? `${to}번까지 ` : ''
   return <p className="course-leg">{head}{parts.length ? parts.join(' · ') : `직선 ${l.straight_km}km (길찾기 결과 없음)`}</p>
 }
