@@ -430,7 +430,7 @@ def dong_food(key: str, code: str):
     rows.sort(key=lambda r: (r.get("menu") is None, r["image_url"] is None, r["name"]))
     return {"is_example": False, "code": code, "total": len(rows), "with_menu": sum(r.get("menu") is not None for r in rows),
             "items": [{k: r[k] for k in ("id", "name", "kind", "address", "image_url", "license", "lat", "lon")} | {"menu": r.get("menu")} for r in rows],
-            "note": "한국관광공사에 등록된 음식점입니다. 평점이나 맛 순위가 아닙니다. 대표메뉴는 매일 수집 중입니다."}
+            "note": "한국관광공사에 등록된 음식점입니다. 평점이나 맛 순위가 아닙니다. 대표메뉴는 관광공사에 등록된 내용입니다."}
 
 
 @app.get("/api/activities", response_model=ActivitiesResponse)

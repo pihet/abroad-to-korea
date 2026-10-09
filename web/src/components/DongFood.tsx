@@ -27,7 +27,7 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
                 <em>사진 더 보기</em>
               </button>
               <b>{it.name}</b>
-              <p className={it.menu ? 'df-menu' : 'df-menu none'}>{it.menu ?? '대표메뉴 수집 전'}</p>
+              {it.menu && <p className="df-menu">{it.menu}</p>}
               <small>{it.kind}{it.address ? ` · ${it.address.split(' ').slice(2, 4).join(' ')}` : ''}</small>
             </li>
           ))}
