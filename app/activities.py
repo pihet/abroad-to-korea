@@ -117,6 +117,8 @@ class Activities:
                 image_url, license = (f"/images/tour/{it['contentid']}", OK_LICENSE.get(it.get("cpyrhtDivCd"))) if photo else (None, None)
                 if ctype == "39" and not photo:  # 대표 사진 없는 음식점: TourAPI 추가 사진 → 네이버 검색 순
                     image_url, license = _food_photo(it["contentid"], it["title"])
+                elif not photo:  # 대표 사진 없는 관광지·레포츠·축제: 받아 둔 TourAPI 추가 사진이 있으면 첫 장
+                    image_url, license = _extra_photo(it["contentid"], RAW / "detailImage2")
                 rec = {"id": it["contentid"], "name": it["title"], "group": g[0], "kind": g[1],
                        "lat": lat, "lon": lon, "address": it.get("addr1") or None,
                        "image_url": image_url, "license": license,
@@ -192,13 +194,21 @@ def naver_pick(cid, title):
     return None
 
 
-def _food_photo(cid, title):
-    """(사진 주소, 출처). TourAPI 추가 사진이 있으면 그것(/images/extra), 없으면 네이버 검색 썸네일."""
-    f = FOOD_EXTRA / f"{cid}.json"
+def _extra_photo(cid, folder):
+    """받아 둔 TourAPI 추가 사진(detailImage2) 첫 장이 공공누리 1·3유형이면 (/images/extra 주소, 출처), 아니면 (None, None)."""
+    f = folder / f"{cid}.json"
     if f.exists():
         items = ((json.loads(f.read_text(encoding="utf-8"))["response"]["body"].get("items") or {}).get("item")) or []
         if items and items[0].get("cpyrhtDivCd") in OK_LICENSE:
             return f"/images/extra/{cid}/0", OK_LICENSE[items[0]["cpyrhtDivCd"]]
+    return None, None
+
+
+def _food_photo(cid, title):
+    """(사진 주소, 출처). TourAPI 추가 사진이 있으면 그것(/images/extra), 없으면 네이버 검색 썸네일."""
+    got = _extra_photo(cid, FOOD_EXTRA)
+    if got[0]:
+        return got
     url = naver_pick(cid, title) or _naver_picks().get(cid)
     return (url, NAVER_LICENSE) if url else (None, None)
 
