@@ -18,6 +18,7 @@ import sys
 import time
 from collections import defaultdict
 from math import comb
+from pathlib import Path
 
 import numpy as np
 
@@ -25,6 +26,11 @@ import clip_proto as cp
 import holdout_pilot as hp
 import reverify_dev as rd
 import scene_catalog as sc
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from src.mlops.tracking import log_runs
 
 MODELS = ["openai/clip-vit-base-patch32", "openai/clip-vit-base-patch16", "openai/clip-vit-large-patch14"]
 BASE_MODEL = MODELS[0]
@@ -128,8 +134,33 @@ def step_evaluate():
     print("\n| 해외지 | " + " | ".join(slug(m) for m in results) + " |\n|---|" + "---|" * len(results))
     for p in places:
         print(f"| {p} | " + " | ".join(str(results[m][p]) for m in results) + " |")
-    (cp.WORK / "eval_model_compare.json").write_text(json.dumps(
-        {"summary": summary, "ranks": results}, ensure_ascii=False, indent=1))
+    payload = {"summary": summary, "ranks": results}
+    (cp.WORK / "eval_model_compare.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1))
+    log_runs("clip-model-comparison", [
+        {
+            "name": slug(model),
+            "params": {
+                "model": model,
+                "base_model": BASE_MODEL,
+                "evaluation_places": len(places),
+                "regions": n,
+                "ranking": "region_vote100",
+                "verdict": values["verdict"],
+            },
+            "metrics": {
+                "hit_at_5_count": values["hit5"],
+                "hit_at_10_count": values["hit10"],
+                "hit_at_20_count": values["hit20"],
+                "mrr": values["mrr"],
+                "median_rank": values["median"],
+                "worst_rank": values["worst"],
+                "better_count": values["better"],
+                "worse_count": values["worse"],
+                "sign_test_p": values["p"],
+            },
+        }
+        for model, values in summary.items()
+    ], payload)
 
 
 if __name__ == "__main__":

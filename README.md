@@ -20,7 +20,7 @@
 | 할 만한 것 | 물·바다, 산·숲, 레저, 캠핑, 체험, 먹거리, 축제를 지도와 목록으로 |
 | 코스 | 한국관광공사 공식 여행코스(시군구 212곳): 들르는 순서대로 지도 번호 핀·점선, 사진·설명·소요시간 |
 
-회원가입·이메일 인증·일반 로그인과 Google·Kakao OAuth, 서버 저장 지역, 사용자 사진 보관 동의·삭제 API가 구현되어 있다. 실제 이메일 발송 업체와 OAuth 운영 키는 별도로 연결해야 한다.
+즉시 활성화되는 이메일 회원가입·일반 로그인과 Google·Kakao OAuth, 서버 저장 지역, 사용자 사진 보관 동의·삭제 API가 구현되어 있다. 비밀번호 재설정 메일은 Resend로 발송하며, OAuth 운영 키는 별도로 관리한다.
 
 빠진 것: 개인화 추천, 예약·결제, 여행 총비용, 이동 시간 기반 일정.
 
@@ -34,11 +34,12 @@ flowchart TB
   subgraph DC["Docker Compose"]
     API["FastAPI :8000<br/>추천 · 지역 상세 · 회원 · 사진 API"]
     MIG["Alembic migration<br/>기동 시 스키마 적용"]
-    PG[("PostgreSQL + pgvector<br/>app DB + Airflow DB<br/>container :5432")]
+    PG[("PostgreSQL + pgvector<br/>app · Airflow · MLflow DB<br/>container :5432")]
     REDIS[("Redis :6379<br/>세션 · OAuth state · rate limit · 검색 캐시")]
     MINIO[("MinIO<br/>S3 API :9000 · Console :9001<br/>사용자 사진 · Bronze 원본 · 관광 사진")]
     AFUI["Airflow API server :8080"]
     AFS["Airflow scheduler<br/>LocalExecutor"]
+    MLF["MLflow :5000<br/>실험 · 지표 · artifact 추적"]
   end
 
   STAGE[("호스트 data/<br/>수집 staging · 모델 · 경계 · 임베딩")]
@@ -59,6 +60,9 @@ flowchart TB
   AFS -- "정규화·upsert" --> PG
   AFS -- "원본·사진 보관" --> MINIO
   AFS -- "캐시 무효화" --> REDIS
+  MLF -- "run · parameter · metric" --> PG
+  MLF -- "모델 평가 artifact" --> MINIO
+  STAGE -. "학습·평가 기록" .-> MLF
 ```
 
 PostgreSQL이 회원·저장 지역·수집 데이터의 원본이며 Redis는 재생성 가능한 캐시다. MinIO는 사용자 업로드와 원본 응답·사진 파일을 보관한다. 사용자 사진은 로그인 사용자가 보관에 동의한 경우에만 저장하고, 동의하지 않으면 분석 후 저장하지 않는다.
@@ -69,6 +73,7 @@ Airflow는 관광 사진·음식·축제·카탈로그를 매일 수집해 검�
 |---|---|---|
 | 웹/API | `http://localhost:8000` | 서비스와 API 문서(`/docs`) |
 | Airflow | `http://localhost:8080` | DAG 확인·운영 |
+| MLflow | `http://localhost:5000` | CLIP·혼잡도 실험 비교 |
 | PostgreSQL | `127.0.0.1:5434` | DBeaver, 컨테이너 내부 포트는 `5432` |
 | Redis | `localhost:6379` | 개발용 캐시 확인 |
 | MinIO | `http://localhost:9000`, `http://localhost:9001` | S3 API, 관리 콘솔 |
@@ -100,7 +105,7 @@ web/           React 화면
 tests/         API 테스트 (pytest, 30개)
 airflow/dags/  일·시간·월 단위 배치 스케줄
 migrations/    Alembic DB 스키마 변경 이력
-infra/         PostgreSQL 초기 DB·계정 생성
+infra/         PostgreSQL 초기 DB·계정 생성, MLflow 서버 시작
 src/
   collect/     공공데이터 수집
   ingest/      원본 보관, 검증, PostgreSQL 게시, 사진 캐시
@@ -135,6 +140,7 @@ pip install pandas numpy scikit-learn python-dotenv holidays lightgbm
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install transformers pillow
 pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0 shapely==2.1.2
+pip install -r requirements-mlflow.txt
 
 # .env의 TOUR_API_KEY에 포털 표시값을 입력한다. 기존 .env를 덮어쓰지 않는다.
 # 키를 더 가지고 있으면 TOUR_API_KEY_2, TOUR_API_KEY_3 … 으로 추가: 매일 수집이 한 키의 하루 한도가 차면 다음 키로 넘어간다
@@ -142,6 +148,8 @@ pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-h
 
 LightGBM은 Linux/WSL에서 `sudo apt install -y libgomp1`이 먼저 필요하다.
 검증한 버전: Python 3.12, pandas 2.2.3, numpy 2.1.3, scikit-learn 1.5.2, holidays 0.105, lightgbm 4.7.0, torch 2.14.1(CPU), transformers 5.18.0.
+
+MLflow UI는 `http://localhost:5000`에서 확인한다. `model_compare.py evaluate`, `p1_spec.py`, `p1_holiday.py` 실행 결과는 로컬 JSON을 먼저 저장한 뒤 MLflow에도 기록된다. MLflow가 꺼져 있으면 실험 자체는 완료되고 콘솔에 기록 실패 경고가 나온다.
 
 ### 데이터 받기
 

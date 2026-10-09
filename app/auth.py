@@ -224,31 +224,18 @@ async def signup(body: SignupBody, request: Request, db: Annotated[AsyncSession,
     exists = await db.scalar(select(AuthIdentity.id).where(AuthIdentity.provider == "email", AuthIdentity.provider_subject == email))
     if exists:
         raise HTTPException(409, "이미 이메일로 가입된 계정입니다.")
-    user = User(email=email, nickname=body.nickname, status="pending")
+    user = User(email=email, nickname=body.nickname, status="active")
     user.identities.append(AuthIdentity(provider="email", provider_subject=email, provider_email=email,
                                         password_hash=password_hasher.hash(body.password)))
     db.add(user)
     await db.flush()
     db.add(UserPreference(user_id=user.id))
-    raw = await _issue_one_time_token(db, user, "verify_email")
     try:
         await db.commit()
     except IntegrityError:
         await db.rollback()
         raise HTTPException(409, "이미 이메일로 가입된 계정입니다.")
-    result = {"ok": True, "message": "인증 메일을 확인해 주세요."}
-    if get_settings().expose_dev_tokens:
-        result["verification_token"] = raw
-    return result
-
-
-@router.post("/verify-email")
-async def verify_email(body: TokenBody, db: Annotated[AsyncSession, Depends(get_db)]):
-    _, user = await _consume_token(db, body.token, "verify_email")
-    user.email_verified_at = utcnow()
-    user.status = "active"
-    await db.commit()
-    return {"ok": True}
+    return {"ok": True, "message": "가입되었습니다. 로그인해 주세요."}
 
 
 @router.post("/login")
@@ -264,8 +251,8 @@ async def login(body: LoginBody, request: Request, response: Response, db: Annot
         password_hasher.verify(identity.password_hash or "", body.password)
     except (VerifyMismatchError, InvalidHashError):
         raise HTTPException(401, "이메일 또는 비밀번호가 올바르지 않습니다.")
-    if user.status != "active" or user.email_verified_at is None:
-        raise HTTPException(403, "이메일 인증을 먼저 완료해 주세요.")
+    if user.status != "active":
+        raise HTTPException(403, "사용할 수 없는 계정입니다.")
     principal = await _create_session(db, user, request, response)
     return public_principal(principal)
 

@@ -20,12 +20,19 @@
 
 import csv
 import json
+import sys
 import time
+from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np
 
 import p1_spec as S
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from src.mlops.tracking import log_runs
 
 BIG = {"설날": "seol", "추석": "chuseok"}
 SPLITS = {"A (학습 2019~2023 → 검증 2024)": (set(range(2019, 2024)), 2024),
@@ -284,6 +291,28 @@ def main():
             print(f"| {k} | {v['전체']:.1%} | {v['연휴 관련일']:.1%} | {v['설·추석 ±5일']:.1%} | {v['긴 연휴 4일+ 전후']:.1%} |")
     S.OUT.mkdir(parents=True, exist_ok=True)
     (S.OUT / "holiday_improve.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
+    runs = []
+    for split, models in out.items():
+        train_years, val_year = SPLITS[split]
+        for index, (model, metrics) in enumerate(models.items(), 1):
+            runs.append({
+                "name": f"split-{val_year}-{index}",
+                "params": {
+                    "split": split,
+                    "train_years": sorted(train_years),
+                    "validation_year": val_year,
+                    "model": model,
+                    "seed": SEED,
+                    "regions": D["n_regions"],
+                },
+                "metrics": {
+                    "wape": metrics["전체"],
+                    "holiday_wape": metrics["연휴 관련일"],
+                    "seollal_chuseok_wape": metrics["설·추석 ±5일"],
+                    "long_holiday_wape": metrics["긴 연휴 4일+ 전후"],
+                },
+            })
+    log_runs("congestion-holiday-experiments", runs, out)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ x-airflow-common: &airflow-common
     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
     MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin-change-me}
     MINIO_SECURE: "false"
+    MLFLOW_TRACKING_URI: http://mlflow:5000
   volumes:
     - ./airflow/dags:/opt/airflow/dags:ro
     - ./:/workspace
@@ -33,6 +34,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app}
       AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
+      MLFLOW_DB_PASSWORD: ${MLFLOW_DB_PASSWORD:-mlflow}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -73,6 +75,48 @@ services:
       - "9000:9000"
       - "9001:9001"
 
+  mlflow-db-init:
+    image: pgvector/pgvector:pg16
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: postgres
+      MLFLOW_DB_PASSWORD: ${MLFLOW_DB_PASSWORD:-mlflow}
+    volumes:
+      - ./infra/postgres/init/02-mlflow-database.sh:/opt/init/02-mlflow-database.sh:ro
+    entrypoint: ["/bin/bash", "/opt/init/02-mlflow-database.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    env_file: .env
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://mlflow:${MLFLOW_DB_PASSWORD:-mlflow}@postgres:5432/mlflow
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_ARTIFACT_BUCKET: mlflow-artifacts
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin-change-me}
+      AWS_DEFAULT_REGION: ap-northeast-2
+    ports:
+      - "5000:5000"
+    depends_on:
+      mlflow-db-init:
+        condition: service_completed_successfully
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   migrate:
     build: .
     env_file: .env
@@ -108,6 +152,17 @@ services:
       minio:
         condition: service_started
 
+  email-worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://app:${APP_DB_PASSWORD:-app}@postgres:5432/abroad_to_korea
+    command: python -m app.email_worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   airflow-init:
     <<: *airflow-common
     command: bash -c "airflow db migrate && airflow pools set tourapi 1 'TourAPI 호출 직렬화'"
@@ -125,6 +180,7 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: airflow scheduler
+    restart: unless-stopped
     depends_on:
       airflow-init:
         condition: service_completed_successfully

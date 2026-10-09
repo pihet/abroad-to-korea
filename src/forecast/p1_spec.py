@@ -25,6 +25,10 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from src.mlops.tracking import log_runs
+
 RAW = ROOT / "data/raw/datalab/locgoRegnVisitrDDList"
 NAGER_DIR = ROOT / "data/raw/nager"
 KASI_CSV = ROOT / "data/external/kr_holidays_2018_2027.csv"
@@ -217,7 +221,28 @@ def main():
     lines += [f"| {k} | {v[0]:.1%} | {v[1]:.1%} |" for k, v in d["rows"].items()]
     print("\n".join(lines))
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"spec_{variant}.json").write_text(json.dumps({"monthly": m, "daily": d}, ensure_ascii=False, indent=1))
+    payload = {"monthly": m, "daily": d}
+    (OUT / f"spec_{variant}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1))
+    common = {
+        "holiday_source": variant,
+        "train_years": sorted(TRAIN_YEARS),
+        "validation_year": VAL_YEAR,
+        "regions": wide.shape[1],
+    }
+    runs = []
+    for index, (model, metrics) in enumerate(m["rows"].items(), 1):
+        runs.append({
+            "name": f"{variant}-monthly-{index}",
+            "params": {**common, "granularity": "monthly", "model": model},
+            "metrics": {"wape": metrics[0], "medape": metrics[1]},
+        })
+    for index, (model, metrics) in enumerate(d["rows"].items(), 1):
+        runs.append({
+            "name": f"{variant}-daily-{index}",
+            "params": {**common, "granularity": "daily", "model": model},
+            "metrics": {"wape": metrics[0], "holiday_wape": metrics[1]},
+        })
+    log_runs("congestion-baseline", runs, payload)
 
 
 if __name__ == "__main__":

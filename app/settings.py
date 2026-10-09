@@ -10,7 +10,11 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     public_base_url: str = "http://localhost:8000"
     cookie_secure: bool = False
-    expose_dev_tokens: bool = False
+
+    resend_api_key: str | None = None
+    resend_from_email: str = "Abroad to Korea <onboarding@resend.dev>"
+    resend_reply_to: str | None = None
+    email_worker_poll_seconds: float = 2.0
 
     google_client_id: str | None = None
     google_client_secret: str | None = None
