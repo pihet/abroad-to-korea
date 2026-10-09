@@ -10,6 +10,7 @@
     python src/collect/tour_images.py            # 오늘 최대 990건
     python src/collect/tour_images.py 300        # 최대 300건
     python src/collect/tour_images.py --food     # 대표 사진(firstimage)이 없는 음식점만 (2026-10-08 추가, 3,954곳)
+    python src/collect/tour_images.py --ids 목록.txt  # 지정한 contentid만 (한 줄에 하나, 결과는 detailImage2/)
 
 결과: data/raw/tourapi/detailImage2/<contentid>.json (응답 원문), 음식점은 detailImage2_ct39/
 """
@@ -69,12 +70,14 @@ def fetch(key: str, cid: str) -> dict:
 
 def main() -> None:
     food = "--food" in sys.argv
+    ids_file = sys.argv[sys.argv.index("--ids") + 1] if "--ids" in sys.argv else None
     nums = [a for a in sys.argv[1:] if a.isdigit()]
     max_calls = int(nums[0]) if nums else DEFAULT_MAX_CALLS
     ring = KeyRing(max_calls)  # 키마다 max_calls 건, 한도가 차면 다음 키
     out_dir = FOOD_OUT_DIR if food else OUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    todo = [c for c in (queue(FOOD_LIST, True) if food else queue()) if not (out_dir / f"{c}.json").exists()]
+    source = (open(ids_file, encoding="utf-8").read().split() if ids_file else queue(FOOD_LIST, True) if food else queue())
+    todo = [c for c in source if not (out_dir / f"{c}.json").exists()]
     print(f"남은 {'음식점(대표 사진 없음)' if food else '관광지'} {len(todo)}곳, 키 {len(ring.keys)}개 × 최대 {max_calls}건")
     calls = saved = 0
     for cid in todo:

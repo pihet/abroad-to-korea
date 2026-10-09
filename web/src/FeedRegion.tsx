@@ -73,8 +73,11 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   // 원형 프로필은 사진을 자르므로 변경이 허용되는 공공누리 1유형일 때만 사진을 쓴다
   const avatar = d?.photo?.image_url ?? null
   // 앞으로 열릴(또는 열리고 있는) 축제는 시작일 순, 체험은 그대로 (TourAPI 체험마을·체험장 등)
-  const fests = (items ?? []).filter(i => i.group === 'festival' && i.schedule === '예정').sort((a, b) => (a.period ?? '').localeCompare(b.period ?? ''))
-  const exps = (items ?? []).filter(i => i.group === 'experience')
+  // 사진 줄에는 사진 있는 곳만 (사진 없는 곳은 '할 거리' 탭 지도·목록에 그대로 있다)
+  const allFests = (items ?? []).filter(i => i.group === 'festival' && i.schedule === '예정').sort((a, b) => (a.period ?? '').localeCompare(b.period ?? ''))
+  const allExps = (items ?? []).filter(i => i.group === 'experience')
+  const fests = allFests.filter(i => i.image_url), exps = allExps.filter(i => i.image_url)
+  const hidden = (all: unknown[], shown: unknown[]) => (all.length > shown.length ? ` · 사진 없는 ${all.length - shown.length}곳은 할 거리 탭에` : '')
 
   return (
     <div className="igr" role="dialog" aria-modal="true" aria-label={r ? `${r.sido} ${r.name}` : '지역 정보'}>
@@ -92,7 +95,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
             <ul className="igr-stats">
               <li><b>{nActs}</b><small>활동지</small></li>
               <li><b>{d.food.n_places}</b><small>음식점</small></li>
-              <li><b>{items ? fests.length : '–'}</b><small>열릴 축제</small></li>
+              <li><b>{items ? allFests.length : '–'}</b><small>열릴 축제</small></li>
             </ul>
           </section>
           <div className="igr-bio">
@@ -113,12 +116,12 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
           {(fests.length > 0 || exps.length > 0) ? (
             <section className="igr-now">
               {fests.length > 0 && <>
-                <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정</small></div>
+                <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정{hidden(allFests, fests)}</small></div>
                 <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
               {costLine}
               {exps.length > 0 && <>
-                <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등</small></div>
+                <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등{hidden(allExps, exps)}</small></div>
                 <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
             </section>
@@ -199,10 +202,11 @@ function CommonsCredits() {
 
 // 축제·체험 카드: 사진(자르지 않음) + 이름 + 기간/종류. 누르면 아래에 주소·지도 링크
 function NowCard({ x, on, sub, onClick }: { x: ActivityItem; on: boolean; sub: string; onClick: () => void }) {
-  const [broken, setBroken] = useState(false)  // 원본 사진이 없는 곳(404)은 이름으로 대신
+  const [broken, setBroken] = useState(false)  // 원본 사진이 지워진 곳(404)은 카드째 숨긴다 (사진 줄에는 사진 있는 곳만)
+  if (broken) return null
   return (
     <li><button type="button" aria-pressed={on} onClick={onClick}>
-      <span className="ph">{x.image_url && !broken ? <img src={x.image_url} alt={x.name} loading="lazy" onError={() => setBroken(true)} /> : <i>{x.name}</i>}</span>
+      <span className="ph"><img src={x.image_url ?? ''} alt={x.name} loading="lazy" onError={() => setBroken(true)} /></span>
       <b>{x.name}</b><small>{sub}</small>
     </button></li>
   )
