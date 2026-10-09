@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src/prototype"))
+sys.path.insert(0, str(ROOT / "src/model"))
 import clip_proto as cp  # noqa: E402
 
 from .context import haversine  # noqa: E402

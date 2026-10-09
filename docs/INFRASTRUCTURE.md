@@ -56,7 +56,7 @@ docker compose up --build -d
 docker compose ps -a
 ```
 
-최초 빌드는 Python·ML·Airflow 의존성과 MinIO 소스를 받아 컴파일하므로 오래 걸릴 수 있다. 공식 MinIO 컨테이너 이미지가 레지스트리에서 제공되지 않아 `Dockerfile.minio`가 고정 버전 소스를 직접 빌드한다. 이후 실행은 Docker 캐시를 사용한다.
+최초 빌드는 Python·ML·Airflow 의존성과 MinIO 소스를 받아 컴파일하므로 오래 걸릴 수 있다. 공식 MinIO 컨테이너 이미지가 레지스트리에서 제공되지 않아 `infra/docker/Dockerfile.minio`가 고정 버전 소스를 직접 빌드한다. 이후 실행은 Docker 캐시를 사용한다.
 
 `postgres`, `redis`, `mlflow`는 `healthy`, `api`, `minio`, `airflow-api-server`, `airflow-scheduler`는 `Up`이어야 한다. `migrate`, `mlflow-db-init`, `airflow-init`은 작업 성공 후 `Exited (0)`인 것이 정상이다.
 
@@ -68,13 +68,13 @@ docker compose ps -a
 - `airflow`: Airflow 메타 DB, `airflow` 계정
 - `mlflow`: MLflow backend store, `mlflow` 계정
 
-Alembic은 `migrations/`의 변경 이력을 `abroad_to_korea`에 적용한다. 기존 볼륨에서는 `mlflow-db-init` 일회성 서비스가 MLflow DB와 계정만 멱등하게 준비한다. DB 이름이나 계정을 바꿀 때 운영 볼륨을 삭제하지 말고 SQL과 마이그레이션으로 변경한다.
+Alembic은 `infra/migrations/`의 변경 이력을 `abroad_to_korea`에 적용한다. 기존 볼륨에서는 `mlflow-db-init` 일회성 서비스가 MLflow DB와 계정만 멱등하게 준비한다. DB 이름이나 계정을 바꿀 때 운영 볼륨을 삭제하지 말고 SQL과 마이그레이션으로 변경한다.
 
 현재 상태 확인:
 
 ```bash
 docker compose exec postgres pg_isready -U postgres
-docker compose run --rm migrate alembic current
+docker compose run --rm migrate alembic -c infra/alembic.ini current
 docker compose exec postgres psql -U postgres -d mlflow -c 'select count(*) from experiments;'
 ```
 
@@ -84,7 +84,7 @@ MLflow의 run·parameter·metric 메타데이터는 PostgreSQL의 `mlflow` DB에
 
 현재 자동 기록 대상은 다음 세 가지다.
 
-- `src/prototype/model_compare.py evaluate`: CLIP 모델별 Hit@5/10/20, MRR, 순위 통계
+- `src/model/model_compare.py evaluate`: CLIP 모델별 Hit@5/10/20, MRR, 순위 통계
 - `src/forecast/p1_spec.py kasi`: 월·일 혼잡도 기준 모델의 WAPE, medAPE
 - `src/forecast/p1_holiday.py`: 분할·모델별 전체/연휴/명절/긴 연휴 WAPE
 

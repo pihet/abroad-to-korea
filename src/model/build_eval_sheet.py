@@ -6,7 +6,7 @@
 - 판정 저장: 아티팩트 db 의 ratings/<평가자 id>/items/<해외지__순위> + 평가자 문서 ratings/<평가자 id>. 평가자는 자기 판정만 보고,
   소유자는 전체를 읽는다 (db rules). Claude 는 Artifact read_db 로 집계한다.
 
-실행: .venv/bin/python src/prototype/build_eval_sheet.py <출력 경로.html>
+실행: .venv/bin/python src/model/build_eval_sheet.py <출력 경로.html>
 """
 
 import json

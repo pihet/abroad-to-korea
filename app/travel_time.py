@@ -1,4 +1,4 @@
-"""코스 정류장 사이 이동 시간 (카카오). Map/ 폴더의 검증(2026-10-07)을 서버로 옮긴 것.
+"""코스 정류장 사이 이동 시간 (카카오). references/Map/ 폴더의 검증(2026-10-07)을 서버로 옮긴 것.
 
 - 자동차: 카카오모빌리티 길찾기 (실시간 교통 반영이라 조회 시각마다 조금씩 다르다)
 - 도보: 카카오맵 경로 조회. 하루 1,000건이라 직선 WALK_MAX_KM 이하 구간만 부른다
@@ -118,5 +118,5 @@ class TravelTime:
             km = haversine(a, b)
             return {"straight_km": round(km, 1), "car": self._one("car", a, b),
                     "walk": self._one("walk", a, b) if km <= WALK_MAX_KM else None}
-        with ThreadPoolExecutor(4) as ex:  # Map/ 검증과 같이 외부 동시 호출 최대 4건
+        with ThreadPoolExecutor(4) as ex:  # references/Map/ 검증과 같이 외부 동시 호출 최대 4건
             return list(ex.map(leg, pairs))

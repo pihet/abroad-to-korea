@@ -8,7 +8,7 @@
 질의 사진 고르기: 그 해외지 사진 전체 평균과 가장 닮은 1장 (정답과 무관)
 혼잡도 지수: 예측 외지인 방문자 수 / 그 시군구의 최근 12개월 월평균 × 100
 
-실행: .venv/bin/python src/prototype/make_demo_page.py
+실행: .venv/bin/python src/model/make_demo_page.py
 결과: docs/demo/index.html (이미지 base64 내장 단일 파일)
 """
 

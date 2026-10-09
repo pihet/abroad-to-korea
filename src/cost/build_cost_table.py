@@ -1,6 +1,6 @@
 """국민여행조사 원자료(2023~2025)로 시군구별 '1박 2일 1인 여행 경비' 표를 만든다.
 
-진실 님 검토 보고서(COST/COST/여행 경비 데이터 검토 보고서.pdf, 2026-10-07)의 권고를 따른다.
+진실 님 검토 보고서(references/COST/COST/여행 경비 데이터 검토 보고서.pdf, 2026-10-07)의 권고를 따른다.
     - 순수 관광·휴양 여행만 (여행유형 CASE = 1). 친지 방문·출장은 경비 성격이 달라 뺀다
     - 1인 경비 D_TRAk_ONE_COST (총경비 ÷ 비용 포함 인원 NUM), 가중치 WT_DOM
     - 대표 목적지: 숙박 여행은 가장 오래 머문 방문지, 당일 여행은 첫 방문지
@@ -25,10 +25,10 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src/prototype"))
+sys.path.insert(0, str(ROOT / "src/model"))
 import clip_proto as cp  # noqa: E402
 
-SRC = ROOT / "COST/COST/전국여행조사(경비)"
+SRC = ROOT / "references/COST/COST/전국여행조사(경비)"
 FILES = {2023: "전국여행조사2023/2023년 국민여행조사 원자료_국내여행.SAV",
          2024: "전국여행조사2024/2024년 국민여행조사 국내여행 RAWDATA.sav",
          2025: "전국여행조사2025/2025년 국민여행조사 원자료(국내여행).SAV"}

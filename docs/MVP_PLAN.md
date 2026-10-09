@@ -3,7 +3,7 @@
 # MVP 계획: 사진으로 찾는 닮은꼴 국내 여행지 + 덜 붐비는 달
 
 > 목표: 해외 여행지 사진을 올리면 분위기가 비슷한 국내 시군구·관광지를 찾고, 고른 달의 혼잡도와 12개월 흐름까지 한 화면에서 비교한다.
-> 범위: P0 MVP. 기존 평가 코드(`src/prototype`, `src/forecast`)와 결과(`data/interim/clip/eval_*.json`)는 읽기만 하고 바꾸지 않는다.
+> 범위: P0 MVP. 기존 평가 코드(`src/model`, `src/forecast`)와 결과(`data/interim/clip/eval_*.json`)는 읽기만 하고 바꾸지 않는다.
 
 ## 1. 결정 사항 (2026-10-04)
 
@@ -117,7 +117,7 @@
 |---|---|
 | `app/main.py` | FastAPI 앱, 라우트, 정적 파일 (`web/dist`, 사진) |
 | `app/schemas.py` | 요청·응답 pydantic 모델 (위 계약) |
-| `app/recommender.py` | Stage A·B. `src/prototype`의 인덱스·투표 함수를 읽기 전용으로 사용 |
+| `app/recommender.py` | Stage A·B. `src/model`의 인덱스·투표 함수를 읽기 전용으로 사용 |
 | `app/context.py` | 혼잡도(월별 실측·10월 예측), 날씨, 거리, 주소, 데이터 기준일 |
 | `app/tags.py` | 장면 태그 목록과 CLIP 제로샷 |
 | `web/` | React + TypeScript (Vite). `src/api.ts`에 응답 타입 |

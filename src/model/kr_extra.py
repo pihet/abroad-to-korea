@@ -6,7 +6,7 @@
     embed     → data/interim/clip/emb_kr_extra.npz
     evaluate  기존 풀(대표사진 11,353장) vs 늘린 풀(대표사진 + 추가 사진)로 개발셋 38곳 C(vote100) 비교
 
-실행: .venv/bin/python src/prototype/kr_extra.py [단계 ...]
+실행: .venv/bin/python src/model/kr_extra.py [단계 ...]
 """
 
 import io

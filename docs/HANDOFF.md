@@ -340,7 +340,7 @@ url = (f"https://apis.data.go.kr/B551011/DataLabService/locgoRegnVisitrDDList"
 
 ### P2. CLIP (2026-10-02, Claude Code에서 Python으로 실행)
 
-- 코드: `src/prototype/clip_proto.py` (실행: `.venv/bin/python src/prototype/clip_proto.py`, 평가만: `... evaluate`)
+- 코드: `src/model/clip_proto.py` (실행: `.venv/bin/python src/model/clip_proto.py`, 평가만: `... evaluate`)
 - 모델: CLIP ViT-B/32 (`openai/clip-vit-base-patch32`), 사전학습 가중치로 추론만
 - 국내: TourAPI 관광지 대표사진 중 공공누리 1·3유형 썸네일 11,353장 (11,651장 중 298장 다운로드 실패)
   - 법정동 코드로 230개 시군구에 묶음. 구는 시로 합침 (전주시 완산구 → 전주시)
@@ -445,8 +445,8 @@ url = (f"https://apis.data.go.kr/B551011/DataLabService/locgoRegnVisitrDDList"
 
 #### P2 질의 사진 품질 정리 (2026-10-02)
 
-- 코드: `src/prototype/curate_overseas.py` (`fill` → `fill2` → 확인용 `sheets`)
-  - 평가: `CLIP_OV_SET=curated .venv/bin/python src/prototype/clip_proto.py embed evaluate`
+- 코드: `src/model/curate_overseas.py` (`fill` → `fill2` → 확인용 `sheets`)
+  - 평가: `CLIP_OV_SET=curated .venv/bin/python src/model/clip_proto.py embed evaluate`
   - 결과: `data/interim/clip/overseas_curated/`, `eval_results_curated.json`. 원본 세트는 그대로 둠
 - 기준 (정답과 무관): 여행지를 여행자 시점에서 보여주는 실외 실사 사진만 남긴다
   - 제외: 그림·소묘 / 위성·항공 / 사물·동물·인물 클로즈업 / 실내·행사 / 중복
@@ -724,7 +724,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 
 ### 11-1. 장면 카탈로그 CLIP 적용 결과 (2026-10-02, Claude Code)
 
-- 코드: `src/prototype/scene_catalog.py` (`download` → `embed` → `recommend` → `evaluate`)
+- 코드: `src/model/scene_catalog.py` (`download` → `embed` → `recommend` → `evaluate`)
 - 결과물: `data/interim/clip/scenes/`(383장), `emb_scenes.npz`, `scene_recs.csv`(장면 213 × 상위 5), `eval_results_scenes.json`
 - 다운로드: `qa_status=ok` 383장 모두 성공. 임베딩은 CLIP ViT-B/32, 국내 쪽은 7장 P2와 같은 관광지 사진 11,353장·230개 시군구
 - 추천 방식: 서비스 기본값 vote100 (전국 관광지 사진 상위 100장의 유사도를 시군구별 합산)
@@ -812,7 +812,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 
 ### 11-3. CLIP + 사용자 카테고리 재정렬 실험 (2026-10-02, Codex)
 
-- 코드: `src/prototype/category_rerank.py`
+- 코드: `src/model/category_rerank.py`
 - 결과: `data/interim/clip/eval_category_rerank.json`
 - 조건: 11-1과 같은 카탈로그 평가 해외지 20곳, 국내 230개 시군구, vote100
 - 실제 사용자 입력은 아직 없으므로 카탈로그의 `vibe_tags`를 선택 카테고리의 대리값으로 사용했다
@@ -951,7 +951,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 > 11-4 평가 순서에 따라 **홀드아웃(15곳)은 열지 않았다.** 아래는 모두 개발셋 결과다.
 > 참고: 이 문서에 "11-3" 제목이 두 개 있다 (Codex 재정렬 실험, Aside 정답 2차 조사). 번호 정리 필요.
 
-- 코드: `src/prototype/reverify_dev.py` (결과 `data/interim/clip/eval_reverify_dev.json`)
+- 코드: `src/model/reverify_dev.py` (결과 `data/interim/clip/eval_reverify_dev.json`)
 - 정답: `ground_truth_dev_v1` 41쌍 + `dev_label_additions_v1` 4쌍 = **45쌍, 해외지 23곳**
   - 11-2의 20곳 + 별칭 3곳 (뉴욕·파리·메르주가)
 - 질의: 카탈로그 장면 사진의 여행지 평균, vote100, 국내 230개 시군구
@@ -983,7 +983,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 - 11-4 A의 10장을 `data/interim/clip/scenes_holdout/<scene_id>_<photo_rank>.jpg`로 내려받았다 (Commons 960px 썸네일, 10/10 성공, 장당 105~275KB)
 - 기존 383장(`data/interim/clip/scenes/`)과 폴더를 분리했다. `interim/`은 Git 대상이 아니므로 사라져도 `overseas_scenes_holdout_additions_20261002.csv`의 `thumb_url_800`으로 다시 받을 수 있다
 - 화면에 쓸 때는 CSV의 작가·라이선스 표기를 함께 보여야 한다 (CC BY-SA·CC BY 포함)
-- 홀드아웃 전용 입력 검증·임베딩 생성은 `src/prototype/holdout_scene_embeddings.py`를 사용한다. 출력은 기존 `emb_scenes.npz`와 분리한 `data/interim/clip/emb_scenes_holdout.npz`이며, 이 스크립트는 추천·정답 순위 평가를 제공하지 않는다
+- 홀드아웃 전용 입력 검증·임베딩 생성은 `src/model/holdout_scene_embeddings.py`를 사용한다. 출력은 기존 `emb_scenes.npz`와 분리한 `data/interim/clip/emb_scenes_holdout.npz`이며, 이 스크립트는 추천·정답 순위 평가를 제공하지 않는다
 - 2026-10-02 실제 실행 결과: 10장 모두 입력 검증을 통과했고 CLIP ViT-B/32의 L2 정규화된 512차원 임베딩으로 저장됐다. 추천·Hit@K 평가는 실행하지 않았다
 
 
@@ -1031,7 +1031,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 > 11-5 지시서(Aside → Claude Code)대로 **1회 실행**했다. 결과를 보고 설정·사진·정답을 바꾸지 않았다.
 > **이 평가로 신규 15곳은 개발셋으로 전환됐다. 최종 검증용 테스트셋은 새로 모아야 한다.**
 
-- 실행: `.venv/bin/python src/prototype/holdout_pilot.py` (결과 `data/interim/clip/eval_holdout_pilot.json`)
+- 실행: `.venv/bin/python src/model/holdout_pilot.py` (결과 `data/interim/clip/eval_holdout_pilot.json`)
 - 입력 점검 (평가 전)
   - 15곳 모두 카탈로그 장면 사진 있음 (1~6장)
   - 보강 10장 임베딩(`emb_scenes_holdout.npz`)을 같은 모델로 다시 계산해 코사인 1.0 일치 확인
@@ -1100,7 +1100,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 
 ### 11-7. 관광지 단위 추천 (개발셋 38곳, 2026-10-02, Claude Code)
 
-- 실행: `.venv/bin/python src/prototype/attraction_level.py` (결과 `data/interim/clip/eval_attraction_level.json`)
+- 실행: `.venv/bin/python src/model/attraction_level.py` (결과 `data/interim/clip/eval_attraction_level.json`)
 - 개발셋 38곳 = 11-5의 dev 23곳 + 11-6에서 전환된 15곳. 질의는 11-6과 같은 "해외지 사진 전체 평균"
 - 방식
   - C: 시군구 vote100 (서비스 기본값). 각 시군구에서 가장 닮은 관광지 1곳을 보여준다고 본다
@@ -1143,7 +1143,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
   - 순서: 시군구 라운드로빈 + 시군구 안 고정 난수 (seed 42). 정답과 무관하고, 어느 날 멈춰도 시군구가 고르게 받는다
   - 1일차: 990곳 저장, **남은 관광지 11,613곳 (약 12일)**
   - 응답 예: 전주 한옥마을 12장, 인사동 7장, 구형왕릉 17장. 사진마다 `cpyrhtDivCd` 있음
-- 사진·임베딩: `.venv/bin/python src/prototype/kr_extra.py download embed evaluate`
+- 사진·임베딩: `.venv/bin/python src/model/kr_extra.py download embed evaluate`
   - 공공누리 1·3유형만, 대표사진과 같은 원본 제외, 관광지당 최대 5장, 긴 변 400px
   - 관광지 918곳의 사진 4,272장 (4,300장 중 28장 실패, 129MB, `data/interim/clip/kr_extra/`)
   - 230개 시군구 모두 추가 사진을 받았다 (시군구당 중앙값 18장)
@@ -1173,7 +1173,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 
 ## 12. 데모 페이지 (2026-10-02, Claude Code)
 
-- 실행: `.venv/bin/python src/prototype/make_demo_page.py` (약 10초)
+- 실행: `.venv/bin/python src/model/make_demo_page.py` (약 10초)
 - 결과
   - `docs/demo/index.html`: 단일 파일, 이미지 12장 base64 내장, 0.7MB, 외부 리소스 없음
   - `docs/demo/lisbon.png`, `docs/demo/interlaken.png`: 1280×800
@@ -1203,7 +1203,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 
 ### 11-9. CLIP 모델 크기 비교 (개발셋 38곳, 2026-10-02, Claude Code)
 
-- 실행: `src/prototype/model_compare.py` (`embed <모델>` → `evaluate`, 결과 `data/interim/clip/eval_model_compare.json`)
+- 실행: `src/model/model_compare.py` (`embed <모델>` → `evaluate`, 결과 `data/interim/clip/eval_model_compare.json`)
   - 임베딩 캐시: `data/interim/clip/models/<모델>/`
 - 조건: 국내 대표사진 11,353장·해외 장면 383장·보강 10장을 모델마다 새로 임베딩. 시군구 vote100, 개발셋 38곳
 - 판정 기준 (결과 전에 정함): 현재 모델 대비 Hit@10 +4곳 이상이고 MRR 상승이면 "개선 가능"
@@ -1236,7 +1236,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
   - B: 대표사진 + 추가 사진 (관광지당 최대 5장)
   - 차이는 관광지당 사진 장수뿐이다
   - 2,689곳은 230개 시군구 모두에 퍼져 있고, 개발셋 38곳 모두 정답 시군구에 관광지가 남아 있다
-- 실행: `.venv/bin/python src/prototype/kr_extra.py download embed subset` (결과 `data/interim/clip/eval_kr_extra_subset.json`)
+- 실행: `.venv/bin/python src/model/kr_extra.py download embed subset` (결과 `data/interim/clip/eval_kr_extra_subset.json`)
   - 추가 사진 12,737장 (관광지 2,741곳)
 - 판정 기준 (결과 전에 정함): B가 A보다 Hit@10 +4곳 이상이고 MRR 상승이면 "효과 있음"
 
@@ -1260,7 +1260,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 
 - 목적: 정답 쌍 지표는 정답이 1~2곳뿐이라 실제 품질을 낮게 잰다. 서비스 기준(상위 5곳 중 그럴듯함 70% 이상, 엉뚱함 5~10% 이하)을 사람 판정으로 잰다
 - 페이지: https://claude.ai/artifact/4Y6GPT3SYo6pf5v5RHns1r (비공개. 평가자는 **Contributor 이상**으로 공유받아야 판정을 저장할 수 있다)
-- 생성: `.venv/bin/python src/prototype/build_eval_sheet.py <출력.html>` (사진 196장 내장, 4.3MB)
+- 생성: `.venv/bin/python src/model/build_eval_sheet.py <출력.html>` (사진 196장 내장, 4.3MB)
 - 대상 30곳 (정답 쌍과 무관하게 선정)
   - 수요 상위(demand_agoda2025) 10곳 전부
   - 나머지에서 무작위 20곳 (seed 42)
@@ -1336,7 +1336,7 @@ Aside가 문서 전체를 다시 읽고 당일 실측 결과와 다른 부분을
 - 해석: 조건 지표는 확실히 좋아지고, 원래 상위 5곳의 절반 이상이 유지되며, 새로 올라온 곳도 닮은 순 8~9위 후보다
   - 닮음을 크게 해치지 않고 조건을 반영한다
   - 다만 조건을 반영한 결과의 "그럴듯함"은 아직 사람이 평가하지 않았다
-- 탐색 페이지 v2: https://claude.ai/artifact/NAwpx37kH7o1ojbzYeV76o (비공개, `build_explore_conditions.py artifact <경로>`, 템플릿 `src/prototype/templates/explore_v2.html`)
+- 탐색 페이지 v2: https://claude.ai/artifact/NAwpx37kH7o1ojbzYeV76o (비공개, `build_explore_conditions.py artifact <경로>`, 템플릿 `src/model/templates/explore_v2.html`)
   - 시작 화면: 해외 풍경 사진 갤러리 (107곳, 검색)
   - 결과
     - 1위를 크게: 해외 사진과 국내 사진을 나란히 놓는다
@@ -1656,8 +1656,8 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 지움: 일회성 `src/collect/tour_food_photo_sample.py`(음식점 사진 표본 30곳, 결과는 15-12·15-14), 로컬 캐시(`__pycache__`, `.pytest_cache`)
 - 절대경로: 추적 파일에 `/home/...`·`C:/...` 경로 없음 (모두 `Path(__file__)` 기준). 고정 주소였던 화면 개발 프록시를 `web/.env`의 `VITE_API_TARGET`(기본 `http://localhost:8000`)으로
 - `docs/MVP_PLAN.md`는 지우지 않고 맨 위에 "초기 계획(10/4), 현재 구조는 README·ARCHITECTURE" 표시
-- 그대로 둠: `src/prototype/`(CLIP 평가·실험 기록, HANDOFF가 참조), Codex 인프라 파일, `Map/`·`COST/`
+- 그대로 둠: `src/model/`(CLIP 평가·실험 기록, HANDOFF가 참조), Codex 인프라 파일, `references/Map/`·`references/COST/`
 - 테스트 정리: (1) 피드백 테스트가 DB 주소가 있으면 실제 개발 DB에 쓰던 문제 → 테스트에서 DB를 끄고 파일 저장만 확인. 그동안 들어간 시험용 2줄(종로구·id 1) 삭제 (2) 기존 결과 보존 테스트의 지문 중 오늘 의도적으로 바꾼 3개(`eval_kr_extra.json`·`emb_kr_extra.npz`는 15-26 전체 재평가, `kr_extra.py`는 15-27 거르기 단계)를 새 값으로 갱신. 예전 `eval_kr_extra.json` 내용은 덮어써져 없고, 그 수치는 11-8 표에 남아 있다. 나머지 36개 지문은 그대로
 - 전체 테스트 36개 통과 (API 32 + 인프라 4)
 - 음식점 사진 보강 (2026-10-08): 관광공사 대표 사진이 없는 음식점 3,954곳에 (1) TourAPI 추가 사진(`tour_images.py --food`, 약 8%) (2) 네이버 이미지 검색(`src/collect/naver_food_images.py`, `.env`의 NAVER_CLIENT_ID·SECRET) 순으로 사진을 붙인다. 네이버는 사진 파일을 저장하지 않고 썸네일 주소로 띄우며, 제목에 가게 이름이 있고 출처가 네이버 플레이스·메뉴판닷컴·관광공사인 결과만 쓴다(`app/activities.py` naver_pick, 표본 60곳 중 약 28%, 무작위 30장 눈으로 확인: 음식·실내·메뉴판·간판, 인물 없음). 크롤링은 저작권·약관 때문에 하지 않았다
-- 예상 경비 (2026-10-08): 지역 상세의 체험 활동 위 한 줄. 국민여행조사 2023~2025 원자료(COST/, 진실 님 검토 보고서 권고: 순수 관광 CASE=1, 1인 경비, WT_DOM, 숙박은 가장 오래 머문 방문지)로 `src/cost/build_cost_table.py`가 `data/interim/app/travel_cost.csv`를 만든다(pyreadstat 필요, 서버는 CSV만 읽음). 관광 여행 59,514건, 시군구 연결 98.5%. 1박 기준 시군구 값 112곳, 표본 30건 미만 118곳은 시도 값. 강릉 1박 20만 원(694건), 서귀포 46만 원, 경주 17.5만 원. 3년치는 물가 보정 없이 합침
+- 예상 경비 (2026-10-08): 지역 상세의 체험 활동 위 한 줄. 국민여행조사 2023~2025 원자료(references/COST/, 진실 님 검토 보고서 권고: 순수 관광 CASE=1, 1인 경비, WT_DOM, 숙박은 가장 오래 머문 방문지)로 `src/cost/build_cost_table.py`가 `data/interim/app/travel_cost.csv`를 만든다(pyreadstat 필요, 서버는 CSV만 읽음). 관광 여행 59,514건, 시군구 연결 98.5%. 1박 기준 시군구 값 112곳, 표본 30건 미만 118곳은 시도 값. 강릉 1박 20만 원(694건), 서귀포 46만 원, 경주 17.5만 원. 3년치는 물가 보정 없이 합침

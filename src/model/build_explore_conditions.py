@@ -7,9 +7,9 @@
     축제(2026년 10월)는 점수에 넣지 않고 정보로만 보여 준다
 
 실행:
-    .venv/bin/python src/prototype/build_explore_conditions.py evaluate          # 조건 반영 효과 (오프라인)
-    .venv/bin/python src/prototype/build_explore_conditions.py artifact <경로>   # 단일 파일 페이지 (사진 base64)
-    .venv/bin/python src/prototype/build_explore_conditions.py site <폴더>       # 페이지 + 묶음 이미지 WebP (선명한 사진)
+    .venv/bin/python src/model/build_explore_conditions.py evaluate          # 조건 반영 효과 (오프라인)
+    .venv/bin/python src/model/build_explore_conditions.py artifact <경로>   # 단일 파일 페이지 (사진 base64)
+    .venv/bin/python src/model/build_explore_conditions.py site <폴더>       # 페이지 + 묶음 이미지 WebP (선명한 사진)
 """
 
 import base64

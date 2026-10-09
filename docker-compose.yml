@@ -3,7 +3,7 @@ name: abroad-to-korea
 x-airflow-common: &airflow-common
   build:
     context: .
-    dockerfile: Dockerfile.airflow
+    dockerfile: infra/docker/Dockerfile.airflow
   env_file: .env
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -19,7 +19,7 @@ x-airflow-common: &airflow-common
     MINIO_SECURE: "false"
     MLFLOW_TRACKING_URI: http://mlflow:5000
   volumes:
-    - ./airflow/dags:/opt/airflow/dags:ro
+    - ./infra/airflow/dags:/opt/airflow/dags:ro
     - ./:/workspace
   depends_on:
     postgres:
@@ -63,7 +63,7 @@ services:
     image: abroad-to-korea-minio:RELEASE.2025-09-07T16-13-09Z
     build:
       context: .
-      dockerfile: Dockerfile.minio
+      dockerfile: infra/docker/Dockerfile.minio
     command: server /data --console-address :9001
     env_file: .env
     environment:
@@ -95,7 +95,7 @@ services:
   mlflow:
     build:
       context: .
-      dockerfile: Dockerfile.mlflow
+      dockerfile: infra/docker/Dockerfile.mlflow
     env_file: .env
     environment:
       MLFLOW_BACKEND_STORE_URI: postgresql+psycopg2://mlflow:${MLFLOW_DB_PASSWORD:-mlflow}@postgres:5432/mlflow
@@ -122,7 +122,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://app:${APP_DB_PASSWORD:-app}@postgres:5432/abroad_to_korea
-    command: alembic upgrade head
+    command: alembic -c infra/alembic.ini upgrade head
     depends_on:
       postgres:
         condition: service_healthy

@@ -7,9 +7,9 @@
 결과는 data/interim/web/ 에 만든다 (Git 제외). 사진은 data/interim/clip/ 파일을 심볼릭 링크로 연결한다.
 
 실행:
-    .venv/bin/python src/prototype/build_explore_site.py
+    .venv/bin/python src/model/build_explore_site.py
     .venv/bin/python -m http.server 8000 --directory data/interim/web     # 브라우저에서 http://localhost:8000
-    .venv/bin/python src/prototype/build_explore_site.py artifact <경로.html>  # 사진 내장 단일 파일 (claude.ai 아티팩트용)
+    .venv/bin/python src/model/build_explore_site.py artifact <경로.html>  # 사진 내장 단일 파일 (claude.ai 아티팩트용)
 """
 
 import json

@@ -4,8 +4,7 @@
 __pycache__
 **/__pycache__
 data
-COST
-Map
+references
 web/node_modules
 web/dist
 tools/record_deck/node_modules

@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-for sub in ("src/prototype", "src/forecast", "src/collect"):
+for sub in ("src/model", "src/forecast", "src/collect"):
     sys.path.insert(0, str(ROOT / sub))
 
 import clip_proto as cp  # noqa: E402

@@ -8,7 +8,7 @@
 | 담당 | 범위 | 파일 |
 |---|---|---|
 | Codex | Docker·DB·로그인·Airflow·MinIO, 파일 → DB 이전 스크립트, 피드백·저장 API의 DB 저장 | `docker-compose.yml`, `Dockerfile*`, `app/db.py`·`auth.py`·`models.py`·`media.py`·`settings.py`·`query_cache.py`, `migrations/`, `airflow/`, `infra/`, `src/ingest/`, `src/ops/` |
-| Claude | 화면, 추천·평가 모델, 개인 맞춤 재정렬 계산, 문서 | `web/src/` (Codex의 `AccountModal.tsx` 제외), `app/recommender.py`·`regions.py`·`activities.py`·`courses.py`·`rain.py`·`search.py`, `src/prototype/`, `docs/` |
+| Claude | 화면, 추천·평가 모델, 개인 맞춤 재정렬 계산, 문서 | `web/src/` (Codex의 `AccountModal.tsx` 제외), `app/recommender.py`·`regions.py`·`activities.py`·`courses.py`·`rain.py`·`search.py`, `src/model/`, `docs/` |
 
 - **서로의 파일은 읽기만 한다.** 둘 다 고쳐야 하는 파일(`app/main.py`, `app/schemas.py`, `web/src/api.ts`)은 먼저 고친 쪽이 커밋한 뒤 다른 쪽이 `git pull` 하고 고친다.
 - Codex는 지금 커밋되지 않은 인프라 작업을 **먼저 커밋**한다. 그전까지 Claude는 위 공유 파일을 고치지 않는다.

@@ -41,7 +41,7 @@ flowchart LR
     J5["forecast/p1_spec.py<br/>월 단위 예측 학습"]
     J6["collect/region_context.py<br/>날씨 · 축제"]
     J7["collect/population.py"]
-    J8["prototype/<br/>CLIP 임베딩 · 평가"]
+    J8["model/<br/>CLIP 임베딩 · 평가"]
   end
   D[("data/")]
   T --> J1 & J2 & J3 & J6
@@ -118,7 +118,7 @@ sequenceDiagram
 | 단일 종합점수 없음 | 카드와 순위 목록에 기준 하나씩만 쓰고 그 기준을 적는다 |
 | 근거 있는 값만 | 자료가 없으면 "자료 없음". 과거 날씨 기록을 예보처럼 쓰지 않는다 |
 | 이미지 라이선스 | 공공누리 1·3유형만, 자르기·필터·글자 덮기 없이, 출처 표시 |
-| 기존 연구 코드 보존 | `src/prototype`과 평가 결과는 읽기만. 테스트가 해시로 확인 |
+| 기존 연구 코드 보존 | `src/model`과 평가 결과는 읽기만. 테스트가 해시로 확인 |
 
 ## 5. 한계와 다음 단계
 

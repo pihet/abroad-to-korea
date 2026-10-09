@@ -9,8 +9,8 @@
     evaluate        캐시된 모델 전부를 같은 조건으로 평가 → data/interim/clip/eval_model_compare.json
 
 실행:
-    .venv/bin/python src/prototype/model_compare.py embed openai/clip-vit-base-patch16
-    .venv/bin/python src/prototype/model_compare.py evaluate
+    .venv/bin/python src/model/model_compare.py embed openai/clip-vit-base-patch16
+    .venv/bin/python src/model/model_compare.py evaluate
 """
 
 import json

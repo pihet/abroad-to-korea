@@ -7,8 +7,8 @@
     4. evaluate      정답 쌍(use_for_eval=1)으로 Hit@k 측정, 랜덤 기준선과 비교
 
 실행:
-    .venv/bin/python src/prototype/clip_proto.py            # 전체
-    .venv/bin/python src/prototype/clip_proto.py evaluate   # 평가만 다시
+    .venv/bin/python src/model/clip_proto.py            # 전체
+    .venv/bin/python src/model/clip_proto.py evaluate   # 평가만 다시
 
 필요 패키지 (프로토타입 전용, requirements.txt 미반영): torch(CPU), transformers, pillow
 """

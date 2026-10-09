@@ -7,7 +7,7 @@
     recommend  장면마다 국내 추천 상위 5개 시군구 + 근거 관광지 3곳 → data/interim/clip/scene_recs.csv
     evaluate   정답 쌍 해외지 중 카탈로그에 있는 곳으로 Hit@k (원본·정리 세트와 같은 해외지로 비교)
 
-실행: .venv/bin/python src/prototype/scene_catalog.py [단계 ...]
+실행: .venv/bin/python src/model/scene_catalog.py [단계 ...]
 """
 
 import csv

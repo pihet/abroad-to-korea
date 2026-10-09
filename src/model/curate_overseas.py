@@ -5,8 +5,8 @@
     국내 정답 지역과 닮았는지는 보지 않는다 (보면 평가가 부풀려진다).
 
 실행:
-    .venv/bin/python src/prototype/curate_overseas.py fill     # 빈자리 채우기 (data/interim/clip/overseas_curated/)
-    .venv/bin/python src/prototype/curate_overseas.py sheets   # 새로 채운 사진 확인용 모음 이미지
+    .venv/bin/python src/model/curate_overseas.py fill     # 빈자리 채우기 (data/interim/clip/overseas_curated/)
+    .venv/bin/python src/model/curate_overseas.py sheets   # 새로 채운 사진 확인용 모음 이미지
 그다음 CLIP_OV_SET=curated 로 clip_proto.py embed evaluate 를 실행한다.
 """
 

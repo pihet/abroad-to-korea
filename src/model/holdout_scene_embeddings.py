@@ -5,8 +5,8 @@
 도구다.
 
 실행:
-    .venv/bin/python src/prototype/holdout_scene_embeddings.py validate
-    .venv/bin/python src/prototype/holdout_scene_embeddings.py download validate embed
+    .venv/bin/python src/model/holdout_scene_embeddings.py validate
+    .venv/bin/python src/model/holdout_scene_embeddings.py download validate embed
 """
 
 import csv

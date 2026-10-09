@@ -12,7 +12,7 @@
     K  CLIP + 대표 카테고리 1개, 가중치 0.4 (category_rerank 설정 그대로)
 비교용으로 개발셋 23곳(reverify_dev 와 같은 정답)도 같은 지표로 다시 계산한다.
 
-실행: .venv/bin/python src/prototype/holdout_pilot.py
+실행: .venv/bin/python src/model/holdout_pilot.py
 결과: data/interim/clip/eval_holdout_pilot.json
 """
 

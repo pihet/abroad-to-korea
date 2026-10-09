@@ -8,7 +8,7 @@ vote100 점수, 정답 쌍을 사용한다. 해외 카탈로그의 ``vibe_tags``
 카테고리 점수는 CLIP 텍스트 프롬프트와 국내 관광지 사진의 유사도로 만든다.
 
 실행:
-    .venv/bin/python src/prototype/category_rerank.py
+    .venv/bin/python src/model/category_rerank.py
 
 결과:
     data/interim/clip/eval_category_rerank.json

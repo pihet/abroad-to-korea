@@ -93,28 +93,35 @@ Airflow는 관광 사진·음식·축제·카탈로그를 매일 수집해 검�
 
 데이터 파일은 저장소에 넣지 않는다. 출처와 다시 받는 방법은 [`data/README.md`](data/README.md)에 있다.
 
-매일 하루 한도(990건)로 받는 중 (2026-10-07 기준):
-- 관광지 추가 사진: 12,603곳 중 5,880곳
-- 음식점 대표메뉴: 13,402곳 중 1,980곳
+관광지 추가 사진과 음식점 대표메뉴는 하루 한도(990건)로 나눠 받았고 2026-10-09에 모두 받았다.
 
 ## 폴더
 
+역할별로 나눴다. 폴더마다 README가 있다.
+
 ```
-app/           FastAPI 백엔드 (API, 추천, 조건, 지역 상세, 비 예보)
-web/           React 화면
-tests/         API 테스트 (pytest, 30개)
-airflow/dags/  일·시간·월 단위 배치 스케줄
-migrations/    Alembic DB 스키마 변경 이력
-infra/         PostgreSQL 초기 DB·계정 생성, MLflow 서버 시작
-src/
-  collect/     공공데이터 수집
+app/           백엔드 (FastAPI): API, 추천, 조건, 지역 상세, 예상 경비, 이동 시간
+web/           프론트 (React + Vite): 탐색 피드, 사진으로 찾기, 지역 상세
+src/           데이터·모델 스크립트 (서버가 아니라 직접 실행)
+  collect/     공공데이터 수집 (TourAPI, 데이터랩, 네이버 이미지 등)
+  model/       CLIP 유사도 실험·평가 (서버가 인덱스 함수를 읽음)
+  forecast/    방문자(혼잡도) 예측
+  cost/        예상 경비 표 만들기
   ingest/      원본 보관, 검증, PostgreSQL 게시, 사진 캐시
   ops/         만료된 사용자 사진 정리
-  forecast/    방문자 예측 (p1_spec: 기준 재현, p1_holiday: 연휴 보정)
-  prototype/   CLIP 유사도 실험·평가
+  mlops/       MLflow 실험 기록
+infra/         배포·운영
+  docker/      보조 서비스 Dockerfile과 의존성 (Airflow, MinIO, MLflow)
+  airflow/     배치 스케줄 (DAG)
+  migrations/  Alembic DB 스키마 변경 이력 (alembic.ini 도 여기)
+  postgres/    최초 DB·계정 생성
+  mlflow/      MLflow 서버 시작
+tests/         pytest
 tools/         진행 기록 PPT 생성 스크립트
-docs/          HANDOFF(진행 기록) · MVP_PLAN(화면·API 계약) · ARCHITECTURE(구성도)
-data/          (파일은 Git 제외)
+docs/          HANDOFF(진행 기록) · MVP_PLAN(화면·API 계약) · ARCHITECTURE(구성도) · INFRASTRUCTURE(운영)
+data/          데이터 (파일은 Git 제외, 출처는 data/README.md)
+references/    로컬 참고 자료 (경비 원자료 COST, 카카오맵 검증 Map). Git 제외
+Dockerfile, docker-compose.yml, requirements*.txt   API 이미지와 전체 실행 (루트에 둔다)
 ```
 
 ## 실행
@@ -140,7 +147,7 @@ pip install pandas numpy scikit-learn python-dotenv holidays lightgbm
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install transformers pillow
 pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0 shapely==2.1.2
-pip install -r requirements-mlflow.txt
+pip install -r infra/docker/requirements-mlflow.txt
 
 # .env의 TOUR_API_KEY에 포털 표시값을 입력한다. 기존 .env를 덮어쓰지 않는다.
 # 키를 더 가지고 있으면 TOUR_API_KEY_2, TOUR_API_KEY_3 … 으로 추가: 매일 수집이 한 키의 하루 한도가 차면 다음 키로 넘어간다

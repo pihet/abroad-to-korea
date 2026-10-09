@@ -5,7 +5,7 @@
 비교: C CLIP 단독(vote100) / A 시군구 기본 점수 빼기 / B 사진 단위 CSLS / 카테고리 재정렬(대표 1개, 가중치 0.4)
 지표: Hit@5/10/20, MRR, 중앙·최악 순위, 부트스트랩 95% 구간, C 대비 부호검정, 장면 213개 쏠림
 
-실행: .venv/bin/python src/prototype/reverify_dev.py
+실행: .venv/bin/python src/model/reverify_dev.py
 결과: data/interim/clip/eval_reverify_dev.json
 """
 

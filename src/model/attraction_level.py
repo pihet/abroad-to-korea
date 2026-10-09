@@ -9,7 +9,7 @@
     정확 관광지 Hit@k : 정답 장소로 연결된 TourAPI 관광지 자체가 상위 k 안에 있는가 (연결표 STRICT)
 연결표는 추천 결과를 보기 전에 정답 시군구 안의 이름 후보를 보고 고정했다.
 
-실행: .venv/bin/python src/prototype/attraction_level.py
+실행: .venv/bin/python src/model/attraction_level.py
 결과: data/interim/clip/eval_attraction_level.json
 """
 
