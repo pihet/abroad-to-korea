@@ -250,7 +250,7 @@ export default function FeedApp() {
 
       {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); nav('search') }} />}
 
-      {tab === 'ask' && <FeedAsk onOpen={setOpen} />}
+      {tab === 'ask' && <FeedAsk onOpen={setOpen} saved={saved} onToggleSave={toggle} />}
 
       {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} accountOpen={accountOpen} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
 

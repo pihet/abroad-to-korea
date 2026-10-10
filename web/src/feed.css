@@ -115,15 +115,27 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .ask-summary b { font-size: 14px; line-height: 1.45 }
 .ask-summary div { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px }
 .ask-summary span { font-size: 11px; color: #0095f6 }
-.ask-results { list-style: none; margin: 0; padding: 0 }
-.ask-results li { border-bottom: 1px solid var(--ig-line) }
-.ask-results button { display: flex; align-items: center; width: 100%; gap: 12px; padding: 12px 0 !important; text-align: left }
-.ask-results img { width: 94px; height: 76px; object-fit: contain; border-radius: 10px; background: var(--ig-soft) }
-.ask-rank { flex: none; min-width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #ee2a7b; font-size: 11px; font-weight: 800 }
-.ask-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px }
-.ask-copy b { font-size: 15px }
-.ask-copy small { color: var(--ig-sub); font-size: 12px }
-.ask-copy em { color: #0095f6; font-size: 11.5px; font-style: normal }
+/* 결과 카드: 세로로 쌓는다. 사진은 자르지 않고(공공누리 3유형) 번호는 이름 옆에 */
+.ask-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px }
+.ask-cards li { position: relative; border: 1.5px solid var(--ig-line); border-radius: 16px; background: var(--ig-bg) }
+.ask-cards li.top { border-color: #ee2a7b }
+.ask-card { display: flex; align-items: center; width: 100%; gap: 12px; padding: 10px 40px 10px 10px !important; text-align: left; color: var(--ig-ink) }
+.ask-card img { flex: none; width: 104px; height: 84px; object-fit: contain; border-radius: 12px; background: var(--ig-soft) }
+.ask-rank { flex: none; width: 20px; height: 20px; margin-right: 6px; display: inline-grid; place-items: center; border-radius: 50%; color: #fff; background: #ee2a7b; font-size: 11px; font-weight: 800; vertical-align: 2px }
+.ask-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px }
+.ask-copy b { font-size: 15.5px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ask-copy small { color: var(--ig-sub); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px }
+.ask-chips i { display: inline-flex; align-items: center; gap: 3px; height: 24px; padding: 0 8px; border: 1px solid var(--ig-line); border-radius: 7px; font-size: 11.5px; font-style: normal; color: var(--ig-sub); background: var(--ig-soft) }
+.ask-chips i svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8 }
+.ask-chips i.crowd { color: var(--ig-ink); font-weight: 700 }
+.ask-chips i.crowd.busy { color: #ed4956 }
+.ask-chips i.crowd.calm { color: #0095f6 }
+.ask-chips i.more { color: var(--ig-ink); background: transparent; font-weight: 600 }
+.ask-save { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; display: grid; place-items: center; color: var(--ig-sub) }
+.ask-save svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8 }
+.ask-save[aria-pressed="true"] { color: #ed4956 }
+.ask-save[aria-pressed="true"] svg { fill: currentColor }
 
 /* 계정 */
 .account-layer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow-y: auto; padding: 24px 16px; background: rgba(0, 0, 0, .58); backdrop-filter: blur(3px) }
