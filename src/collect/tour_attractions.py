@@ -40,7 +40,8 @@ def load_api_key() -> str:
         from dotenv import load_dotenv  # requirements.txt 의 python-dotenv
 
         load_dotenv(PROJECT_ROOT / ".env")
-    except ImportError:
+    except (ImportError, PermissionError):
+        # Airflow 컨테이너(uid 50000)는 호스트 .env(600)를 못 읽는다. 키는 compose env_file 로 이미 환경변수에 있다
         pass
     key = os.environ.get("TOUR_API_KEY", "").strip()
     if not key:
