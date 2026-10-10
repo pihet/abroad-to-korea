@@ -72,7 +72,7 @@ export function FeedMy({ user, rows, saved, onAccount, onOpen, onOrigin }: {
             onClick={() => save(!taste.enabled, taste.origin)}><i /></button>
         </div>
         <div>
-          <span>기본 출발지 <small>결과에 거리 표시</small></span>
+          <span>기본 출발지 <small>{taste.origin ? `저장됨 · 사진으로 찾기 결과에 '${taste.origin}에서 ○km'` : '고르면 사진으로 찾기 결과에 거리 표시'}</small></span>
           <span className="my-chips">
             {[null, ...ORIGINS].map(o => <button key={o ?? 'none'} type="button" aria-pressed={taste.origin === o}
               onClick={() => save(taste.enabled, o)}>{o ?? '없음'}</button>)}
