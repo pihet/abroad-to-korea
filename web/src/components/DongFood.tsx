@@ -40,7 +40,6 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
           <ul>{noPhoto.map(it => <li key={it.id}><b>{it.name}</b>{it.menu ? <span> · {it.menu}</span> : null}</li>)}</ul>
         </details>
       )}
-      <p className="fine">{d.note} 사진을 누르면 추가 사진을 볼 수 있습니다.</p>
       {view && <PhotoViewer cid={view.id} name={view.name} main={view.image_url && !broken.has(view.id) ? (view.image_url.startsWith('/images/tour/') ? `${view.image_url}?full=1` : view.image_url) : null}
                             mainLicense={view.license} onClose={() => setView(null)} />}
     </div>
