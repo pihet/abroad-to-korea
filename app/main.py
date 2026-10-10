@@ -655,11 +655,23 @@ def _lines(value):
     return out.strip() or None
 
 
+# 시간이 바뀌는 지점: '[5월~8월]' 같은 머리말, '※' 안내, 시각 뒤에 오는 기간·요일 말 (하절기·주말 등)
+SEASON_WORDS = r"하절기|동절기|성수기|비수기|평일|주말|공휴일|토요일|일요일|토·일|토,\s*일|매표"
+
+
 def _bullets(text):
-    """'- 영업시간 11:40~20:00- 준비시간 14:00~17:00' 처럼 줄바꿈 없이 붙은 항목을 한 줄씩 나눈다 (원문이 '- '로 시작할 때만)."""
-    if not text or not text.lstrip().startswith("-"):
+    """줄바꿈 없이 붙은 시간 안내를 한 줄씩 나눈다.
+    '- 영업시간 11:40~20:00- 준비시간 …'(원문이 '- '로 시작할 때), '[1월~4월]09:00~18:00[5월~8월]…', '… 18:00 ※ 입장 마감',
+    '평일 09:00~18:00 주말 10:00~17:00'(시각 뒤 기간·요일 말)."""
+    if not text:
         return text
-    return _re.sub(r"(?<=\S)\s*-\s+(?=\S)", "\n- ", text.strip())
+    t = text.strip()
+    if t.startswith("-"):
+        t = _re.sub(r"(?<=\S)\s*-\s+(?=\S)", "\n- ", t)
+    t = _re.sub(r"(?<=\S)\s*(?=\[)", "\n", t)
+    t = _re.sub(r"(?<=\S)\s*(?=※)", "\n", t)
+    t = _re.sub(rf"(?<=\d)\s*(?=(?:{SEASON_WORDS}))", "\n", t)
+    return t
 
 
 def _intro(place, cid):

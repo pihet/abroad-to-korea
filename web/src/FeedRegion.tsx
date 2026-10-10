@@ -73,7 +73,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const c1 = cost?.['1night'], c0 = cost?.day
   const placeBlock = d?.photo && spot ? (
     <div className="igr-spot">
-      <p className="igr-spot-h"><span className="tag">대표 사진 장소</span> <b>{d.photo.name}</b></p>
+      <p className="igr-spot-h"><span className="tag">대표 사진 장소</span></p>{/* 이름은 사진 바로 아래에 이미 있다 */}
       <PlaceInfo d={spot} name={d.photo.name} />
     </div>
   ) : null
