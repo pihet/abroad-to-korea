@@ -134,6 +134,10 @@ class FeedbackRecord(Base):
     attraction_id: Mapped[str] = mapped_column(String(80))
     value: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # 어떤 사진으로 찾았는지 (탐색 사진 'demo:<id>', 올린 사진 'img:<sha256 앞 32자>', 자르면 ':<영역>' 덧붙임).
+    # query_id 는 금방 사라지는 임시 번호라, 같은 사진의 반응을 모으려면 이 값이 필요하다
+    photo_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    rank: Mapped[int | None] = mapped_column(Integer)  # 누를 때 화면에 보인 순위 (만족도 지표용)
 
 
 class DataSource(TimestampMixin, Base):

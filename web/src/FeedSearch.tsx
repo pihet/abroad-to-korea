@@ -18,6 +18,10 @@ type Example = { photo: DemoPhoto; top: Candidate }
 type Personal = { on: boolean; signals: number }
 const personalOf = (r: RecommendResponse | null) => (r?.model as { personal?: Personal } | undefined)?.personal
 const reasonOf = (c: Candidate) => (c.rerank as { personal_reason?: string | null }).personal_reason
+// 같은 사진에 다른 사용자들이 누른 반응 (로그인 사용자 표만, 서버 Engine.community)
+type Community = { on: boolean; places: number; votes: number }
+const communityOf = (r: RecommendResponse | null) => (r?.model as { community?: Community } | undefined)?.community
+const crowdVotesOf = (c: Candidate) => (c.rerank as { feedback?: { up: number; down: number } | null }).feedback
 let examplesCache: Promise<Example[]> | null = null  // 화면을 다시 열 때마다 다시 계산하지 않게 한 번만
 function loadExamples(demos: DemoPhoto[]): Promise<Example[]> {
   examplesCache ??= Promise.all(EXAMPLE_IDS.map(id => demos.find(d => d.photo_id === id)).filter((d): d is DemoPhoto => !!d).map(async photo => {
@@ -123,7 +127,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
   const vote = (c: Candidate, v: 1 | -1) => {
     if (!analysis) return
     setVotes({ ...votes, [c.sigungu.key]: v })
-    api.feedback({ query_id: analysis.query_id, sigungu_key: c.sigungu.key, attraction_id: c.attraction.id, value: v }).catch(() => {})
+    api.feedback({ query_id: analysis.query_id, sigungu_key: c.sigungu.key, attraction_id: c.attraction.id, value: v, rank: c.rank }).catch(() => {})
   }
 
   if (stage === 'crop' && source) return (
@@ -148,6 +152,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
         </div>
       </section>
       <p className="ig-mytags">{analysis.scene_tags.map(t => <span key={t.tag}>#{t.tag}</span>)}</p>
+      {communityOf(res)?.on && <p className="ig-personal">이 사진에 다른 사용자 반응 {communityOf(res)!.votes}개 반영 · 닮았어요가 많은 곳을 조금 올렸어요</p>}
       {personalOf(res)?.on && <p className="ig-personal">내 취향 반영 중 · 좋아요·저장 {personalOf(res)!.signals}개를 바탕으로 순서를 조금 바꿨어요</p>}
       {err && <p className="ig-err" role="alert">{err}</p>}
       {!res && <p className="ig-wait">닮은 곳을 찾는 중…</p>}
@@ -218,6 +223,7 @@ function ResultPost({ c, avatar, origin, saved, voted, onSave, onOpen, onVote }:
         <button type="button" className="txt" aria-pressed={voted === -1} onClick={() => onVote(-1)}>별로예요</button>
       </div>
       {reasonOf(c) && <p className="post-personal">내 취향 반영 ↑ · {reasonOf(c)}</p>}
+      {crowdVotesOf(c) && <p className="post-crowd">이 사진으로 찾은 사람들 · 닮았어요 {crowdVotesOf(c)!.up} · 별로예요 {crowdVotesOf(c)!.down}</p>}
       {c.similar_tags.length > 0 && <p className="post-cap tags">{c.similar_tags.map(t => <span key={t}>#{t}</span>)}</p>}
     </li>
   )

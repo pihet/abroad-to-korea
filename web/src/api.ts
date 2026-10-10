@@ -138,7 +138,7 @@ export const api = {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, limit }),
     }).then(r => json<NaturalRecommendResponse>(r)),
 
-  feedback: (body: { query_id: string; sigungu_key: string; attraction_id: string; value: 1 | -1 }) =>
+  feedback: (body: { query_id: string; sigungu_key: string; attraction_id: string; value: 1 | -1; rank?: number }) =>
     fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => json<{ ok: boolean }>(r)),
 }

@@ -5,6 +5,7 @@
     → http://localhost:8000  (web/dist 가 있으면 화면, 없으면 /docs 에서 API 확인)
 """
 
+import hashlib
 import io
 import json
 import sys
@@ -32,7 +33,7 @@ from .cost import Cost
 from .catalog import Catalog, LICENSES, clean_html
 from .travel_time import TravelError, TravelTime
 from .search import Search
-from .recommender import PERSONAL_MIN, PERSONAL_WEIGHT, PRIORITIES, Engine, cp, sc
+from .recommender import FEEDBACK_WEIGHT, PERSONAL_MIN, PERSONAL_WEIGHT, PRIORITIES, Engine, cp, sc
 from .schemas import (ActivitiesResponse, AnalyzeResponse, Crop, Feedback, NaturalRecommendRequest,
                       NaturalRecommendResponse, RecommendRequest, RecommendResponse)
 from .llm import TripPlanner, set_places
@@ -137,7 +138,11 @@ async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optio
         exclude = engine.region_of(source_attraction_id)
         if exclude is None:
             raise HTTPException(404, "출발 관광지를 찾을 수 없습니다.")
-    qid, tags = engine.analyze(img, exclude)
+    # 같은 사진을 알아보는 값: 사진별로 다른 사용자 반응을 모은다 (Engine.community)
+    photo_key = f"demo:{demo_photo_id}" if image is None else f"img:{hashlib.sha256(data).hexdigest()[:32]}"
+    if c:
+        photo_key += ":" + hashlib.sha256(json.dumps(c, sort_keys=True).encode()).hexdigest()[:8]
+    qid, tags = engine.analyze(img, exclude, photo_key[:64])
     # 올린 사진은 사용자가 '계속 보관'에 동의했을 때만 저장한다 (로그인 필요). 동의하지 않으면 분석만 하고 버린다
     if image is not None and store_photo and retain_photo:
         media_asset_id = await persist_upload(data, image.content_type or "application/octet-stream", retain_photo, raw_session)
@@ -192,6 +197,24 @@ def _taste_of(s):
     return engine.taste(s["likes"], s["dislikes"], s["saved"]) if s and s["personal"] else None
 
 
+async def _photo_votes(photo_key):
+    """같은 사진에 로그인 사용자들이 누른 반응 {관광지 contentid: (닮았어요, 별로예요)}.
+    한 사람은 관광지마다 마지막 표 하나만 센다. 비로그인 표는 검색마다 새 번호라 한 사람이 여러 번 셀 수 있어 뺀다."""
+    factory = session_factory()
+    if factory is None or not photo_key:
+        return None
+    async with factory() as db:
+        rows = (await db.execute(select(FeedbackRecord.user_id, FeedbackRecord.attraction_id, FeedbackRecord.value)
+                                 .where(FeedbackRecord.photo_key == photo_key, FeedbackRecord.user_id.is_not(None))
+                                 .order_by(FeedbackRecord.created_at))).all()
+    last = {(u, a): v for u, a, v in rows}
+    tally = {}
+    for (_, a), v in last.items():
+        up, down = tally.get(a, (0, 0))
+        tally[a] = (up + (v == 1), down + (v == -1))
+    return tally
+
+
 async def _user_taste(raw_session):
     """로그인 사용자의 좋아요·별로예요·하트로 만든 취향. 비로그인·DB 없음·꺼짐·신호 부족이면 None."""
     return _taste_of(await _user_signals(raw_session))
@@ -226,8 +249,9 @@ async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(N
     if allowed is not None and exclude is not None:  # 필터 개수도 출발 시군구를 뺀 수로 보여 준다
         allowed = allowed - {exclude}
     taste = await _user_taste(raw_session)
+    votes = await _photo_votes(engine.cache[req.query_id].get("photo_key"))
     r = await run_in_threadpool(engine.recommend, req.query_id, req.travel_month, req.priority, req.origin, req.kept_tags,
-                                req.limit, req.offset, allowed, taste)
+                                req.limit, req.offset, allowed, taste, votes)
     q = engine.cache[req.query_id]
     return {
         "query": {"query_id": req.query_id, "scene_tags": [t["tag"] for t in q["tags"]], "kept_tags": req.kept_tags,
@@ -238,6 +262,8 @@ async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(N
                   "rerank": "30곳 안에서만 재정렬 · 시각 가중치 0.5 이상 · 단일 종합점수 없음",
                   "personal": {"on": taste is not None, "signals": taste["signals"] if taste else 0,
                                "min_signals": PERSONAL_MIN, "weight": PERSONAL_WEIGHT},
+                  "community": {"on": bool(votes), "places": len(votes or {}),
+                                "votes": sum(u + d for u, d in (votes or {}).values()), "weight": FEEDBACK_WEIGHT},
                   "priorities": list(PRIORITIES)},
         "total_candidates": r["total"], "candidates": r["candidates"], "data_sources": DATA_SOURCES,
     }
@@ -271,6 +297,10 @@ async def natural_recommend(req: NaturalRecommendRequest,
 
 @app.post("/api/feedback")
 async def feedback(fb: Feedback, raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    try:
+        photo_key = engine.cache[fb.query_id].get("photo_key")
+    except KeyError:  # 분석 결과가 만료돼도 반응은 받는다 (사진별 모음에만 빠진다)
+        photo_key = None
     factory = session_factory()
     if factory is not None:
         async with factory() as db:
@@ -287,15 +317,34 @@ async def feedback(fb: Feedback, raw_session: Optional[str] = Cookie(None, alias
             query = query.where(FeedbackRecord.user_id == user_id) if user_id else query.where(FeedbackRecord.user_id.is_(None))
             record = await db.scalar(query)
             if record:
-                record.value = fb.value
+                record.value, record.rank = fb.value, fb.rank or record.rank
             else:
-                db.add(FeedbackRecord(user_id=user_id, **fb.model_dump()))
+                db.add(FeedbackRecord(user_id=user_id, photo_key=photo_key, **fb.model_dump()))
             await db.commit()
         return {"ok": True}
     APP_DATA.mkdir(parents=True, exist_ok=True)
     with FEEDBACK.open("a", encoding="utf-8") as f:
-        f.write(json.dumps({**fb.model_dump(), "ts": time.time()}, ensure_ascii=False) + "\n")
+        f.write(json.dumps({**fb.model_dump(), "photo_key": photo_key, "ts": time.time()}, ensure_ascii=False) + "\n")
     return {"ok": True}
+
+
+RANK_BUCKETS = ((1, 5), (6, 10), (11, 20), (21, 30))
+
+
+@app.get("/api/feedback/stats")
+async def feedback_stats(db: AsyncSession = Depends(get_db)):
+    """만족도 지표: 순위 구간별 '닮았어요' 비율. 모델이 위에 놓은 곳일수록 닮았어요가 많아야 한다.
+    비로그인 표도 센다 (지표용, 순위 조정에는 로그인 표만 쓴다). 순위는 누를 때 보인 순위 (2026-10-11 부터 기록)."""
+    rows = (await db.execute(select(FeedbackRecord.value, FeedbackRecord.rank, FeedbackRecord.photo_key))).all()
+
+    def rate(vals):
+        return {"n": len(vals), "similar_rate": round(sum(v == 1 for v in vals) / len(vals), 3) if vals else None}
+    ranked = [(v, r) for v, r, _ in rows if r is not None]
+    return {"total": rate([v for v, _, _ in rows]),
+            "by_rank": [{"ranks": f"{lo}~{hi}", **rate([v for v, r in ranked if lo <= r <= hi])} for lo, hi in RANK_BUCKETS],
+            "by_source": {"explore_photo": rate([v for v, _, k in rows if k and k.startswith("demo:")]),
+                          "uploaded_photo": rate([v for v, _, k in rows if k and k.startswith("img:")])},
+            "note": "similar_rate = 닮았어요 / (닮았어요+별로예요). 표가 적으면(구간당 30개 미만) 흔들림이 크다"}
 
 
 @app.get("/images/kr/{cid}")

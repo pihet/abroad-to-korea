@@ -32,6 +32,8 @@ VISUAL_WEIGHT = 0.5
 # 개인 맞춤 (docs/PERSONALIZATION_AND_DB_PLAN.md 5장): 로그인 사용자의 좋아요·별로예요·하트가 이만큼 모이면 켠다
 PERSONAL_MIN = 3
 PERSONAL_WEIGHT = 0.2  # 0.3을 넘기지 않는다 (사진 닮음이 주 신호)
+FEEDBACK_WEIGHT = 0.25  # 사진별 다른 사용자 반응 (community)
+FEEDBACK_PRIOR = 2  # 표가 적을 때 덜 움직이게 (닮았어요 1개면 0.33, 5개면 0.71)
 PRIORITIES = ("visual", "crowd", "near", "season")
 # 관광공사 분류 'NA02 자연경관(하천·해양)'에는 강·호수·저수지도 들어 있어 소분류로 바다와 물가를 나눈다
 SEA_CODES = {"NA020500", "NA020600", "NA020700", "NA020800", "NA020900"}  # 섬·염전·항구·해안절경·해변
@@ -132,12 +134,14 @@ class Engine:
         ix = np.where((self.cid == str(cid)) & self.ok)[0]
         return int(self.I["img_region"][ix[0]]) if len(ix) else None
 
-    def analyze(self, img, exclude_ri=None):
-        """exclude_ri: 국내 사진으로 다시 찾을 때 그 사진의 시군구. 자기 자신이 1위로 나오지 않게 후보에서 뺀다."""
+    def analyze(self, img, exclude_ri=None, photo_key=None):
+        """exclude_ri: 국내 사진으로 다시 찾을 때 그 사진의 시군구. 자기 자신이 1위로 나오지 않게 후보에서 뺀다.
+        photo_key: 같은 사진을 알아보는 값 (사진별 반응을 모으는 데 쓴다, main.analyze)."""
         v = self.embed(img)
         qid = uuid.uuid4().hex[:12]
         allowed = None if exclude_ri is None else set(range(len(self.I["regions"]))) - {exclude_ri}
-        self.cache[qid] = {"vec": v, "tags": self.tagger.top(v), "stage_a": self.stage_a(v, allowed), "exclude": exclude_ri}
+        self.cache[qid] = {"vec": v, "tags": self.tagger.top(v), "stage_a": self.stage_a(v, allowed), "exclude": exclude_ri,
+                           "photo_key": photo_key}
         while len(self.cache) > CACHE_SIZE:
             self.cache.popitem(last=False)
         return qid, self.cache[qid]["tags"]
@@ -261,6 +265,19 @@ class Engine:
             out.append({**ranked[i], "personal_component": round(float(pref[i]), 3), "personal_reason": reason})
         return out
 
+    def community(self, ranked, votes):
+        """같은 사진에 다른 사용자들이 누른 닮았어요·별로예요로 후보 안 순서를 조금 바꾼다 (모델 재학습 없음).
+        votes: {관광지 contentid: (닮았어요 수, 별로예요 수)}. 점수 = 지금 순위 백분위 + w·(닮았어요−별로예요)/(전체+PRIOR).
+        표가 적으면 PRIOR 때문에 거의 안 움직이고, 한 후보는 최대 w·(n−1) 계단(30곳이면 약 7계단)까지만 움직인다."""
+        n = len(ranked)
+        if not votes or n < 2:
+            return [{**c, "feedback": None} for c in ranked]
+        tally = [votes.get(self.cid[c["img_index"]], (0, 0)) for c in ranked]
+        net = [(up - down) / (up + down + FEEDBACK_PRIOR) for up, down in tally]
+        order = sorted(range(n), key=lambda i: (-((1 - i / (n - 1)) + FEEDBACK_WEIGHT * net[i]), i))
+        return [{**ranked[i], "feedback": {"up": tally[i][0], "down": tally[i][1], "component": round(net[i], 3)}
+                 if sum(tally[i]) else None} for i in order]
+
     def similar_regions(self, taste, exclude=(), k=10):
         """홈 '저장한 곳과 닮은 곳': 시군구 대표 사진(홈 피드에 보이는 사진)이 취향 벡터와 가장 닮은 순.
         exclude(이미 저장한 시군구)는 뺀다. [(시군구 key, 이유 문장)]"""
@@ -285,12 +302,12 @@ class Engine:
         return out
 
     # ---------------- 응답 조립
-    def recommend(self, qid, month, priority, origin, kept_tags, limit, offset, allowed=None, taste=None):
+    def recommend(self, qid, month, priority, origin, kept_tags, limit, offset, allowed=None, taste=None, votes=None):
         q = self.cache[qid]
         cands = q["stage_a"] if allowed is None else self.stage_a(q["vec"], allowed)
         if not cands:
             return {"total": 0, "candidates": []}
-        ranked = self.personalize(self.stage_b(cands, month, priority, origin), taste)
+        ranked = self.personalize(self.community(self.stage_b(cands, month, priority, origin), votes), taste)
         out = []
         for rank, c in enumerate(ranked[offset:offset + limit], offset + 1):
             sido, sgg = self.region_keys[c["ri"]].split("_", 1)
@@ -313,7 +330,8 @@ class Engine:
                 "map_links": _map_links(it["title"], lat, lon),
                 "rerank": {"visual_component": c["visual_component"], "condition_component": c["condition_component"],
                            "condition_value": c["condition_value"],
-                           "personal_component": c["personal_component"], "personal_reason": c["personal_reason"]},
+                           "personal_component": c["personal_component"], "personal_reason": c["personal_reason"],
+                           "feedback": c["feedback"]},
             })
         return {"total": len(ranked), "candidates": out}
 

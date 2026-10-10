@@ -119,6 +119,7 @@ class Feedback(BaseModel):
     sigungu_key: str
     attraction_id: str
     value: Literal[1, -1]
+    rank: Optional[int] = Field(None, ge=1, le=100)  # 누를 때 보인 순위
 
 
 class ActivityGroup(BaseModel):

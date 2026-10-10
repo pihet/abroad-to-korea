@@ -583,3 +583,36 @@ def test_intent_rules_cases(client):
         got["filters"] = sorted(set(got["filters"]))
         assert {k: got[k] for k in ("origin", "month", "sido", "filters", "priority")} == \
             {k: c[k] for k in ("origin", "month", "sido", "filters", "priority")}, c["q"]
+
+
+def test_community_feedback(client, monkeypatch):
+    # 같은 사진에 다른 사용자들이 누른 반응으로 후보 안 순서만 조금 바꾼다 (모델 재학습 없음)
+    monkeypatch.setattr(main, "session_factory", lambda: None)
+    qid = client.post("/api/analyze", data={"demo_photo_id": DEMO}).json()["query_id"]
+    assert main.engine.cache[qid]["photo_key"] == f"demo:{DEMO}"
+    base = rec(client, qid, limit=30)
+    assert base["model"]["community"]["on"] is False
+    # 반응 저장에 사진 키와 순위가 함께 남는다 (DB 없으면 파일)
+    tail, head = base["candidates"][-1], base["candidates"][0]
+    client.post("/api/feedback", json={"query_id": qid, "sigungu_key": tail["sigungu"]["key"],
+                                       "attraction_id": tail["attraction"]["id"], "value": 1, "rank": 30})
+    last = json.loads(main.FEEDBACK.read_text().splitlines()[-1])
+    assert last["photo_key"] == f"demo:{DEMO}" and last["rank"] == 30
+
+    votes = {tail["attraction"]["id"]: (10, 0), head["attraction"]["id"]: (0, 10)}
+    async def fake_votes(key):
+        return votes if key == f"demo:{DEMO}" else None
+    monkeypatch.setattr(main, "_photo_votes", fake_votes)
+    got = rec(client, qid, limit=30)
+    assert got["model"]["community"] == {"on": True, "places": 2, "votes": 20, "weight": main.FEEDBACK_WEIGHT}
+    new = {c["attraction"]["id"]: c["rank"] for c in got["candidates"]}
+    assert new[tail["attraction"]["id"]] < 30 and new[head["attraction"]["id"]] > 1
+    old = {c["attraction"]["id"]: c["rank"] for c in base["candidates"]}
+    assert all(abs(new[a] - old[a]) <= 8 for a in old)  # 한 후보는 최대 약 7계단
+    assert sorted(new) == sorted(old)  # 같은 후보 안에서만
+    fb = next(c for c in got["candidates"] if c["attraction"]["id"] == tail["attraction"]["id"])["rerank"]["feedback"]
+    assert fb["up"] == 10 and fb["down"] == 0
+    # 표가 1개면 거의 안 움직인다 (PRIOR)
+    votes.clear(); votes[tail["attraction"]["id"]] = (1, 0)
+    one = {c["attraction"]["id"]: c["rank"] for c in rec(client, qid, limit=30)["candidates"]}
+    assert 30 - one[tail["attraction"]["id"]] <= 3
