@@ -572,3 +572,14 @@ def test_avatar_jpeg():
     assert out.format == "JPEG" and out.size == (256, 256)
     with pytest.raises(ValueError):
         _avatar_jpeg(b"not an image")
+
+
+def test_intent_rules_cases(client):
+    # AI 여행 질문 해석 규칙이 평가 문장 60개(tests/data/intent_cases.json)를 모두 맞히는지. 서버가 켜질 때 시군구 이름표가 채워진다
+    from app.llm import TripPlanner
+    cases = json.loads((ROOT / "tests/data/intent_cases.json").read_text(encoding="utf-8"))
+    for c in cases["dev"] + cases["holdout"]:
+        got = TripPlanner._explicit_facts(c["q"])
+        got["filters"] = sorted(set(got["filters"]))
+        assert {k: got[k] for k in ("origin", "month", "sido", "filters", "priority")} == \
+            {k: c[k] for k in ("origin", "month", "sido", "filters", "priority")}, c["q"]

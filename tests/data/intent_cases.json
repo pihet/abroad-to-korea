@@ -1,0 +1,614 @@
+{
+ "_note": "AI 여행 질문 해석 평가 문장 (2026-10-11 작성, 규칙을 고치기 전에 정답을 먼저 적음). dev 는 규칙을 고칠 때 보고, holdout 은 고친 뒤 확인에만 쓴다. 정답 기준: origin=출발지(5개 도시 이름 또는 시군구 key), month=명시한 달(계절은 봄 4·여름 7·가을 10·겨울 1), sido=목적지를 시도로 제한한 경우 데이터의 시도 이름, filters=sea 바다·mountain 산숲·calm 한적·city 도시·rural 시골·mild 날씨(달이 있을 때), priority=near(출발지+가까운·근처·근교·멀지 않은)·crowd(사람 적은·덜 붐비는)·season(달+날씨 강조)·그 밖 visual",
+ "dev": [
+  {
+   "q": "대전에서 가까운 조용한 바닷가 마을에 가고 싶어",
+   "origin": "대전",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "calm",
+    "rural",
+    "sea"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "수원에서 가까운 조용한 바다",
+   "origin": "41_수원시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "calm",
+    "sea"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "산책하기 좋은 도시 야경 명소",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "city"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "섬세한 분위기의 한옥마을",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "바다 말고 산으로 가고 싶어",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "가을에 단풍 보러 가고 싶어",
+   "origin": null,
+   "month": 10,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "시원한 계곡에서 물놀이",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "부산 출발 섬 여행",
+   "origin": "부산",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "7월에 강원도 바다 여행",
+   "origin": null,
+   "month": 7,
+   "sido": "강원특별자치도",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "제주도 한적한 해변",
+   "origin": null,
+   "month": null,
+   "sido": "제주특별자치도",
+   "filters": [
+    "calm",
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "전남 섬 여행 추천해줘",
+   "origin": null,
+   "month": null,
+   "sido": "전남광주통합특별시",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "광주에서 출발해서 갈 만한 산",
+   "origin": "광주",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "서울 근교 시골 마을",
+   "origin": "서울",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "경주처럼 오래된 유적지",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [],
+   "priority": "visual"
+  },
+  {
+   "q": "12월에 따뜻한 남쪽 바다",
+   "origin": null,
+   "month": 12,
+   "sido": null,
+   "filters": [
+    "mild",
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "사람 적은 숲길 걷고 싶어",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "calm",
+    "mountain"
+   ],
+   "priority": "crowd"
+  },
+  {
+   "q": "덜 붐비는 바다 어디 없을까",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "calm",
+    "sea"
+   ],
+   "priority": "crowd"
+  },
+  {
+   "q": "대구에서 가까운 계곡",
+   "origin": "대구",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "청주에서 멀지 않은 호수",
+   "origin": "43_청주시",
+   "month": null,
+   "sido": null,
+   "filters": [],
+   "priority": "near"
+  },
+  {
+   "q": "벚꽃 피는 4월 경남 여행",
+   "origin": null,
+   "month": 4,
+   "sido": "경상남도",
+   "filters": [],
+   "priority": "visual"
+  },
+  {
+   "q": "유럽 같은 도시 분위기",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "city"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "산호초 같은 맑은 바다",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "산토리니 같은 하얀 마을과 바다",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural",
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "8월 쾌적한 날씨의 산",
+   "origin": null,
+   "month": 8,
+   "sido": null,
+   "filters": [
+    "mild",
+    "mountain"
+   ],
+   "priority": "season"
+  },
+  {
+   "q": "춘천에서 가까운 호수 마을",
+   "origin": "51_춘천시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "충북 산속 조용한 절",
+   "origin": null,
+   "month": null,
+   "sido": "충청북도",
+   "filters": [
+    "calm",
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "인천 섬 여행",
+   "origin": null,
+   "month": null,
+   "sido": "인천광역시",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "도시 말고 시골로",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "겨울 바다 보러 강릉",
+   "origin": null,
+   "month": 1,
+   "sido": null,
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "여름에 시원한 곳",
+   "origin": null,
+   "month": 7,
+   "sido": null,
+   "filters": [
+    "mild"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "고양에서 출발, 가까운 바다",
+   "origin": "41_고양시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "sea"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "번화가 쇼핑하기 좋은 곳",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "city"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "산 정상에서 일출",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "한산한 10월 단풍 명소",
+   "origin": null,
+   "month": 10,
+   "sido": null,
+   "filters": [
+    "calm",
+    "mountain"
+   ],
+   "priority": "crowd"
+  },
+  {
+   "q": "경북 바닷가 마을",
+   "origin": null,
+   "month": null,
+   "sido": "경상북도",
+   "filters": [
+    "rural",
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "서울 야경",
+   "origin": null,
+   "month": null,
+   "sido": "서울특별시",
+   "filters": [
+    "city"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "대전 근처 가볼 만한 곳",
+   "origin": "대전",
+   "month": null,
+   "sido": null,
+   "filters": [],
+   "priority": "near"
+  },
+  {
+   "q": "강원도 말고 경기도 숲",
+   "origin": null,
+   "month": null,
+   "sido": "경기도",
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "섬진강 따라 걷는 시골길",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "부산에서 3월에 갈 만한 꽃 여행",
+   "origin": "부산",
+   "month": 3,
+   "sido": null,
+   "filters": [],
+   "priority": "visual"
+  }
+ ],
+ "holdout": [
+  {
+   "q": "성남에서 가까운 조용한 숲",
+   "origin": "41_성남시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "calm",
+    "mountain"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "9월 제주 해변",
+   "origin": null,
+   "month": 9,
+   "sido": "제주특별자치도",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "산들바람 부는 해안 마을",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural",
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "봄에 경남 섬 여행",
+   "origin": null,
+   "month": 4,
+   "sido": "경상남도",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "도심 속 공원 산책",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "city"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "포항에서 출발 가까운 계곡",
+   "origin": "47_포항시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "덜 북적이는 전북 시골",
+   "origin": null,
+   "month": null,
+   "sido": "전북특별자치도",
+   "filters": [
+    "calm",
+    "rural"
+   ],
+   "priority": "crowd"
+  },
+  {
+   "q": "11월에 날씨 좋은 바다",
+   "origin": null,
+   "month": 11,
+   "sido": null,
+   "filters": [
+    "mild",
+    "sea"
+   ],
+   "priority": "season"
+  },
+  {
+   "q": "광주 근교 숲",
+   "origin": "광주",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "충남 해변 캠핑",
+   "origin": null,
+   "month": null,
+   "sido": "충청남도",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "바다는 싫고 숲이 좋아",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "서울에서 가까운 섬",
+   "origin": "서울",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "sea"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "전주에서 가까운 한옥 마을",
+   "origin": "52_전주시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "여름 휴가로 강원도 계곡",
+   "origin": null,
+   "month": 7,
+   "sido": "강원특별자치도",
+   "filters": [
+    "mountain"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "창원에서 가까운 바다",
+   "origin": "48_창원시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "sea"
+   ],
+   "priority": "near"
+  },
+  {
+   "q": "사람 없는 조용한 해변",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "calm",
+    "sea"
+   ],
+   "priority": "crowd"
+  },
+  {
+   "q": "고층 빌딩 많은 도시",
+   "origin": null,
+   "month": null,
+   "sido": null,
+   "filters": [
+    "city"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "울산 바다",
+   "origin": null,
+   "month": null,
+   "sido": "울산광역시",
+   "filters": [
+    "sea"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "1월 따뜻한 곳",
+   "origin": null,
+   "month": 1,
+   "sido": null,
+   "filters": [
+    "mild"
+   ],
+   "priority": "visual"
+  },
+  {
+   "q": "천안에서 갈 만한 시골 마을",
+   "origin": "44_천안시",
+   "month": null,
+   "sido": null,
+   "filters": [
+    "rural"
+   ],
+   "priority": "visual"
+  }
+ ]
+}

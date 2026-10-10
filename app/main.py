@@ -35,7 +35,7 @@ from .search import Search
 from .recommender import PERSONAL_MIN, PERSONAL_WEIGHT, PRIORITIES, Engine, cp, sc
 from .schemas import (ActivitiesResponse, AnalyzeResponse, Crop, Feedback, NaturalRecommendRequest,
                       NaturalRecommendResponse, RecommendRequest, RecommendResponse)
-from .llm import TripPlanner
+from .llm import TripPlanner, set_places
 from .auth import me_router, router as auth_router
 from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
@@ -77,6 +77,7 @@ async def lifespan(_app):
         raise RuntimeError("PostgreSQL 관광 콘텐츠가 비어 있습니다. publish_tour.py 백필을 먼저 실행하세요.")
     engine = Engine(recommendation_records)
     regions = Regions(engine, acts)
+    set_places(engine.region_keys)  # AI 여행 질문에서 '수원에서' 같은 시군구 출발지를 알아듣게
     hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
     rain = Rain(engine.ctx.centers)
     cost = Cost()
