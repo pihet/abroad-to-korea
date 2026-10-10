@@ -44,7 +44,7 @@ def load_api_key() -> str:
         pass
     key = os.environ.get("TOUR_API_KEY", "").strip()
     if not key:
-        sys.exit("TOUR_API_KEY 가 없습니다. .env.example 을 복사해 .env 를 만들고 값을 채우세요.")
+        sys.exit("TOUR_API_KEY 가 없습니다. 저장소 루트의 .env에 값을 채우세요.")
     return key
 
 

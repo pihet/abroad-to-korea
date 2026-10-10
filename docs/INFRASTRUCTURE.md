@@ -13,7 +13,7 @@
 - `airflow-api-server`, `airflow-dag-processor`, `airflow-scheduler`: DAG 파싱·등록과 LocalExecutor 기반 배치 운영
 - `mlflow`: CLIP·혼잡도 실험의 parameter, metric, artifact와 Git commit 추적
 
-PostgreSQL이 회원·저장 지역·수집 데이터의 원본이다. Redis 값은 삭제되어도 다시 로그인하거나 재계산할 수 있어야 한다. MinIO 데이터는 DB의 객체 키와 함께 백업해야 한다.
+PostgreSQL은 회원·저장 지역·피드백의 원본이며 수집 데이터의 게시 대상이다. 현재 추천·지역 상세 API는 `data/` 파일을 읽으므로 관광 콘텐츠 조회를 PostgreSQL로 전환하는 작업은 남아 있다. Redis 값은 삭제되어도 다시 로그인하거나 재계산할 수 있어야 한다. MinIO 데이터는 DB의 객체 키와 함께 백업해야 한다.
 
 회원 이메일은 대소문자를 무시하고 하나만 허용한다. 검증된 OAuth 이메일이 기존 검증 계정과 같으면 로그인 수단을 같은 회원에 연결한다. 이메일 인증 없이 가입한 계정은 계정 선점을 막기 위해 먼저 비밀번호로 로그인한 뒤 Google·Kakao를 명시적으로 연결해야 한다.
 
@@ -33,13 +33,7 @@ PostgreSQL이 회원·저장 지역·수집 데이터의 원본이다. Redis 값
 
 ## 첫 실행
 
-새 환경에서만 예제 파일을 복사한다. 기존 `.env`에 TourAPI 키가 있다면 덮어쓰지 않는다.
-
-```bash
-cp .env.example .env
-```
-
-`.env`에서 최소한 아래 값을 서로 다른 긴 비밀번호로 변경한다.
+로컬 설정은 Git에서 제외된 루트 `.env` 하나로 관리한다. 새 환경에서는 직접 만들고 최소한 아래 값을 서로 다른 긴 비밀번호로 설정한다.
 
 ```dotenv
 POSTGRES_PASSWORD=change-me

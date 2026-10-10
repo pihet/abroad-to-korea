@@ -1,211 +1,265 @@
-# abroad-to-korea · 닮은꼴 국내 여행지
+# abroad-to-korea · 사진으로 찾는 국내 여행지
 
-해외 여행지 사진을 올리면 분위기가 닮은 국내 시군구와 관광지를 찾아 주고, 고른 지역의 혼잡도·비 예보·동네별 할 거리와 먹거리를 보여 주는 웹서비스다.
+해외 여행 사진을 올리면 분위기가 닮은 국내 시군구와 관광지를 추천하고, 혼잡도·날씨·예상 경비·동네별 할 거리와 공식 여행코스까지 이어서 보여 주는 웹서비스다.
 
-교육 과정 팀 프로젝트(2026-10-01 ~ 2026-10-16)의 결과물이다. 진행 기록과 평가 수치는 [`docs/HANDOFF.md`](docs/HANDOFF.md), 인프라 운영 방법은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 있다.
+교육 과정 팀 프로젝트이며, 이 문서는 **2026-10-10 현재 코드와 로컬 Docker 환경**을 기준으로 작성했다. 상세 진행 기록과 평가 근거는 [`docs/HANDOFF.md`](docs/HANDOFF.md), 운영 방법은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 있다.
 
-## 지금 되는 것 (2026-10-08 기준)
+## 현재 상태
 
-메인 화면은 인스타그램형이다: 아래 탭 **홈**(분류 스토리 · 순위 줄 · 시군구 피드) · **탐색**(230곳 사진 격자) · **사진으로 찾기** · **저장**. 지역 바로가기는 `#region=51_양양군`.
+- React 화면과 FastAPI API, 이메일·Google·Kakao 로그인, PostgreSQL·Redis·MinIO가 연결되어 있다.
+- Airflow 3의 API server, DAG processor, scheduler가 분리되어 4개 DAG를 등록·실행한다.
+- MLflow는 PostgreSQL backend와 MinIO artifact 저장소를 사용한다.
+- 회원·인증·저장 지역·피드백·사진 메타데이터는 PostgreSQL에 저장한다.
+- 추천과 지역 상세 콘텐츠는 현재 `data/` 파일을 서버 시작 시 메모리에 올려 제공한다.
+- 수집 데이터를 PostgreSQL로 게시하는 파이프라인과 스키마는 구현됐지만, API의 관광 콘텐츠 조회는 아직 DB로 전환하지 않았다.
 
-| 화면 | 기능 |
+## 주요 기능
+
+| 영역 | 구현 내용 |
 |---|---|
-| 시작 | 예시 한 쌍(교토 후시미 ↔ 종로구 창경궁 홍화문)으로 서비스 설명, 사진 올리기(아이폰 HEIC 포함)·해외 예시 사진, 사진 없이 둘러보기 |
-| 조건 | 바다 가까운 곳 · 산·숲이 많은 곳 · 도시 / 시골·소도시 · 시도. 칩마다 기준과 남는 시군구 수 표시 |
-| 순위 목록 | 산·숲이 많은 곳, 할 거리가 많은 시골·소도시, 앞으로 축제가 많이 열리는 곳 (목록마다 거르는 조건 하나 + 정렬 기준 하나, 종합점수 없음) |
-| 사진 검색 | 관심 영역 자르기 → 장면 태그 → 우선순위(사진과 최대한 비슷하게 / 출발지에서 가까운 곳) → 닮은 시군구 최대 30곳 |
-| 결과 | 원본·후보 사진 나란히, 전국 지도 번호 핀, 비슷한 점·다른 점, 2~3곳 비교표, 저장(브라우저), 좋아요·별로예요, 이 사진으로 다시 찾기 |
-| 지역 상세 | **혼잡도 한 줄 요약**(이번 달 예측 + 가장 한산했던 달 실측), **여행 날짜에 비가 올까**(16일 안은 일기예보, 그 밖은 과거 5년 같은 날짜 기록) |
-| 동네와 먹거리 | 읍·면·동 경계 지도에 활동지가 많은 동네 Top 5. 동네를 누르면 확대되며 활동지가 점으로 나오고(누르면 사진·설명), 아래에 음식점·대표메뉴, 사진을 누르면 추가 사진 |
-| 할 만한 것 | 물·바다, 산·숲, 레저, 캠핑, 체험, 먹거리, 축제를 지도와 목록으로 |
-| 코스 | 한국관광공사 공식 여행코스(시군구 212곳): 들르는 순서대로 지도 번호 핀·점선, 사진·설명·소요시간 |
+| 탐색 | 230개 시군구 사진 피드, 이름·초성 검색, 조건 칩, 월별 순위와 축제 목록 |
+| 사진 추천 | JPG·PNG·WEBP·HEIC, 관심 영역 자르기, CLIP 장면 태그, 닮은 시군구 최대 30곳 |
+| 재정렬 | 사진 유사도 우선, 출발지 거리, 혼잡도·계절 조건과 로그인 사용자 취향으로 후보 30곳 안에서 재정렬 |
+| 지역 상세 | 월별 방문자·혼잡도, 16일 비 예보와 과거 기록, 읍·면·동 지도, 관광지·레포츠·음식점·축제 |
+| 여행 계획 | 1인 당일·1박 예상 경비, 한국관광공사 공식 코스, 자동차·단거리 도보 이동 시간 |
+| 회원 | 이메일 가입·로그인, Google·Kakao OAuth, 비밀번호 재설정, 저장 지역, 회원 탈퇴 |
+| 사진·피드백 | 보관에 동의한 로그인 사용자 사진만 MinIO에 저장, 좋아요·싫어요는 PostgreSQL에 저장 |
 
-즉시 활성화되는 이메일 회원가입·일반 로그인과 Google·Kakao OAuth, 서버 저장 지역, 사용자 사진 보관 동의·삭제 API가 구현되어 있다. 검증된 OAuth 계정은 같은 이메일의 기존 검증 계정에 연결하며, 미인증 이메일 계정은 로그인 후 소셜 계정을 직접 연결한다. 비밀번호 재설정 메일은 Resend로 발송하며, OAuth 운영 키는 별도로 관리한다.
+이메일 가입은 인증 메일 없이 즉시 활성화된다. 같은 이메일의 **검증된 OAuth 계정끼리만** 자동 통합하며, 이메일 가입 계정은 로그인 후 Google·Kakao를 직접 연결해야 계정 선점 위험을 막을 수 있다.
 
-빠진 것: 개인화 추천, 예약·결제, 여행 총비용, 이동 시간 기반 일정.
-
-## 현재 아키텍처
+## 아키텍처
 
 ```mermaid
 flowchart TB
-  U["브라우저<br/>React + TypeScript + Leaflet"]
-  DBA["DBeaver<br/>127.0.0.1:5434"]
+  USER["브라우저<br/>React · TypeScript · Leaflet"]
+  EXT["외부 API<br/>TourAPI · DataLab · Open-Meteo<br/>Kakao · Google · Resend"]
+  FILES[("호스트 data/<br/>추천 인덱스 · 관광 콘텐츠 · 경계 · 예측 결과")]
 
-  subgraph DC["Docker Compose"]
-    API["FastAPI :8000<br/>추천 · 지역 상세 · 회원 · 사진 API"]
-    MIG["Alembic migration<br/>기동 시 스키마 적용"]
-    PG[("PostgreSQL + pgvector<br/>app · Airflow · MLflow DB<br/>container :5432")]
-    REDIS[("Redis :6379<br/>세션 · OAuth state · rate limit · 검색 캐시")]
-    MINIO[("MinIO<br/>S3 API :9000 · Console :9001<br/>사용자 사진 · Bronze 원본 · 관광 사진")]
-    AFUI["Airflow API server :8080"]
-    AFDP["Airflow DAG processor<br/>DAG 파싱 · 등록"]
+  subgraph COMPOSE["Docker Compose"]
+    API["FastAPI :8000<br/>추천 · 지역 · 회원 · 사진 API"]
+    PG[("PostgreSQL + pgvector<br/>app · airflow · mlflow DB")]
+    REDIS[("Redis<br/>검색 결과 · 세션 · OAuth state · rate limit")]
+    MINIO[("MinIO<br/>사용자 사진 · Bronze 원본 · MLflow artifact")]
+    MAIL["email-worker"]
+    MIG["Alembic migrate"]
+    AFAPI["Airflow API server :8080"]
+    AFDP["Airflow DAG processor"]
     AFS["Airflow scheduler<br/>LocalExecutor"]
-    MLF["MLflow :5000<br/>실험 · 지표 · artifact 추적"]
+    MLFLOW["MLflow :5000"]
   end
 
-  STAGE[("호스트 data/<br/>수집 staging · 모델 · 경계 · 임베딩")]
-  EXT["외부 서비스<br/>TourAPI · DataLab · Open-Meteo<br/>OpenStreetMap · Google · Kakao"]
-
-  U <-- "HTTPS / JSON / 이미지" --> API
-  U -. "지도 타일" .-> EXT
+  USER <-- "HTTP · JSON · 이미지" --> API
+  API --> FILES
   API --> PG
   API --> REDIS
   API --> MINIO
-  API --> STAGE
   API --> EXT
-  DBA -- "host 5434 → container 5432" --> PG
-  MIG -- "app 스키마" --> PG
-  AFUI --> PG
-  AFDP -- "DAG 등록" --> PG
+  MIG --> PG
+  MAIL --> PG
+  MAIL --> EXT
+  AFAPI --> PG
+  AFDP -- "DAG 파싱·등록" --> PG
+  AFS -- "수집·게시·정리" --> FILES
   AFS --> PG
-  AFS -- "DAG 실행" --> STAGE
-  AFS -- "공공데이터 수집" --> EXT
-  AFS -- "정규화·upsert" --> PG
-  AFS -- "원본·사진 보관" --> MINIO
-  AFS -- "캐시 무효화" --> REDIS
-  MLF -- "run · parameter · metric" --> PG
-  MLF -- "모델 평가 artifact" --> MINIO
-  STAGE -. "학습·평가 기록" .-> MLF
+  AFS --> MINIO
+  AFS --> REDIS
+  AFS --> EXT
+  MLFLOW --> PG
+  MLFLOW --> MINIO
 ```
 
-PostgreSQL이 회원·저장 지역·수집 데이터의 원본이며 Redis는 재생성 가능한 캐시다. MinIO는 사용자 업로드와 원본 응답·사진 파일을 보관한다. 사용자 사진은 로그인 사용자가 보관에 동의한 경우에만 저장하고, 동의하지 않으면 분석 후 저장하지 않는다.
+현재는 하이브리드 구조다. PostgreSQL은 회원 데이터의 원본이지만 관광 추천·지역 상세는 `data/`가 serving source다. Airflow 게시가 정상화되고 API 조회가 전환된 뒤 관광 데이터도 PostgreSQL을 단일 원본으로 삼을 예정이다.
 
-Airflow는 관광 사진·음식·축제·카탈로그를 매일 수집해 검증 후 PostgreSQL에 upsert하고 MinIO에 원본을 보관한다. 사용자 사진 정리는 매시간, 방문자·인구 데이터는 매월 실행한다. 현재 cron은 UTC 기준이며 정확한 시각은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 정리되어 있다.
+## 기술 스택
 
-| 접속 대상 | 호스트 주소 | 용도 |
-|---|---|---|
-| 웹/API | `http://localhost:8000` | 서비스와 API 문서(`/docs`) |
-| Airflow | `http://localhost:8080` | DAG 확인·운영 |
-| MLflow | `http://localhost:5000` | CLIP·혼잡도 실험 비교 |
-| PostgreSQL | `127.0.0.1:5434` | DBeaver, 컨테이너 내부 포트는 `5432` |
-| Redis | `localhost:6379` | 개발용 캐시 확인 |
-| MinIO | `http://localhost:9000`, `http://localhost:9001` | S3 API, 관리 콘솔 |
+| 구분 | 기술 |
+|---|---|
+| Frontend | React 19, TypeScript 6, Vite 8, Leaflet |
+| API | FastAPI, Pydantic, SQLAlchemy async, Uvicorn |
+| ML·분석 | PyTorch CPU, Transformers CLIP ViT-B/32, scikit-learn, LightGBM |
+| Data | pandas, NumPy, TourAPI, DataLabService, Open-Meteo |
+| Storage | PostgreSQL 16 + pgvector, Redis 7.4, MinIO |
+| Workflow·MLOps | Airflow 3.1.1 LocalExecutor, Alembic, MLflow 3.15 |
+| Auth·Mail | Argon2, Google OAuth, Kakao OAuth, Resend |
+| Runtime | Docker Compose, Python 3.12, Node 24 |
 
-## 데이터
+개발·API Python 패키지는 루트 [`requirements.txt`](requirements.txt) 하나에서 관리한다. Airflow·MLflow 컨테이너에만 필요한 런타임 패키지는 각 Dockerfile에 버전을 고정해 API 이미지가 불필요하게 커지는 것을 막는다.
 
-| 데이터 | 출처 | 용도 |
-|---|---|---|
-| 국문 관광정보 (KorService2) | 한국관광공사 / 공공데이터포털 | 관광지 12,603곳·레포츠·축제·음식점 13,402곳, 사진(공공누리 1·3유형만), 대표메뉴 |
-| 빅데이터 지역별 방문자수 (DataLabService) | 한국관광공사 / 공공데이터포털 | 시군구별 외지인 방문자 수 2018-01 ~ 2026-08, 혼잡도 예측 학습 |
-| 특일 정보 | 한국천문연구원 / 공공데이터포털 | 공휴일 (연휴 예측) |
-| 행정동별 주민등록 인구 | 행정안전부 / 공공데이터포털 | 도시 / 시골·소도시 구분 |
-| 행정동 경계 (admdongkor ver20260701) | vuski/admdongkor, CC BY 4.0 (원자료 통계청 SGIS) | 동네 지도 |
-| 해안선 | Natural Earth (퍼블릭 도메인) | 바다 가까운 곳 |
-| 날씨 | Open-Meteo, CC BY 4.0 | 과거 일별 기록(2021~2025), 16일 일기예보 |
-| 해외 예시 사진 | Wikimedia Commons (사진별 라이선스) | 데모 사진 |
+## 추천·예측
 
-데이터 파일은 저장소에 넣지 않는다. 출처와 다시 받는 방법은 [`data/README.md`](data/README.md)에 있다.
+### 사진 유사도
 
-관광지 추가 사진과 음식점 대표메뉴는 하루 한도(990건)로 나눠 받았고 2026-10-09에 모두 받았다.
+1. 업로드 사진을 CLIP 512차원 벡터로 변환한다.
+2. 국내 관광지별 가장 닮은 사진 1장을 남긴다.
+3. 상위 100개 관광지 유사도를 시군구별로 합산해 후보 30곳을 만든다.
+4. 사진 유사도 비중을 최소 50% 유지하면서 거리·혼잡도·계절 조건으로 후보 안에서 재정렬한다.
+5. 로그인 사용자의 좋아요·싫어요·저장 지역이 3개 이상이면 취향 가중치 20%로 같은 후보 안에서만 순서를 조금 조정한다.
 
-## 폴더
+개발셋 해외지 23곳에서 Hit@5 57%, Hit@10 74%였고, 새 해외지 15곳 파일럿의 Hit@10은 40%였다. 사람 평가 150건은 그럴듯함 69%, 엉뚱함 16%였다. 표본이 작고 개발셋 선택 영향이 있으므로 절대 정확도로 해석하지 않는다.
 
-역할별로 나눴다. 폴더마다 README가 있다.
+### 혼잡도와 경비
 
-```
-app/           백엔드 (FastAPI): API, 추천, 조건, 지역 상세, 예상 경비, 이동 시간
-web/           프론트 (React + Vite): 탐색 피드, 사진으로 찾기, 지역 상세
-src/           데이터·모델 스크립트 (서버가 아니라 직접 실행)
-  collect/     공공데이터 수집 (TourAPI, 데이터랩, 네이버 이미지 등)
-  model/       CLIP 유사도 실험·평가 (서버가 인덱스 함수를 읽음)
-  forecast/    방문자(혼잡도) 예측
-  cost/        예상 경비 표 만들기
-  ingest/      원본 보관, 검증, PostgreSQL 게시, 사진 캐시
-  ops/         만료된 사용자 사진 정리
-  mlops/       MLflow 실험 기록
-infra/         배포·운영
-  docker/      보조 서비스 Dockerfile과 의존성 (Airflow, MinIO, MLflow)
-  airflow/     배치 스케줄 (DAG)
-  migrations/  Alembic DB 스키마 변경 이력 (alembic.ini 도 여기)
-  postgres/    최초 DB·계정 생성
-  mlflow/      MLflow 서버 시작
-tests/         pytest
-tools/         진행 기록 PPT 생성 스크립트
-docs/          HANDOFF(진행 기록) · MVP_PLAN(화면·API 계약) · ARCHITECTURE(구성도) · INFRASTRUCTURE(운영)
-data/          데이터 (파일은 Git 제외, 출처는 data/README.md)
-references/    로컬 참고 자료 (경비 원자료 COST, 카카오맵 검증 Map). Git 제외
-Dockerfile, docker-compose.yml, requirements*.txt   API 이미지와 전체 실행 (루트에 둔다)
-```
+- 서비스 혼잡도는 시군구 월별 외지인 방문자 ridge 예측을 사용한다. 2025년 검증 WAPE는 5.6%, 전년 같은 달 기준선은 7.7%다.
+- 연휴 보정 모델은 별도 실험이며 현재 서비스 응답에는 월 단위 모델을 사용한다.
+- 예상 경비는 ML 예측이 아니라 국민여행조사 2023~2025 원자료의 1인 가중 중앙값과 25~75분위다.
+- MLflow 실험은 `clip-model-comparison`, `congestion-baseline`, `congestion-holiday-experiments`로 분리한다.
+
+## 데이터베이스
+
+PostgreSQL 인스턴스 하나 안에서 애플리케이션·Airflow·MLflow DB와 계정을 분리한다.
+
+| 테이블 그룹 | 주요 테이블 |
+|---|---|
+| 회원·인증 | `users`, `auth_identities`, `auth_sessions`, `one_time_tokens`, `user_preferences` |
+| 사용자 기능 | `saved_regions`, `feedback`, `media_assets`, `email_outbox` |
+| 수집 이력 | `data_sources`, `ingestion_runs`, `raw_objects` |
+| 관광 데이터 | `regions`, `places`, `place_images`, `festivals` |
+| 분석 데이터 | `visitor_metrics`, `climate_daily`, `image_embeddings` |
+
+현재 migration head는 `20261010_03`이다. 이메일은 대소문자를 무시하고 유일하며, 사용자당 OAuth 공급자 하나, 익명·로그인 피드백 중복 방지, 주요 FK 삭제 정책과 pgvector HNSW 인덱스가 적용돼 있다.
+
+## Airflow 일정
+
+기본 timezone이 UTC이므로 아래 한국 시각은 UTC+9로 환산한 값이다.
+
+| DAG | 주기 | 한국 시각 | 작업 |
+|---|---|---|---|
+| `tour_data_daily` | 매일 `00:15 UTC` | 09:15 | 추가 사진·대표메뉴·향후 365일 축제 수집, 게시, 사진 캐시 |
+| `tour_catalog_daily` | 매일 `01:45 UTC` | 10:45 | 관광지·레포츠·음식점 카탈로그 수집과 게시 |
+| `user_media_cleanup_hourly` | 매시간 | 매시간 | 만료된 사용자 업로드 삭제 |
+| `regional_metrics_monthly` | 매월 2일 `03:00 UTC` | 12:00 | 방문자 수와 행정동 인구 수집 |
+
+TourAPI 작업은 pool slot 1개로 직렬화하며 일일 작업은 최대 3회 재시도한다. Airflow 3에서 필수인 DAG processor도 별도 컨테이너로 실행한다.
 
 ## 실행
 
-### Docker Compose로 전체 실행
+### 준비 사항
+
+- Docker Desktop과 WSL 2 연동
+- 저장소 루트의 `.env`
+- 팀 공유 저장소에서 받은 `data/` 파일
+- OAuth·Resend·외부 API 기능을 쓸 경우 각 서비스 키
+
+`.env`와 데이터 본체는 Git에 올리지 않는다. 새 개발 환경에서는 팀 내부의 안전한 채널로 `.env`를 전달받거나 직접 만들어야 한다. 설정 키는 다음 그룹으로 나뉜다.
+
+| 목적 | 키 |
+|---|---|
+| DB·캐시 | `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `AIRFLOW_DB_PASSWORD`, `MLFLOW_DB_PASSWORD`, `DATABASE_URL`, `REDIS_URL` |
+| 객체·실험 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MLFLOW_TRACKING_URI` |
+| 인증·메일 | `PUBLIC_BASE_URL`, `COOKIE_SECURE`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` |
+| 데이터 API | `TOUR_API_KEY`, 추가 TourAPI 키, `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `KAKAO_REST_API_KEY` |
+
+### 전체 스택
 
 ```bash
-# 최초 실행일 때만 .env.example을 복사하고 비밀번호·API 키를 채운다.
-cp .env.example .env
-
 docker compose config --quiet
 docker compose up --build -d
-docker compose ps
+docker compose ps -a
+curl http://localhost:8000/api/health
 ```
 
-기존 `.env`에 API 키가 있다면 복사 명령으로 덮어쓰지 않는다. 현재 로컬 PostgreSQL과의 충돌을 피하기 위해 서비스 DB는 호스트의 `5434` 포트를 사용한다. DBeaver 기본 접속값은 `127.0.0.1:5434`, DB `abroad_to_korea`, 사용자 `app`이며 비밀번호는 `.env`의 `APP_DB_PASSWORD`다.
+최초 빌드는 Python·ML 의존성과 MinIO 소스 빌드 때문에 오래 걸릴 수 있다. 정상 상태는 API·Airflow 3개 프로세스·email-worker·MinIO가 `Up`, PostgreSQL·Redis·MLflow가 `healthy`, `migrate`·`airflow-init`·`mlflow-db-init`가 `Exited (0)`이다.
 
-### 로컬에서 직접 실행
+| 접속 대상 | 주소 | 비고 |
+|---|---|---|
+| Web/API | `http://localhost:8000` | API 문서 `/docs` |
+| Airflow | `http://localhost:8080` | DAG 확인·운영 |
+| MLflow | `http://localhost:5000` | experiment·run·artifact |
+| PostgreSQL | `127.0.0.1:5434` | DBeaver DB `abroad_to_korea`, 사용자 `app` |
+| Redis | `localhost:6379` | 개발 환경에서만 호스트 공개 |
+| MinIO | `http://localhost:9000`, `http://localhost:9001` | S3 API, Console |
+
+DBeaver 비밀번호는 `.env`의 `APP_DB_PASSWORD`다. 컨테이너끼리는 PostgreSQL `postgres:5432`, Redis `redis:6379`, MinIO `minio:9000`으로 연결한다.
+
+### 로컬 개발
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install pandas numpy scikit-learn python-dotenv holidays lightgbm
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install transformers pillow
-pip install fastapi==0.118.0 "uvicorn==0.37.0" python-multipart==0.0.20 pillow-heif==1.8.0 shapely==2.1.2
-pip install -r infra/docker/requirements-mlflow.txt
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-# .env의 TOUR_API_KEY에 포털 표시값을 입력한다. 기존 .env를 덮어쓰지 않는다.
-# 키를 더 가지고 있으면 TOUR_API_KEY_2, TOUR_API_KEY_3 … 으로 추가: 매일 수집이 한 키의 하루 한도가 차면 다음 키로 넘어간다
+cd web
+npm ci
+npm run build
+cd ..
+
+uvicorn app.main:app --port 8000
 ```
 
-LightGBM은 Linux/WSL에서 `sudo apt install -y libgomp1`이 먼저 필요하다.
-검증한 버전: Python 3.12, pandas 2.2.3, numpy 2.1.3, scikit-learn 1.5.2, holidays 0.105, lightgbm 4.7.0, torch 2.14.1(CPU), transformers 5.18.0.
+API 시작 시 CPU에서 CLIP 모델과 사진 인덱스를 읽어 수십 초가 걸릴 수 있다. 화면 개발은 API를 실행한 상태에서 `cd web && npm run dev`로 진행한다.
 
-MLflow UI는 `http://localhost:5000`에서 확인한다. `model_compare.py evaluate`, `p1_spec.py`, `p1_holiday.py` 실행 결과는 로컬 JSON을 먼저 저장한 뒤 MLflow에도 기록된다. MLflow가 꺼져 있으면 실험 자체는 완료되고 콘솔에 기록 실패 경고가 나온다.
-
-### 데이터 받기
+## 운영 명령
 
 ```bash
-python src/collect/tour_attractions.py                     # 관광지 목록
-python src/collect/tour_attractions.py 28                  # 레포츠
-python src/collect/tour_attractions.py 39                  # 음식점
-python src/collect/datalab_visitors.py                     # 지역별 방문자 수
-python src/forecast/p1_spec.py kasi                        # 방문자 예측 기준 재현
-python src/collect/region_context.py climate 10            # 날씨 (다른 달: climate 1 2 3 ...)
-python src/collect/region_context.py festivals 20251001 20261231   # 축제
-python src/collect/population.py                           # 행정동 인구 (별도 활용신청)
-# 동네 경계: data/raw/admdongkor/ 에 vuski/admdongkor ver20260701 HangJeongDong_ver20260701.geojson
+# 스키마 상태와 ORM 드리프트
+docker compose run --rm migrate alembic -c infra/alembic.ini current
+docker compose run --rm migrate alembic -c infra/alembic.ini check
 
-# 매일 자정 이후 (하루 한도 990건씩 이어 받기)
-python src/collect/tour_images.py 930                      # 관광지 추가 사진
-python src/collect/tour_food_intro.py                      # 음식점 대표메뉴
-python src/collect/tour_attractions.py 25 && python src/collect/tour_courses.py   # 여행코스 (구성·소요시간, 이어 받기)
+# Airflow 상태와 DAG 등록
+docker compose exec airflow-api-server airflow jobs check --job-type DagProcessorJob --allow-multiple --limit 100
+docker compose exec airflow-api-server airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
+docker compose exec airflow-api-server airflow dags list
+
+# 주요 로그
+docker compose logs --tail=200 api
+docker compose logs --tail=200 airflow-dag-processor
+docker compose logs --tail=200 airflow-scheduler
 ```
 
-### 서버 띄우기
+`docker compose down -v`는 PostgreSQL·Redis·MinIO 볼륨을 삭제하므로 데이터가 필요하면 실행하지 않는다.
+
+## 테스트
 
 ```bash
-cd web && npm install && npm run build && cd ..            # 화면 빌드 → web/dist
-uvicorn app.main:app --port 8000                           # 첫 실행 때 CLIP 로딩 20~40초
-# → http://localhost:8000  (API 문서: http://localhost:8000/docs)
+.venv/bin/python -m pytest -q
+cd web && npm run build && npm run lint
 ```
 
-화면을 고치면서 볼 때는 서버를 띄운 채로 `cd web && npm run dev` (http://localhost:5173, API는 8000으로 넘어간다).
-수집한 데이터는 서버를 다시 띄워야 반영된다.
+Python 테스트는 API 계약, 추천 결과 회귀, DB 제약, 마이그레이션 기반 함수, 메일 템플릿, MLflow 기록을 확인한다. 추천 테스트에는 Git에서 제외된 로컬 `data/`가 필요하다.
 
-테스트: `pip install pytest httpx && python -m pytest tests -q`
-기존 평가 결과·임베딩·코드가 바뀌지 않았는지(`data/interim/app/baseline_hashes.txt`)도 함께 검사한다.
+## 폴더 구조
 
-## 현재 수치 (자세한 조건은 HANDOFF)
+```text
+app/                 FastAPI, 추천·지역·회원·사진 API
+web/                 React 화면
+src/collect/         공공데이터 수집
+src/model/           CLIP 실험·평가
+src/forecast/        혼잡도 모델
+src/cost/            예상 경비 표 생성
+src/ingest/          MinIO 보관·PostgreSQL 게시·사진 캐시
+src/mlops/           MLflow 공통 기록
+src/ops/             만료 사진 정리
+infra/airflow/dags/  Airflow DAG
+infra/migrations/    Alembic migration
+infra/postgres/      DB·계정 초기화
+infra/docker/        Airflow·MLflow·MinIO 이미지
+tests/               pytest
+docs/                설계·진행·운영 문서
+data/                로컬 데이터, 본체는 Git 제외
+```
 
-- 사진 유사도 (CLIP, 개발셋 해외지 23곳): 정답 시군구 Hit@5 57%, Hit@10 74% (무작위 약 4%·8%)
-  - 처음 보는 해외지 15곳 파일럿: Hit@10 40%. 도시 장면은 강하고 특정 지점형 정답은 약하다
-  - 사람 평가(평가자 1명, 30곳 × 후보 5곳): 그럴듯함 69%, 엉뚱함 16%. 조원 2~3명 평가 예정
-- 방문자 예측 (검증 2025)
-  - 월 단위 (서비스에 쓰는 모델): WAPE 5.6% (전년 같은 달 기준선 7.7%)
-  - 일 단위: 전체 WAPE 7.3%, 연휴 관련일 13.2% (기준선 9.9% / 28.2%)
+각 주요 폴더에 세부 README가 있다.
 
-## 남은 일
+## 데이터 출처
 
-- 조원 사람 평가와 새 테스트셋, 사진 수집이 끝난 뒤 재평가
-- 관광지별 집중률(한국관광공사 예측 API)을 동네 지도 점에 표시 (활용신청 반영 대기)
-- 서버를 다시 띄워도 분석 결과 유지(#3), 재시작 없이 새 데이터 반영(#2)
-- 운영 인프라 실제 기동 검증, 메일 발송 업체 연결, 발표자료
+| 데이터 | 출처 | 용도 |
+|---|---|---|
+| 관광지·레포츠·음식점·축제·코스 | 한국관광공사 TourAPI KorService2 | 추천 후보와 지역 상세 |
+| 지역별 방문자 수 | 한국관광공사 DataLabService | 혼잡도 실측·예측 |
+| 공휴일 | 한국천문연구원 특일정보 | 연휴 예측 실험 |
+| 주민등록 인구 | 행정안전부 | 도시·시골 구분 |
+| 행정동 경계 | vuski/admdongkor, 원자료 통계청 SGIS | 동네 지도 |
+| 해안선 | Natural Earth | 바다 거리 조건 |
+| 과거 날씨·예보 | Open-Meteo | 계절 조건과 비 정보 |
+| 해외 데모 사진 | Wikimedia Commons | 검색 예시·평가 |
+| 여행 경비 | 국민여행조사 2023~2025 | 당일·1박 예상 경비 |
+
+관광 사진은 공공누리 1·3유형만 서비스에 사용한다. 파일별 출처·라이선스와 재생성 방법은 [`data/README.md`](data/README.md)에 기록한다.
+
+## 아직 남은 것
+
+- 관광 콘텐츠 API를 `data/` 파일에서 PostgreSQL 조회로 전환하고 실제 게시 데이터를 채우기
+- 로컬 LLM을 이용한 자연어 여행지 추천
+- 예약·결제 연동
+- 운영 환경의 HTTPS, 비밀 관리, 백업·복구, Airflow 실패 알림과 수집 지연 모니터링
+- 더 큰 홀드아웃과 여러 평가자를 이용한 추천 품질 검증

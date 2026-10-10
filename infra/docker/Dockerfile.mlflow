@@ -4,8 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
-COPY infra/docker/requirements-mlflow.txt ./
-RUN pip install --no-cache-dir -r requirements-mlflow.txt
+RUN pip install --no-cache-dir mlflow==3.15.0 "boto3>=1.35,<2" psycopg2-binary==2.9.11
 COPY infra/mlflow/start.py ./infra/mlflow/start.py
 
 CMD ["python", "infra/mlflow/start.py"]
