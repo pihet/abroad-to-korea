@@ -136,7 +136,7 @@ Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB �
 | `user_media_cleanup_hourly` | 매시간 | 만료된 사용자 업로드 삭제 |
 | `regional_metrics_monthly` | 매월 2일 `00:20` KST | 방문자 수·행정동 인구 수집 |
 
-2026-10-11부터 `AIRFLOW__CORE__DEFAULT_TIMEZONE=Asia/Seoul`(docker-compose)이고, DAG는 `pendulum.datetime(..., tz="Asia/Seoul")`로 `start_date`를 적어 cron을 한국 시각으로 읽는다. TourAPI 하루 한도가 자정(KST)에 다시 차므로 일일 수집은 자정 직후(00:05·00:35)에 돈다. `airflow dags next-execution`은 UTC로 찍히니 +9시간 해서 본다 (00:05 KST = 전날 15:05 UTC). 작업 프로세스는 `AIRFLOW__CORE__EXECUTION_API_SERVER_URL`(=`http://airflow-api-server:8080/execution/`)로 상태를 보고한다. 이 값이 없으면 모든 작업이 시작 전에 `Connection refused`로 실패한다(2026-10-09~11 실제 발생). TourAPI 작업은 `tourapi` pool의 슬롯 1개로 직렬화하고, 일일 DAG는 3회 재시도한다.
+2026-10-11부터 `AIRFLOW__CORE__DEFAULT_TIMEZONE=Asia/Seoul`(docker-compose)이고, DAG는 `pendulum.datetime(..., tz="Asia/Seoul")`로 `start_date`를 적어 cron을 한국 시각으로 읽는다. TourAPI 하루 한도가 자정(KST)에 다시 차므로 일일 수집은 자정 직후(00:05·00:35)에 돈다. `airflow dags next-execution`은 UTC로 찍히니 +9시간 해서 본다 (00:05 KST = 전날 15:05 UTC). 작업 프로세스는 `AIRFLOW__CORE__EXECUTION_API_SERVER_URL`(=`http://airflow-api-server:8080/execution/`)로 상태를 보고한다. 이 값이 없으면 모든 작업이 시작 전에 `Connection refused`로 실패한다(2026-10-09~11 실제 발생). 또 scheduler와 API server는 작업 토큰을 같은 키로 서명·검증해야 하므로 `.env`의 `AIRFLOW_JWT_SECRET`을 `AIRFLOW__API_AUTH__JWT_SECRET`으로 넘긴다. 이 값이 없으면 컨테이너마다 무작위 키를 만들어 `Invalid auth token: Signature verification failed`로 실패한다. TourAPI 작업은 `tourapi` pool의 슬롯 1개로 직렬화하고, 일일 DAG는 3회 재시도한다.
 
 새 DAG는 등록 즉시 활성화된다. 이 설정을 적용하기 전에 이미 등록되어 일시 중지된 DAG는 한 번만 `docker compose exec airflow-api-server airflow dags unpause '.*' --treat-dag-id-as-regex -y`로 활성화한다.
 
