@@ -26,7 +26,7 @@ from collections import Counter
 from .activities import GROUPS as ACT_GROUPS
 from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
-from .context import DATA_SOURCES, ORIGINS, ROOT
+from .context import DATA_SOURCES, ROOT
 from .rain import Rain, RainError
 from .cost import Cost
 from .catalog import Catalog, LICENSES, clean_html
@@ -182,7 +182,8 @@ async def _user_signals(raw_session):
         pref = await db.get(UserPreference, principal.id)
     return {"likes": [a for a, v in votes if v == 1], "dislikes": [a for a, v in votes if v == -1], "saved": list(saved),
             "personal": (pref.preferences or {}).get("personal", True) if pref else True,
-            "origin": pref.origin if pref and pref.origin in ORIGINS else None}
+            "origin": pref.origin if pref and engine.ctx.origin_point(pref.origin) else None,
+            "avatar": (pref.preferences or {}).get("avatar") if pref else None}
 
 
 def _taste_of(s):
@@ -200,9 +201,10 @@ async def my_taste(raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKI
     """MY 탭의 '내 취향' 상태: 신호 개수, 개인 맞춤 설정(enabled)과 실제로 켜졌는지(on), 기본 출발지."""
     s = await _user_signals(raw_session)
     if s is None:
-        return {"logged_in": False, "on": False, "enabled": True, "origin": None,
+        return {"logged_in": False, "on": False, "enabled": True, "origin": None, "avatar_url": None,
                 "likes": 0, "dislikes": 0, "saved": 0, "min_signals": PERSONAL_MIN}
     return {"logged_in": True, "on": _taste_of(s) is not None, "enabled": s["personal"], "origin": s["origin"],
+            "avatar_url": f"/api/my/avatar/{s['avatar']}" if s["avatar"] else None,
             "likes": len(s["likes"]), "dislikes": len(s["dislikes"]), "saved": len(s["saved"]), "min_signals": PERSONAL_MIN}
 
 
@@ -212,6 +214,8 @@ async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(N
         raise HTTPException(404, "분석 결과가 만료됐습니다. 사진을 다시 분석해 주세요.")
     if req.sido and req.sido not in {s["sido"] for s in regions.static.values()}:
         raise HTTPException(400, "시도 이름이 올바르지 않습니다.")
+    if req.origin and engine.ctx.origin_point(req.origin) is None:
+        raise HTTPException(400, "출발지가 올바르지 않습니다.")
     if req.travel_month is None and req.priority == "season":
         raise HTTPException(400, "'고른 달에 가기 좋은 곳'은 여행 월을 골라야 쓸 수 있습니다.")
     if req.travel_month is None and "mild" in req.filters:
@@ -314,7 +318,7 @@ def kr_image(cid: str):
 @app.get("/api/regions")
 def region_table(month: Optional[int] = Query(None, ge=1, le=12), origin: Optional[str] = None):
     """시군구별 조건 값·필터 통과 여부·대표 사진. 조건 칩의 곳 수와 '사진 없이 둘러보기'에 쓴다."""
-    if origin is not None and origin not in ORIGINS:
+    if origin is not None and engine.ctx.origin_point(origin) is None:
         raise HTTPException(400, "출발지가 올바르지 않습니다.")
     rows = []
     for r in regions.month_table(month):

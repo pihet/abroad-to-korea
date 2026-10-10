@@ -34,7 +34,7 @@ class RecommendRequest(BaseModel):
     query_id: str
     travel_month: Optional[int] = Field(default=None, ge=1, le=12)  # 없으면 연간 기준
     priority: Priority = "visual"
-    origin: Optional[Origin] = None
+    origin: Optional[str] = Field(None, max_length=40)  # 5개 도시 이름 또는 시군구 key (MY 기본 출발지)
     kept_tags: Optional[list[str]] = None
     limit: int = Field(default=5, ge=1, le=30)
     offset: int = Field(default=0, ge=0, le=29)

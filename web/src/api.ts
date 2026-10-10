@@ -128,7 +128,7 @@ export const api = {
     return r.blob()
   },
 
-  recommend: (body: { query_id: string; priority: Priority; origin?: Origin | null;
+  recommend: (body: { query_id: string; priority: Priority; origin?: string | null;  // 도시 이름 또는 시군구 key
                       kept_tags?: string[]; limit?: number; offset?: number; filters?: FilterKey[]; sido?: string | null }) =>
     fetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => json<RecommendResponse>(r)),

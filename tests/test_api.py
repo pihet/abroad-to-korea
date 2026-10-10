@@ -497,7 +497,7 @@ def test_personal_rerank(client, monkeypatch):
 
 def test_my_taste_anonymous(client):
     r = client.get("/api/my/taste").json()
-    assert r == {"logged_in": False, "on": False, "enabled": True, "origin": None,
+    assert r == {"logged_in": False, "on": False, "enabled": True, "origin": None, "avatar_url": None,
                  "likes": 0, "dislikes": 0, "saved": 0, "min_signals": 3}
 
 
@@ -517,7 +517,7 @@ def test_my_similar(client):
 def test_my_personal_off(client, monkeypatch):
     # 신호가 충분해도 MY 에서 개인 맞춤을 끄면 취향·닮은 곳 줄이 모두 꺼진다
     saved = main.engine.region_keys[:3]
-    sig = {"likes": [], "dislikes": [], "saved": saved, "personal": True, "origin": "부산"}
+    sig = {"likes": [], "dislikes": [], "saved": saved, "personal": True, "origin": "부산", "avatar": None}
     assert main._taste_of(sig) is not None
     async def fake(_):
         return {**sig, "personal": False}
@@ -547,3 +547,28 @@ def test_account_bodies():
             NicknameBody(nickname=bad)
     with pytest.raises(ValidationError):
         ChangePasswordBody(current_password="old", new_password="short")
+
+
+def test_origin_sigungu(client):
+    # 기본 출발지는 5개 도시 이름 또는 시군구 key. 시군구면 그 시군구 중심에서 거리를 잰다
+    qid = client.post("/api/analyze", data={"demo_photo_id": DEMO}).json()["query_id"]  # 앞 테스트가 캐시를 비웠을 수 있다
+    ctx = main.engine.ctx
+    assert ctx.origin_point("서울") is not None and ctx.origin_point("51_강릉시") is not None
+    assert ctx.origin_point("99_없는곳") is None and ctx.origin_point("제주") is None
+    r = rec(client, qid, origin="51_강릉시", limit=5)
+    assert r["candidates"][0]["distance_km"] is not None
+    gangneung = [c for c in rec(client, qid, origin="51_강릉시", limit=30)["candidates"] if c["sigungu"]["key"] == "51_강릉시"]
+    assert all(c["distance_km"] == 0 for c in gangneung)
+    bad = client.post("/api/recommend", json={"query_id": qid, "priority": "visual", "origin": "99_없는곳"})
+    assert bad.status_code == 400
+
+
+def test_avatar_jpeg():
+    # 프로필 사진은 가운데 정사각형 256px JPEG 로 줄인다. 이미지가 아니면 거절
+    from app.personal import _avatar_jpeg
+    buf = io.BytesIO()
+    Image.new("RGB", (800, 400), "red").save(buf, "PNG")
+    out = Image.open(io.BytesIO(_avatar_jpeg(buf.getvalue())))
+    assert out.format == "JPEG" and out.size == (256, 256)
+    with pytest.raises(ValueError):
+        _avatar_jpeg(b"not an image")

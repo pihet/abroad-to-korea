@@ -1697,3 +1697,12 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 새 API (`app/auth.py`): `PATCH /api/auth/me {nickname}`(Redis 세션 캐시 비움), `GET /api/auth/identities`, `POST /api/auth/password/change {current_password, new_password}`(현재 비밀번호 확인, 지금 기기 말고 다른 세션은 끊음)
 - 탈퇴 수정: 예전에는 상태만 deleted 로 바꿔 이메일·로그인 수단이 남아 **같은 이메일로 다시 가입할 수 없었다**(users.email 유일). 이제 이메일을 `deleted-<id>@deleted.invalid`로, 닉네임을 '탈퇴한 사용자'로 바꾸고 로그인 수단·저장·설정을 지운다. 피드백 기록은 모델 평가용으로 남는다. 이 수정 전에 탈퇴한 시험 계정들은 그대로다
 - 확인 (8000번 Docker, 새 계정): 닉네임 공백 정리·1자 거절(422), 틀린 현재 비밀번호 400, 변경 후 이 기기 유지·다른 기기 401·옛 비밀번호 401·새 비밀번호 200, 마지막 로그인 수단 해제 거절, 화면에서 대구·스위치 끄기 저장, 탈퇴 → 같은 이메일 재가입 201
+
+### 15-33. 출발지를 시군구로 · 프로필 사진 (2026-10-11)
+
+- 기본 출발지: 5개 도시 칩에 더해 계정 설정에서 시군구를 찾아 고른다(예: '수원' → 경기 수원시). 저장 값은 도시 이름 또는 시군구 key(`41_수원시`), 거리는 그 시군구 중심(관광지 좌표 중앙값)에서 직선거리. `Context.origin_point()`가 둘 다 받는다. 도로명주소는 거리 차이가 작고(직선거리) 집 주소를 보관하는 부담이 커서 하지 않았다
+- `RecommendRequest.origin`을 Literal 에서 문자열(최대 40자)로 넓히고 `/api/recommend`·`/api/regions`·`PUT /api/my/settings`에서 `origin_point`로 검사(모르면 400). Ollama 질문 해석(`app/llm.py`)은 그대로 5개 도시
+- 프로필 사진(`app/personal.py`): `POST /api/my/avatar`(5MB 이하 이미지 → 가운데 정사각형 256px JPEG, 원본 저장 안 함, MinIO `avatars/<user>/<id>.jpg`, `media_assets.kind='avatar'`), `DELETE /api/my/avatar`, `GET /api/my/avatar/{id}`(본인만, `no-store`). 사진 id 는 `user_preferences.preferences.avatar`. 바꾸거나 지운 사진은 `delete_after`를 찍어 `src/ops/cleanup_media.py`가 지우고, 그 전에도 바로 404. 탈퇴하면 기존 탈퇴 처리가 사진도 지울 대상으로 표시
+- 화면: 계정 설정 맨 위 사진(누르면 바꾸기, 삭제), MY 프로필에도 표시. 시도 줄임말 함수는 `web/src/regionLabel.ts`로 옮김
+- 확인 (8000번 Docker, 새 계정, 끝나고 탈퇴): '수원' 검색 → `41_수원시` 저장 → 사진으로 찾기 "서울특별시 중구 · 경기 수원시에서 31km", 사진 900×600 PNG → 256×256 JPEG 3.8KB, 바꾼 뒤 옛 사진 404, 로그아웃하면 401
+- 테스트 `test_origin_sigungu`, `test_avatar_jpeg`. 전체 57개 통과

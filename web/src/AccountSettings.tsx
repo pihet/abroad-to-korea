@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { authApi, ORIGINS, type AuthUser, type Origin } from './api'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { authApi, ORIGINS, type AuthUser, type RegionRow } from './api'
+import { originLabel, shortSido } from './regionLabel'
 import './account.css'
 
-// 계정 설정 (로그인한 사람): 닉네임 · 여행 설정(내 취향 반영, 기본 출발지) · 로그인 수단 · 비밀번호 변경 · 로그아웃 · 회원 탈퇴
+// 계정 설정 (로그인한 사람): 프로필 사진 · 닉네임 · 여행 설정(내 취향 반영, 기본 출발지) · 로그인 수단 · 비밀번호 변경 · 로그아웃 · 회원 탈퇴
 
 type Identity = { provider: 'email' | 'google' | 'kakao'; email: string | null }
-type Prefs = { enabled: boolean; origin: Origin | null }
+type Prefs = { enabled: boolean; origin: string | null }  // origin: 도시 이름(서울) 또는 시군구 key(51_강릉시)
 const PROVIDER = { email: '이메일', google: 'Google', kakao: '카카오' }
 
 async function call<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
@@ -18,10 +19,13 @@ async function call<T>(url: string, method = 'GET', body?: unknown): Promise<T> 
   return d as T
 }
 
-export function AccountSettings({ user, onUser, onClose, onOrigin }: {
-  user: AuthUser; onUser: (u: AuthUser | null) => void; onClose: () => void; onOrigin: (o: Origin | null) => void
+export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
+  user: AuthUser; rows: RegionRow[]; onUser: (u: AuthUser | null) => void; onClose: () => void; onOrigin: (o: string | null) => void
 }) {
   const [prefs, setPrefs] = useState<Prefs | null>(null)
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [q, setQ] = useState('')  // 출발 시군구 찾기
+  const fileRef = useRef<HTMLInputElement>(null)
   const [ids, setIds] = useState<Identity[]>([])
   const [nick, setNick] = useState<string | null>(null)   // null 이면 보기, 문자열이면 고치는 중
   const [pw, setPw] = useState({ current: '', next: '' })
@@ -31,7 +35,7 @@ export function AccountSettings({ user, onUser, onClose, onOrigin }: {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    call<Prefs>('/api/my/taste').then(d => setPrefs({ enabled: d.enabled, origin: d.origin })).catch(() => setPrefs(null))
+    call<Prefs & { avatar_url: string | null }>('/api/my/taste').then(d => { setPrefs({ enabled: d.enabled, origin: d.origin }); setAvatar(d.avatar_url) }).catch(() => setPrefs(null))
     call<{ identities: Identity[] }>('/api/auth/identities').then(d => setIds(d.identities)).catch(() => setIds([]))
   }, [])
 
@@ -43,8 +47,25 @@ export function AccountSettings({ user, onUser, onClose, onOrigin }: {
   }
   const savePrefs = (next: Prefs) => run(async () => {
     await call('/api/my/settings', 'PUT', { personal: next.enabled, origin: next.origin })
-    setPrefs(next); onOrigin(next.origin)
+    setPrefs(next); onOrigin(next.origin); setQ('')
   })
+  const upload = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    if (f.size > 5 * 1024 * 1024) { setMsg({ ok: false, text: '5MB 이하 사진만 올릴 수 있어요.' }); return }
+    run(async () => {
+      const body = new FormData(); body.append('file', f)
+      const r = await fetch('/api/my/avatar', { method: 'POST', body })
+      const d = await r.json().catch(() => null)
+      if (!r.ok) throw new Error(typeof d?.detail === 'string' ? d.detail : '사진을 올리지 못했어요.')
+      setAvatar(d.avatar_url); return '프로필 사진을 바꿨어요.'
+    })
+  }
+  const dropAvatar = () => run(async () => { await call('/api/my/avatar', 'DELETE'); setAvatar(null); return '프로필 사진을 지웠어요.' })
+  const term = q.trim()
+  const matches = term ? rows.filter(r => `${shortSido(r.sido)} ${r.name} ${r.sido}`.includes(term)).slice(0, 8) : []
+  const isKey = !!prefs?.origin?.includes('_')
   const saveNick = (e: FormEvent) => { e.preventDefault(); run(async () => {
     onUser(await call<AuthUser>('/api/auth/me', 'PATCH', { nickname: nick })); setNick(null); return '닉네임을 바꿨어요.'
   }) }
@@ -65,7 +86,14 @@ export function AccountSettings({ user, onUser, onClose, onOrigin }: {
 
   return <div className="acs">
     <div className="account-profile">
-      <div className="account-avatar" aria-hidden="true">{user.nickname.slice(0, 1)}</div>
+      <button type="button" className="account-avatar acs-av" onClick={() => fileRef.current?.click()} disabled={busy} aria-label="프로필 사진 바꾸기">
+        {avatar ? <img src={avatar} alt="" /> : user.nickname.slice(0, 1)}
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={upload} />
+      <span className="acs-avlinks">
+        <button type="button" className="acs-link" onClick={() => fileRef.current?.click()} disabled={busy}>사진 변경</button>
+        {avatar && <button type="button" className="acs-link muted" onClick={dropAvatar} disabled={busy}>삭제</button>}
+      </span>
       {nick === null ? <div>
         <h2 id="account-title">{user.nickname} <button type="button" className="acs-link" onClick={() => setNick(user.nickname)}>변경</button></h2>
         <p>{user.email}</p>
@@ -86,11 +114,17 @@ export function AccountSettings({ user, onUser, onClose, onOrigin }: {
           onClick={() => savePrefs({ ...prefs, enabled: !prefs.enabled })}><i /></button>
       </div>
       <div className="acs-item col">
-        <span>기본 출발지<small>{prefs.origin ? `사진으로 찾기 결과에 '${prefs.origin}에서 ○km'로 보여요` : '고르면 사진으로 찾기 결과에 거리가 보여요'}</small></span>
+        <span>기본 출발지<small>{prefs.origin ? `사진으로 찾기 결과에 '${originLabel(prefs.origin, rows)}에서 ○km'로 보여요` : '고르면 사진으로 찾기 결과에 거리가 보여요'}</small></span>
         <span className="acs-chips">
           {[null, ...ORIGINS].map(o => <button key={o ?? 'none'} type="button" aria-pressed={prefs.origin === o} disabled={busy}
             onClick={() => savePrefs({ ...prefs, origin: o })}>{o ?? '없음'}</button>)}
+          {isKey && <button type="button" aria-pressed="true">{originLabel(prefs.origin, rows)}</button>}
         </span>
+        <input className="acs-search" value={q} onChange={e => setQ(e.target.value)} placeholder="다른 시군구 찾기 (예: 수원, 해운대)" aria-label="출발 시군구 찾기" />
+        {term && <span className="acs-chips">
+          {matches.length ? matches.map(r => <button key={r.key} type="button" disabled={busy} onClick={() => savePrefs({ ...prefs, origin: r.key })}>
+            {shortSido(r.sido)} {r.name}</button>) : <small>'{term}'에 맞는 시군구가 없어요</small>}
+        </span>}
       </div>
     </> : <p className="acs-sub">설정을 불러오지 못했어요.</p>}
 

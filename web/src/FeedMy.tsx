@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { AuthUser, Origin, RegionRow } from './api'
+import type { AuthUser, RegionRow } from './api'
 import './my.css'
 
 // MY 탭: 프로필 · 내 취향 상태 · 저장한 곳 · 저장한 곳의 축제 · 내가 누른 반응.
 // 저장은 비로그인이면 이 기기에만, 로그인하면 서버에도 남는다 (FeedApp 의 saved). 나머지는 로그인 사용자만.
 
-type Taste = { logged_in: boolean; on: boolean; enabled: boolean; origin: Origin | null
+type Taste = { logged_in: boolean; on: boolean; enabled: boolean; origin: string | null; avatar_url: string | null
   likes: number; dislikes: number; saved: number; min_signals: number }
 type Vote = { attraction_id: string; value: 1 | -1; name: string | null; image_url: string | null; region: { key: string; name: string } }
 type Fest = { id: string; name: string; start: string; end: string; region: { key: string; name: string; sido: string } }
@@ -43,7 +43,7 @@ export function FeedMy({ user, rows, saved, accountOpen, onAccount, onOpen }: {
   return (
     <div className="my">
       <section className="my-profile">
-        <span className="my-av">{user ? user.nickname.slice(0, 1) : '?'}</span>
+        <span className="my-av">{user && taste?.avatar_url ? <img src={taste.avatar_url} alt="" /> : user ? user.nickname.slice(0, 1) : '?'}</span>
         <div>
           <b>{user ? user.nickname : '로그인하지 않았어요'}</b>
           <small>{user ? user.email : '저장한 곳은 이 기기에만 남아요'}</small>

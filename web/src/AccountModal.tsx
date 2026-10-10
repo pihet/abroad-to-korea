@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { authApi, type AuthUser, type Origin } from './api'
+import { authApi, type AuthUser, type RegionRow } from './api'
 import { AccountSettings } from './AccountSettings'
 
 type AccountMode = 'login' | 'signup'
 
-export function AccountModal({ user, onUser, onClose, onOrigin }: { user: AuthUser | null; onUser: (user: AuthUser | null) => void; onClose: () => void; onOrigin: (origin: Origin | null) => void }) {
+export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: AuthUser | null; rows: RegionRow[]; onUser: (user: AuthUser | null) => void; onClose: () => void; onOrigin: (origin: string | null) => void }) {
   const [mode, setMode] = useState<AccountMode>('login')
   const [email, setEmail] = useState('')
   const [nickname, setNickname] = useState('')
@@ -39,7 +39,7 @@ export function AccountModal({ user, onUser, onClose, onOrigin }: { user: AuthUs
   return <div className="account-layer" role="dialog" aria-modal="true" aria-labelledby="account-title">
     <section className="account-card">
       <button className="account-close" type="button" onClick={onClose} aria-label="닫기">×</button>
-      {user ? <AccountSettings user={user} onUser={onUser} onClose={onClose} onOrigin={onOrigin} /> : <>
+      {user ? <AccountSettings user={user} rows={rows} onUser={onUser} onClose={onClose} onOrigin={onOrigin} /> : <>
         <header className="account-head">
           <h2 id="account-title">{title}</h2>
           {subtitle && <p>{subtitle}</p>}

@@ -115,8 +115,14 @@ class Context:
             self._climate_cache[ck] = out
         return self._climate_cache[ck]
 
+    def origin_point(self, origin):
+        """출발지 좌표. origin 은 5개 도시 이름(서울 등) 또는 시군구 key('51_강릉시', 그 시군구 중심). 모르면 None."""
+        if origin in ORIGINS:
+            return ORIGINS[origin]
+        return self.centers.get(tuple(origin.split("_", 1))) if isinstance(origin, str) and "_" in origin else None
+
     def distance(self, key, origin):
-        c = self.centers.get(key)
-        if origin not in ORIGINS or c is None:
+        c, o = self.centers.get(key), self.origin_point(origin)
+        if c is None or o is None:
             return None
-        return round(haversine(c, ORIGINS[origin]))
+        return round(haversine(c, o))

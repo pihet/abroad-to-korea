@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type AnalyzeResponse, type Candidate, type Crop, type DemoPhoto, type Origin, type RecommendResponse } from './api'
+import { api, type AnalyzeResponse, type Candidate, type Crop, type DemoPhoto, type RecommendResponse } from './api'
 import { CropStep } from './components/CropStep'
 import './search.css'
 
@@ -40,11 +40,11 @@ async function croppedPreview(url: string, crop: Crop | null): Promise<string> {
   return c.toDataURL('image/jpeg', 0.9)
 }
 
-export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avatars, origin }: {
+export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avatars, origin, originName }: {
   start: Source | null  // 탐색에서 고른 해외 사진
   saved: string[]; onToggleSave: (key: string) => void; onOpen: (key: string) => void
   loggedIn: boolean; avatars: Record<string, string | undefined>
-  origin: Origin | null  // MY 의 기본 출발지. 있으면 결과에 그곳에서의 거리를 보여 준다
+  origin: string | null; originName: string | null  // 계정 설정의 기본 출발지(도시 이름 또는 시군구 key)와 표시 이름. 있으면 결과에 거리를 보여 준다
 }) {
   const [stage, setStage] = useState<Stage>('pick')
   const [source, setSource] = useState<Source | null>(null)
@@ -152,7 +152,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
       {err && <p className="ig-err" role="alert">{err}</p>}
       {!res && <p className="ig-wait">닮은 곳을 찾는 중…</p>}
       <ul className="ig-feed">
-        {list.map(c => <ResultPost key={c.sigungu.key} c={c} avatar={avatars[c.sigungu.key]} origin={origin}
+        {list.map(c => <ResultPost key={c.sigungu.key} c={c} avatar={avatars[c.sigungu.key]} origin={originName}
           saved={saved.includes(c.sigungu.key)} voted={votes[c.sigungu.key]}
           onSave={() => onToggleSave(c.sigungu.key)} onOpen={() => onOpen(c.sigungu.key)}
           onVote={v => vote(c, v)} />)}
@@ -200,7 +200,7 @@ const Heart = ({ on }: { on: boolean }) => <svg viewBox="0 0 24 24" className={o
 
 // 결과 게시물: 프로필(시군구 대표 사진) + 후보 사진 한 장(누르면 지역 상세) + 하트·닮았어요·별로예요 + 닮은 장면 태그
 function ResultPost({ c, avatar, origin, saved, voted, onSave, onOpen, onVote }: {
-  c: Candidate; avatar?: string; origin: Origin | null; saved: boolean; voted: 1 | -1 | undefined
+  c: Candidate; avatar?: string; origin: string | null; saved: boolean; voted: 1 | -1 | undefined
   onSave: () => void; onOpen: () => void; onVote: (v: 1 | -1) => void
 }) {
   return (

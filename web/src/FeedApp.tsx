@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { authApi, festivalsApi, regionsApi, type AuthUser, type Festival, type Origin, type RegionRow } from './api'
+import { authApi, festivalsApi, regionsApi, type AuthUser, type Festival, type RegionRow } from './api'
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
 import { FeedExplore } from './FeedExplore'
 import { FeedMy } from './FeedMy'
+import { originLabel, shortSido } from './regionLabel'
 import { useDragScroll } from './dragScroll'
 import { AccountModal } from './AccountModal'
 import { FeedAsk } from './FeedAsk'
@@ -43,13 +44,6 @@ function dailyShuffle<T>(xs: T[]): T[] {
 
 const md = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 
-// 시도 줄임말 (앞 두 글자를 자르면 '전남광주통합특별시'가 '전남'이 된다)
-const SIDO_SHORT: Record<string, string> = {
-  서울특별시: '서울', 부산광역시: '부산', 대구광역시: '대구', 인천광역시: '인천', 광주광역시: '광주', 대전광역시: '대전', 울산광역시: '울산',
-  세종특별자치시: '세종', 경기도: '경기', 강원특별자치도: '강원', 충청북도: '충북', 충청남도: '충남', 전북특별자치도: '전북', 전라남도: '전남',
-  경상북도: '경북', 경상남도: '경남', 제주특별자치도: '제주', 전남광주통합특별시: '전남광주',
-}
-const shortSido = (s: string) => SIDO_SHORT[s] ?? s
 
 const loadSaved = (): string[] => { try { return JSON.parse(localStorage.getItem('feed-saved') || '[]') } catch { return [] } }
 
@@ -96,7 +90,7 @@ export default function FeedApp() {
   const [accountOpen, setAccountOpen] = useState(false)
   // 홈 '저장한 곳과 닮은 곳' (로그인 + 좋아요·별로예요·하트 3개 이상일 때만 서버가 채운다)
   const [similar, setSimilar] = useState<{ key: string; reason: string }[]>([])
-  const [origin, setOrigin] = useState<Origin | null>(null)  // MY 의 기본 출발지 (로그인 사용자)
+  const [origin, setOrigin] = useState<string | null>(null)  // 계정 설정의 기본 출발지: 도시 이름 또는 시군구 key (로그인 사용자)
   const more = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -116,7 +110,7 @@ export default function FeedApp() {
   }, [user])
   useEffect(() => {
     if (!user) { setOrigin(null); return }
-    fetch('/api/my/taste').then(r => r.ok ? r.json() : null).then((d: { origin: Origin | null } | null) => setOrigin(d?.origin ?? null)).catch(() => {})
+    fetch('/api/my/taste').then(r => r.ok ? r.json() : null).then((d: { origin: string | null } | null) => setOrigin(d?.origin ?? null)).catch(() => {})
   }, [user])
   useEffect(() => {
     if (!user) { setSimilar([]); return }
@@ -261,7 +255,7 @@ export default function FeedApp() {
       {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} accountOpen={accountOpen} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
 
       <div hidden={tab !== 'search'}>
-        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} origin={origin} />
+        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} origin={origin} originName={originLabel(origin, rows)} />
       </div>
 
       <nav className="ig-tabs" aria-label="메뉴">
@@ -275,7 +269,7 @@ export default function FeedApp() {
       {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}
         onPick={(k, dong) => { setFinding(false); setOpenDong(dong ?? null); setOpen(k) }} />}
       {open && <FeedRegion regionKey={open} initialDong={openDong} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => { setOpen(null); setOpenDong(null) }} />}
-      {accountOpen && <AccountModal user={user} onUser={changeUser} onClose={() => setAccountOpen(false)} onOrigin={setOrigin} />}
+      {accountOpen && <AccountModal user={user} rows={rows ?? []} onUser={changeUser} onClose={() => setAccountOpen(false)} onOrigin={setOrigin} />}
     </div>
   )
 }
