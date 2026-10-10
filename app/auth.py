@@ -3,7 +3,7 @@ import hashlib
 import json
 import secrets
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 from urllib.parse import urlencode
@@ -86,6 +86,20 @@ class SignupBody(BaseModel):
         if len(value) < 2:
             raise ValueError("닉네임은 공백을 제외하고 2자 이상이어야 합니다.")
         return value
+
+
+class NicknameBody(BaseModel):
+    nickname: str = Field(min_length=2, max_length=40)
+
+    @field_validator("nickname")
+    @classmethod
+    def clean_nickname(cls, value: str) -> str:
+        return SignupBody.clean_nickname(value)
+
+
+class ChangePasswordBody(BaseModel):
+    current_password: str = Field(max_length=128)
+    new_password: str = Field(min_length=10, max_length=128)
 
 
 class LoginBody(BaseModel):
@@ -304,6 +318,10 @@ async def delete_account(response: Response, principal: Annotated[Principal, Dep
         raise HTTPException(404, "계정을 찾을 수 없습니다.")
     hashes = list((await db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == user.id))).all())
     user.status, user.deleted_at = "deleted", now
+    # 이메일·닉네임·로그인 수단·저장·설정을 지운다. 이메일이 남으면 같은 주소로 다시 가입할 수 없다 (users.email 유일)
+    user.email, user.nickname = f"deleted-{user.id}@deleted.invalid", "탈퇴한 사용자"
+    for model in (AuthIdentity, SavedRegion, UserPreference):
+        await db.execute(delete(model).where(model.user_id == user.id))
     await db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
     assets = (await db.scalars(select(MediaAsset).where(MediaAsset.owner_user_id == user.id,
                                                        MediaAsset.deleted_at.is_(None)))).all()
@@ -313,6 +331,50 @@ async def delete_account(response: Response, principal: Annotated[Principal, Dep
     await _invalidate_cached_sessions(hashes)
     response.delete_cookie(SESSION_COOKIE, path="/")
     return {"ok": True}
+
+
+@router.patch("/me")
+async def update_me(body: NicknameBody, principal: Annotated[Principal, Depends(require_principal)],
+                    db: Annotated[AsyncSession, Depends(get_db)]):
+    """닉네임 변경. Redis 에 캐시된 세션(닉네임 포함)을 지워 다음 요청부터 새 닉네임이 보이게 한다."""
+    user = await db.get(User, principal.id)
+    if user is None:
+        raise HTTPException(404, "계정을 찾을 수 없습니다.")
+    user.nickname = body.nickname
+    hashes = list((await db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == user.id))).all())
+    await db.commit()
+    await _invalidate_cached_sessions(hashes)
+    return public_principal(replace(principal, nickname=body.nickname))
+
+
+@router.get("/identities")
+async def list_identities(principal: Annotated[Principal, Depends(require_principal)],
+                          db: Annotated[AsyncSession, Depends(get_db)]):
+    """연결된 로그인 수단 (email·google·kakao). 계정 설정에서 비밀번호 변경·연결 해제에 쓴다."""
+    rows = (await db.scalars(select(AuthIdentity).where(AuthIdentity.user_id == principal.id)
+                             .order_by(AuthIdentity.created_at))).all()
+    return {"identities": [{"provider": i.provider, "email": i.provider_email} for i in rows]}
+
+
+@router.post("/password/change")
+async def change_password(body: ChangePasswordBody, principal: Annotated[Principal, Depends(require_principal)],
+                          db: Annotated[AsyncSession, Depends(get_db)]):
+    """로그인한 상태에서 비밀번호 변경 (현재 비밀번호 확인). 지금 기기 말고 다른 기기의 로그인은 끊는다."""
+    await rate_limit(f"pwchange:{principal.id}", 10, 900)
+    identity = await db.scalar(select(AuthIdentity).where(AuthIdentity.user_id == principal.id, AuthIdentity.provider == "email"))
+    if identity is None:
+        raise HTTPException(400, "이메일로 가입한 계정만 비밀번호를 바꿀 수 있습니다.")
+    try:
+        password_hasher.verify(identity.password_hash or "", body.current_password)
+    except (VerifyMismatchError, InvalidHashError):
+        raise HTTPException(400, "현재 비밀번호가 맞지 않습니다.")
+    identity.password_hash = password_hasher.hash(body.new_password)
+    others = AuthSession.__table__.c.id != principal.session_id
+    hashes = list((await db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == principal.id, others))).all())
+    await db.execute(delete(AuthSession).where(AuthSession.user_id == principal.id, others))
+    await db.commit()
+    await _invalidate_cached_sessions(hashes)
+    return {"ok": True, "message": "비밀번호를 바꿨습니다. 다른 기기에서는 다시 로그인해야 합니다."}
 
 
 @router.post("/password/forgot")

@@ -535,3 +535,15 @@ def test_my_login_required(client):
                               ("get", "/api/my/festivals", None)]:
         r = client.request(method.upper(), url, json=body)
         assert r.status_code in (401, 503), (url, r.status_code)
+
+
+def test_account_bodies():
+    # 닉네임은 앞뒤 공백을 빼고 2자 이상, 새 비밀번호는 10자 이상 (가입과 같은 기준)
+    from pydantic import ValidationError
+    from app.auth import ChangePasswordBody, NicknameBody
+    assert NicknameBody(nickname="  여행자 ").nickname == "여행자"
+    for bad in (" a ", "x" * 41):
+        with pytest.raises(ValidationError):
+            NicknameBody(nickname=bad)
+    with pytest.raises(ValidationError):
+        ChangePasswordBody(current_password="old", new_password="short")

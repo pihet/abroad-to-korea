@@ -258,7 +258,7 @@ export default function FeedApp() {
 
       {tab === 'ask' && <FeedAsk onOpen={setOpen} />}
 
-      {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} onAccount={() => setAccountOpen(true)} onOpen={setOpen} onOrigin={setOrigin} />}
+      {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} accountOpen={accountOpen} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
 
       <div hidden={tab !== 'search'}>
         <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} origin={origin} />
@@ -275,7 +275,7 @@ export default function FeedApp() {
       {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}
         onPick={(k, dong) => { setFinding(false); setOpenDong(dong ?? null); setOpen(k) }} />}
       {open && <FeedRegion regionKey={open} initialDong={openDong} saved={saved.includes(open)} onToggleSave={() => toggle(open)} onClose={() => { setOpen(null); setOpenDong(null) }} />}
-      {accountOpen && <AccountModal user={user} onUser={changeUser} onClose={() => setAccountOpen(false)} />}
+      {accountOpen && <AccountModal user={user} onUser={changeUser} onClose={() => setAccountOpen(false)} onOrigin={setOrigin} />}
     </div>
   )
 }

@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { authApi, type AuthUser } from './api'
+import { authApi, type AuthUser, type Origin } from './api'
+import { AccountSettings } from './AccountSettings'
 
 type AccountMode = 'login' | 'signup'
 
-export function AccountModal({ user, onUser, onClose }: { user: AuthUser | null; onUser: (user: AuthUser | null) => void; onClose: () => void }) {
+export function AccountModal({ user, onUser, onClose, onOrigin }: { user: AuthUser | null; onUser: (user: AuthUser | null) => void; onClose: () => void; onOrigin: (origin: Origin | null) => void }) {
   const [mode, setMode] = useState<AccountMode>('login')
   const [email, setEmail] = useState('')
   const [nickname, setNickname] = useState('')
@@ -30,7 +31,6 @@ export function AccountModal({ user, onUser, onClose }: { user: AuthUser | null;
     catch (error) { setMessage(error instanceof Error ? error.message : '소셜 로그인을 시작하지 못했습니다.'); setBusy(false) }
   }
   const changeMode = (next: AccountMode) => { setMode(next); setMessage(null); setShowPassword(false) }
-  const logout = async () => { setBusy(true); try { await authApi.logout(); onUser(null); onClose() } finally { setBusy(false) } }
 
   const title = mode === 'signup' ? '회원가입' : '로그인'
   const subtitle = mode === 'signup' ? '여행지를 저장하고 나만의 목록을 만들어 보세요.'
@@ -39,11 +39,7 @@ export function AccountModal({ user, onUser, onClose }: { user: AuthUser | null;
   return <div className="account-layer" role="dialog" aria-modal="true" aria-labelledby="account-title">
     <section className="account-card">
       <button className="account-close" type="button" onClick={onClose} aria-label="닫기">×</button>
-      {user ? <div className="account-profile">
-        <div className="account-avatar" aria-hidden="true">{user.nickname.slice(0, 1)}</div>
-        <div><h2 id="account-title">{user.nickname}</h2><p>{user.email}</p></div>
-        <button className="account-submit secondary" type="button" disabled={busy} onClick={logout}>로그아웃</button>
-      </div> : <>
+      {user ? <AccountSettings user={user} onUser={onUser} onClose={onClose} onOrigin={onOrigin} /> : <>
         <header className="account-head">
           <h2 id="account-title">{title}</h2>
           {subtitle && <p>{subtitle}</p>}

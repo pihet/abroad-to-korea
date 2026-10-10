@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ORIGINS, type AuthUser, type Origin, type RegionRow } from './api'
+import type { AuthUser, Origin, RegionRow } from './api'
 import './my.css'
 
-// MY 탭: 프로필 · 내 취향 상태와 설정(개인 맞춤 켜기·끄기, 기본 출발지) · 저장한 곳 · 저장한 곳의 축제 · 내가 누른 반응.
+// MY 탭: 프로필 · 내 취향 상태 · 저장한 곳 · 저장한 곳의 축제 · 내가 누른 반응.
 // 저장은 비로그인이면 이 기기에만, 로그인하면 서버에도 남는다 (FeedApp 의 saved). 나머지는 로그인 사용자만.
 
 type Taste = { logged_in: boolean; on: boolean; enabled: boolean; origin: Origin | null
@@ -13,9 +13,10 @@ type Fest = { id: string; name: string; start: string; end: string; region: { ke
 const md = (iso: string) => `${+iso.slice(5, 7)}/${+iso.slice(8, 10)}`
 const getJson = <T,>(url: string): Promise<T | null> => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
 
-export function FeedMy({ user, rows, saved, onAccount, onOpen, onOrigin }: {
+export function FeedMy({ user, rows, saved, accountOpen, onAccount, onOpen }: {
   user: AuthUser | null; rows: RegionRow[]; saved: string[]
-  onAccount: () => void; onOpen: (key: string) => void; onOrigin: (o: Origin | null) => void
+  accountOpen: boolean  // 계정 설정을 닫으면 내 취향 상태를 다시 읽는다 (설정이 바뀌었을 수 있음)
+  onAccount: () => void; onOpen: (key: string) => void
 }) {
   const [taste, setTaste] = useState<Taste | null>(null)
   const [votes, setVotes] = useState<Vote[]>([])
@@ -23,21 +24,13 @@ export function FeedMy({ user, rows, saved, onAccount, onOpen, onOrigin }: {
   const [err, setErr] = useState<string | null>(null)
   const loadTaste = () => getJson<Taste>('/api/my/taste').then(setTaste)
   // 하트를 누르거나 로그인 상태가 바뀌면 다시 센다
-  useEffect(() => { loadTaste() }, [user, saved.length])
+  useEffect(() => { loadTaste() }, [user, saved.length, accountOpen])
   useEffect(() => {
     if (!user) { setVotes([]); setFests([]); return }
     getJson<{ votes: Vote[] }>('/api/my/votes').then(d => setVotes(d?.votes ?? []))
     getJson<{ items: Fest[] }>('/api/my/festivals').then(d => setFests(d?.items ?? []))
   }, [user, saved.length])
 
-  const save = async (personal: boolean, origin: Origin | null) => {
-    setErr(null)
-    const r = await fetch('/api/my/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ personal, origin }) }).catch(() => null)
-    if (!r?.ok) { setErr('설정을 저장하지 못했어요. 잠시 뒤 다시 해 주세요.'); return }
-    onOrigin(origin)
-    loadTaste()
-  }
   const unvote = async (id: string) => {
     const r = await fetch(`/api/my/votes/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
     if (!r?.ok && r?.status !== 404) { setErr('취소하지 못했어요. 잠시 뒤 다시 해 주세요.'); return }
@@ -60,26 +53,11 @@ export function FeedMy({ user, rows, saved, onAccount, onOpen, onOrigin }: {
 
       <section className="my-taste" aria-live="polite">
         {!user && <p>로그인하면 저장한 곳이 다른 기기에서도 보이고, <b>내 취향이 추천 순서에 반영돼요.</b></p>}
-        {user && taste && !taste.enabled && <p><b>내 취향 반영 꺼짐</b> · 사진으로 찾기 결과가 사진 닮은 순서 그대로 나와요</p>}
+        {user && taste && !taste.enabled && <p><b>내 취향 반영 꺼짐</b> · 계정 설정에서 다시 켤 수 있어요</p>}
         {user && taste?.on && <p><b>내 취향 반영 중</b> · 닮았어요·별로예요·저장 {n}개로 사진으로 찾기 결과 순서를 조금 바꿔요</p>}
         {user && taste?.enabled && !taste.on && <p><b>{Math.max(taste.min_signals - n, 1)}개 더</b> 누르면 내 취향이 추천에 반영돼요 <small>(닮았어요·별로예요·하트)</small></p>}
       </section>
 
-      {user && taste && <section className="my-set">
-        <div>
-          <span>내 취향 반영</span>
-          <button type="button" role="switch" aria-checked={taste.enabled} className="my-switch"
-            onClick={() => save(!taste.enabled, taste.origin)}><i /></button>
-        </div>
-        <div>
-          <span>기본 출발지 <small>{taste.origin ? `저장됨 · 사진으로 찾기 결과에 '${taste.origin}에서 ○km'` : '고르면 사진으로 찾기 결과에 거리 표시'}</small></span>
-          <span className="my-chips">
-            {[null, ...ORIGINS].map(o => <button key={o ?? 'none'} type="button" aria-pressed={taste.origin === o}
-              onClick={() => save(taste.enabled, o)}>{o ?? '없음'}</button>)}
-          </span>
-        </div>
-        {err && <p className="my-err">{err}</p>}
-      </section>}
 
       <h2 className="my-h">저장한 곳 <small>{mine.length}</small></h2>
       {mine.length === 0 ? <p className="ig-wait">하트를 누른 곳이 여기에 모여요.</p> : (
@@ -108,6 +86,7 @@ export function FeedMy({ user, rows, saved, onAccount, onOpen, onOrigin }: {
 
       {user && <>
         <h2 className="my-h">내가 누른 반응 <small>{votes.length}</small></h2>
+        {err && <p className="my-err">{err}</p>}
         {votes.length === 0 ? <p className="ig-wait">사진으로 찾기 결과에서 닮았어요·별로예요를 누르면 여기에 모여요.</p> : (
           <ul className="my-list">
             {votes.map(v => <li key={v.attraction_id}>

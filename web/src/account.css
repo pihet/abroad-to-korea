@@ -1,0 +1,27 @@
+/* 계정 설정 (AccountSettings). 카드는 feed.css 의 .account-card (밝은 배경 고정) */
+.acs h3 { margin: 22px 0 8px; font-size: 13px; font-weight: 800; color: #777 }
+.acs .account-profile h2 { display: flex; align-items: center; justify-content: center; gap: 8px }
+.acs-link { color: #0095f6 !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer }
+.acs-link:disabled { opacity: .5 }
+.acs-row { display: flex; gap: 6px; width: 100% }
+.acs-row input { flex: 1; min-width: 0; height: 40px; border: 1px solid #d9d9d9; padding: 0 12px; font: inherit; font-size: 14px; color: #151515; background: #fff }
+.acs-row button { flex: none; height: 40px; padding: 0 14px; border-radius: 8px !important; background: #111 !important; color: #fff !important; font-size: 13px !important; font-weight: 700 }
+.acs-row button.ghost { background: #f2f2f2 !important; color: #151515 !important }
+.acs-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px }
+.acs-item.col { flex-direction: column; align-items: stretch }
+.acs-item > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.acs-item small { color: #888; font-size: 12px; overflow-wrap: anywhere }
+.acs-switch { position: relative; flex: none; width: 44px; height: 26px; border-radius: 13px !important; background: #dbdbdb !important; transition: background .15s }
+.acs-switch i { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s }
+.acs-switch[aria-checked="true"] { background: #0095f6 !important }
+.acs-switch[aria-checked="true"] i { left: 21px }
+.acs-chips { display: flex; gap: 6px; flex-wrap: wrap }
+.acs-chips button { height: 30px; padding: 0 12px; border-radius: 15px !important; border: 1px solid #e0e0e0 !important; background: #f5f5f5 !important; color: #151515 !important; font-size: 13px !important }
+.acs-chips button[aria-pressed="true"] { background: #111 !important; color: #fff !important; border-color: #111 !important }
+.acs-sub { margin: 6px 0 0 !important; color: #888; font-size: 12px }
+.acs-ok { margin-top: 14px !important; padding: 10px 12px; color: #1b5e20 !important; background: #eef8ee; font-size: 12.5px !important }
+.acs .account-form { margin-top: 4px }
+.acs-leave { margin-top: 18px; text-align: center; font-size: 13px; color: #555 }
+.acs-leave p { margin: 0 0 10px !important; line-height: 1.5 }
+.acs-leave .danger { height: 40px; padding: 0 18px; margin-right: 10px; border-radius: 999px !important; background: #ed4956 !important; color: #fff !important; font-weight: 800; font-size: 13px !important }
+.acs-leave .acs-link { color: #999 !important }

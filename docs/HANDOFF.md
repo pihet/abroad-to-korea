@@ -1689,3 +1689,11 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 화면: MY에 스위치·출발지 칩, 저장한 곳 아래 축제 목록, 맨 아래 반응 목록(취소 버튼). 출발지를 고르면 사진으로 찾기 결과에 "부산에서 40km"
 - 확인 (8000번 Docker, 새 계정 2개, 끝나고 탈퇴): 전주·강릉·제주 저장 → 축제 9개, 반응 2개 표시, 스위치 끄기 → `personal.on=false`·닮은 곳 빈 목록, 취소 → 1개, 부산 출발 → 결과 "창원시 · 부산에서 40km"
 - 테스트: `test_my_personal_off`(끄면 취향·닮은 곳 꺼짐), `test_my_login_required`. 전체 54개 통과
+
+### 15-32. 계정 설정 채우기 (2026-10-10)
+
+- 사용자 결정: 계정 설정 같은 사용자 기능은 Claude가 `auth.py`·`AccountModal.tsx`까지 직접 고친다
+- 로그인한 사람의 계정 설정(`web/src/AccountSettings.tsx`, `account.css`): 닉네임 변경 · 여행 설정(내 취향 반영 스위치, 기본 출발지 — MY에서 옮김) · 로그인 수단 보기·해제(2개 이상일 때만) · 비밀번호 변경(이메일 가입자만) · 로그아웃 · 회원 탈퇴(한 번 더 확인)
+- 새 API (`app/auth.py`): `PATCH /api/auth/me {nickname}`(Redis 세션 캐시 비움), `GET /api/auth/identities`, `POST /api/auth/password/change {current_password, new_password}`(현재 비밀번호 확인, 지금 기기 말고 다른 세션은 끊음)
+- 탈퇴 수정: 예전에는 상태만 deleted 로 바꿔 이메일·로그인 수단이 남아 **같은 이메일로 다시 가입할 수 없었다**(users.email 유일). 이제 이메일을 `deleted-<id>@deleted.invalid`로, 닉네임을 '탈퇴한 사용자'로 바꾸고 로그인 수단·저장·설정을 지운다. 피드백 기록은 모델 평가용으로 남는다. 이 수정 전에 탈퇴한 시험 계정들은 그대로다
+- 확인 (8000번 Docker, 새 계정): 닉네임 공백 정리·1자 거절(422), 틀린 현재 비밀번호 400, 변경 후 이 기기 유지·다른 기기 401·옛 비밀번호 401·새 비밀번호 200, 마지막 로그인 수단 해제 거절, 화면에서 대구·스위치 끄기 저장, 탈퇴 → 같은 이메일 재가입 201
