@@ -10,4 +10,4 @@
 | `test_infrastructure.py` | 로그인 기본 함수, DB 스키마, 캐시 대체 동작, 수집 원본의 DB 게시 가능 여부 (실제 DB 없이 실행) |
 | `test_email_worker.py`, `test_mlflow_tracking.py` | 메일 발송 작업, MLflow 기록 |
 
-서버가 쓰는 데이터(`data/`)가 있어야 대부분 실행된다.
+PostgreSQL 관광 콘텐츠 백필과 서버가 쓰는 모델·지도 데이터(`data/`)가 있어야 대부분 실행된다.

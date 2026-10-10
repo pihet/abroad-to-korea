@@ -43,9 +43,9 @@ def haversine(a, b):
 class Context:
     """서버 시작 때 한 번 만든다. 시군구 키 = '시도코드_시군구명' (clip_proto 지역 단위와 같다)."""
 
-    def __init__(self, regions):
+    def __init__(self, regions, centers=None):
         self.regions = regions  # [(시도코드, 시군구명)] — 추천 인덱스와 같은 순서
-        self.centers = region_centers()
+        self.centers = centers if centers is not None else region_centers()
         self._monthly_visitors()
         self._forecast()
         self._climate_cache = {}

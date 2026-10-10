@@ -4,7 +4,7 @@
 
 ```bash
 docker compose up -d --build --no-deps api      # 코드 수정 후 (시작까지 약 40초)
-docker compose restart api                      # data/ 만 바뀌었을 때
+docker compose restart api                      # 모델 자산 또는 DB 파생 인덱스를 다시 읽을 때
 .venv/bin/uvicorn app.main:app --port 8001      # Docker 없이 확인할 때 (8000은 Docker가 쓴다)
 ```
 
@@ -18,4 +18,4 @@ docker compose restart api                      # data/ 만 바뀌었을 때
 | `cost.py`, `travel_time.py`, `rain.py` | 예상 경비, 코스 이동 시간(카카오), 비 예보 |
 | `search.py` | 이름 검색 (읍·면·동, 장소) |
 | `schemas.py` | API 응답 모양 (`web/src/api.ts`와 같게 유지) |
-| `auth.py`, `db.py`, `models.py`, `media.py`, `settings.py`, `query_cache.py`, `email_worker.py` | 로그인·DB·업로드 사진 보관·캐시·메일 (인프라 담당) |
+| `auth.py`, `db.py`, `models.py`, `catalog.py`, `media.py`, `settings.py`, `query_cache.py`, `email_worker.py` | 로그인·DB 관광 콘텐츠 조회·업로드 사진 보관·캐시·메일 (인프라 담당) |

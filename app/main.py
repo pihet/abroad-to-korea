@@ -16,62 +16,68 @@ from pathlib import Path
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Cookie, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 from collections import Counter
 
-from .activities import GROUPS as ACT_GROUPS, Activities
+from .activities import GROUPS as ACT_GROUPS
 from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
 from .context import DATA_SOURCES, ORIGINS, ROOT
 from .rain import Rain, RainError
-from .courses import Courses
 from .cost import Cost
+from .catalog import Catalog, LICENSES, clean_html
 from .travel_time import TravelError, TravelTime
 from .search import Search
 from .recommender import PERSONAL_MIN, PERSONAL_WEIGHT, PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 from .auth import me_router, router as auth_router
-from .db import close_db, session_factory
+from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
 from .media import persist_upload, router as media_router
-from .models import AuthSession, FeedbackRecord, SavedRegion
+from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 MAX_UPLOAD = 15 * 1024 * 1024
 BAD_IMAGE = "사진 파일을 열 수 없습니다. JPG·PNG·WEBP·HEIC 사진인지 확인해 주세요."
 APP_DATA = ROOT / "data/interim/app"
 KR_FULL = APP_DATA / "kr_full"       # TourAPI 원본 사진 캐시 (처음 요청 때 받는다)
 TOUR_THUMB = APP_DATA / "tour_thumb"  # 활동 목록 썸네일 캐시
-EXTRA_DIRS = [ROOT / "data/raw/tourapi/detailImage2_ct39", ROOT / "data/raw/tourapi/detailImage2_ct39_sample",
-              ROOT / "data/raw/tourapi/detailImage2"]  # 추가 사진 원문 (음식점: 누를 때 받아 저장 / 표본 / 관광지 매일 수집)
 EXTRA_IMG = APP_DATA / "extra_img"  # 추가 사진 파일 캐시
 FEEDBACK = APP_DATA / "feedback.jsonl"
 WEB_DIST = ROOT / "web/dist"
 
 engine: Optional[Engine] = None
-acts: Optional[Activities] = None
+acts = None
 regions: Optional[Regions] = None
 hoods: Optional[Neighborhoods] = None
 MISSING_PHOTOS: set[str] = set()
+catalog = Catalog()
 
 
 @asynccontextmanager
 async def lifespan(_app):
-    global engine, acts, regions, hoods, rain, courses, search, cost, travel
+    global engine, acts, regions, hoods, rain, search, cost, travel
     t = time.time()
-    engine = Engine()
-    acts = Activities()
+    factory = session_factory()
+    if factory is None:
+        raise RuntimeError("DATABASE_URL이 설정되지 않아 관광 콘텐츠를 불러올 수 없습니다.")
+    async with factory() as db:
+        acts = await catalog.snapshot(db)
+        recommendation_records = await catalog.recommendation_records(db)
+    if not acts.by_region:
+        raise RuntimeError("PostgreSQL 관광 콘텐츠가 비어 있습니다. publish_tour.py 백필을 먼저 실행하세요.")
+    engine = Engine(recommendation_records)
     regions = Regions(engine, acts)
     hoods = Neighborhoods(acts, {s['sido']: s['key'].split('_')[0] for s in regions.static.values()})
     rain = Rain(engine.ctx.centers)
-    courses = Courses(acts, engine)
     cost = Cost()
     travel = TravelTime()
-    search = Search(acts, hoods, regions.static)
+    search = Search(acts, hoods, regions.static, include_places=False)
     KR_FULL.mkdir(parents=True, exist_ok=True)
     TOUR_THUMB.mkdir(parents=True, exist_ok=True)
     print(f"[startup] 모델·인덱스 준비 {time.time() - t:.0f}초", flush=True)
@@ -283,12 +289,11 @@ def region_table(month: Optional[int] = Query(None, ge=1, le=12), origin: Option
 
 
 @app.get("/api/rankings")
-def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
+async def rankings(month: Optional[int] = Query(None, ge=1, le=12), db: AsyncSession = Depends(get_db)):
     """이 달의 목록. 목록마다 거르는 조건 하나 + 정렬 기준 하나, 둘 다 화면에 적는다 (종합점수 없음)."""
     rows = regions.month_table(month)
     meta = {f["key"]: f for f in regions.filter_meta(month)}
-    n_act = {k: sum(r["group"] not in ("festival", "food") for r in v) for k, v in acts.by_region.items()}
-    n_fest = {r["key"]: sum(i["group"] == "festival" for i in acts.for_region(r["key"], month)[1]) for r in rows}
+    n_act, n_fest = await catalog.counts(db, month)
 
     def top(pred, sort_key, value, unit, n=6):
         sel = sorted((r for r in rows if pred(r) and sort_key(r) is not None), key=sort_key)[:n]
@@ -296,7 +301,7 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
                  "photo": engine.region_photo(r["ri"])} for r in sel]
 
     if month is None:  # 여행 월 없이: 연간·앞으로 열릴 축제 기준. 혼잡도는 지역 상세에서만 보여 준다
-        n_up = {r["key"]: sum(i["group"] == "festival" and i.get("schedule") == "예정" for i in acts.for_region(r["key"], None)[1]) for r in rows}
+        n_up = n_fest
         lists = [
             {"id": "mountain", "title": "산·숲이 많은 곳",
              "basis": "산·계곡·숲·자연공원 관광지가 많은 순 (TourAPI 분류)",
@@ -306,7 +311,8 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
              "items": top(lambda r: r["flags"]["rural"], lambda r: -n_act.get(r["key"], 0), lambda r: n_act.get(r["key"], 0), "곳")},
             {"id": "festivals", "title": "앞으로 축제가 많이 열리는 곳",
              "basis": "2026년 일정 중 아직 끝나지 않은 축제 수가 많은 순",
-             "items": top(lambda r: n_up[r["key"]] > 0, lambda r: -n_up[r["key"]], lambda r: n_up[r["key"]], "개")},
+             "items": top(lambda r: n_up.get(r["key"], 0) > 0, lambda r: -n_up.get(r["key"], 0),
+                          lambda r: n_up.get(r["key"], 0), "개")},
         ]
         return {"is_example": False, "month": None, "lists": lists}
 
@@ -327,33 +333,34 @@ def rankings(month: Optional[int] = Query(None, ge=1, le=12)):
          "items": top(lambda r: r["flags"]["rural"], lambda r: -n_act.get(r["key"], 0), lambda r: n_act.get(r["key"], 0), "곳")},
         {"id": "festivals", "title": f"{month}월에 축제가 열리는 곳",
          "basis": f"2026년 {month}월에 기간이 걸친 축제 수가 많은 순",
-         "items": top(lambda r: n_fest[r["key"]] > 0, lambda r: -n_fest[r["key"]], lambda r: n_fest[r["key"]], "개")},
+         "items": top(lambda r: n_fest.get(r["key"], 0) > 0, lambda r: -n_fest.get(r["key"], 0),
+                      lambda r: n_fest.get(r["key"], 0), "개")},
     ]
     return {"is_example": False, "month": month, "lists": lists}
 
 
 @app.get("/api/search")
-def search_names(q: str = Query(..., min_length=1, max_length=40), limit: int = Query(20, ge=1, le=50)):
+async def search_names(q: str = Query(..., min_length=1, max_length=40), limit: int = Query(20, ge=1, le=50),
+                       db: AsyncSession = Depends(get_db)):
     """읍·면·동과 장소(관광지·레포츠·음식점·축제) 이름 검색. 이름 앞에서 맞는 것 → 안에서 맞는 것 → 초성으로 맞는 것 순."""
-    return {"q": q, **search.find(q, limit)}
+    dongs = search.find(q, limit)["dongs"]
+    return {"q": q, "dongs": dongs, "places": await catalog.search_places(db, q, limit)}
 
 
 @app.get("/api/festivals")
-def festivals(start: Optional[date] = None, days: int = Query(7, ge=1, le=31), limit: int = Query(12, ge=1, le=50)):
+async def festivals(start: Optional[date] = None, days: int = Query(7, ge=1, le=31), limit: int = Query(12, ge=1, le=50),
+                    db: AsyncSession = Depends(get_db)):
     """start(기본 오늘)부터 days일 안에 열리는 축제. 두 달 넘게 하는 상설 행사는 뺀다. 누르면 그 지역 상세로 간다."""
     s = start or date.today()
     e = s + timedelta(days=days - 1)
-    items = acts.festivals_between(s.strftime("%Y%m%d"), e.strftime("%Y%m%d"))
-    for f in items:
-        st = regions.static.get(f["region_key"])
-        f["region"] = {"key": f["region_key"], "name": st["name"], "sido": st["sido"]} if st else None
-    items = [f for f in items if f["region"]]
+    items = await catalog.festivals(db, s, e)
     return {"is_example": False, "start": s.isoformat(), "end": e.isoformat(), "total": len(items), "items": items[:limit],
             "basis": "한국관광공사 TourAPI 축제 일정 (2026년). 두 달 넘게 하는 상설 행사는 제외"}
 
 
 @app.get("/api/regions/{key}/profile")
-def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
+async def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12),
+                         db: AsyncSession = Depends(get_db)):
     """지역 상세: 조건 값, 12개월 날씨·방문자, 읍·면·동 경계와 활동지가 몰린 동네 Top 5."""
     row = next((r for r in regions.month_table(month) if r["key"] == key), None)
     if row is None:
@@ -368,7 +375,7 @@ def region_profile(key: str, month: Optional[int] = Query(None, ge=1, le=12)):
     return {"is_example": False, "month": month,
             "region": {x: v for x, v in row.items() if x != "ri"}, "photo": engine.region_photo(row["ri"]),
             "filters": regions.filter_meta(month), "months": months,
-            "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key), "food": acts.food_summary(key),
+            "neighborhoods": hoods.for_region(key), "focus": hoods.focus(key), "food": await catalog.food_summary(db, key),
             "notes": ["비 예보: 오늘부터 16일 안은 Open-Meteo 일기예보, 그 밖은 Open-Meteo 2021~2025년 같은 날짜 기록 (CC BY 4.0)",
                       "방문자: 한국관광공사 외지인 방문자 수. 2026-10은 월 단위 예측 모델(ridge, 2025년 검증 WAPE 5.6%) 값, 나머지 달은 2025-09~2026-08 실측",
                       "동네 순위: 읍·면·동 안의 관광지·레포츠 수 (축제 제외)", DONG_CREDIT]}
@@ -422,13 +429,13 @@ def _locate_missing(course):
 
 
 @app.get("/api/regions/{key}/courses")
-def region_courses(key: str, limit: int = Query(20, ge=1, le=100)):
+async def region_courses(key: str, limit: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db)):
     """그 시군구를 지나는 한국관광공사 공식 여행코스. 들르는 곳이 그 시군구에 많은 코스부터."""
     if key not in regions.static:
         raise HTTPException(404, "시군구를 찾을 수 없습니다.")
-    rows = courses.for_region(key)
+    rows, loaded, listed = await catalog.courses(db, key)
     return {"is_example": False, "total": len(rows), "items": [_locate_missing(c) for c in rows[:limit]],
-            "coverage": {"loaded": courses.n_loaded, "listed": courses.n_total},
+            "coverage": {"loaded": loaded, "listed": listed},
             "notes": ["코스: 한국관광공사 TourAPI 여행코스 (들르는 곳·순서·설명·총거리·소요시간은 원문 그대로)",
                       "지도 위치와 사진은 받아 둔 관광지·레포츠·음식점·축제와 같은 곳만 표시 (문화시설·쇼핑 등은 이름·설명만)",
                       "선은 들르는 순서를 직선으로 이은 것이며 실제 길이 아닙니다"]}
@@ -444,12 +451,12 @@ def region_rain(key: str, start: date, end: date):
 
 
 @app.get("/api/regions/{key}/dongs/{code}/activities")
-def dong_activities(key: str, code: str):
+async def dong_activities(key: str, code: str, db: AsyncSession = Depends(get_db)):
     """동네(읍·면·동) 안의 관광지·레포츠와 음식점 위치. 동네를 누르면 지도에 묶음별 색 점으로 찍는다."""
     a, f = hoods.act_ids(key, code), hoods.food_ids(key, code)
     if a is None:
         raise HTTPException(404, "동네를 찾을 수 없습니다.")
-    rows = [acts.by_id[i] for i in a + f if i in acts.by_id]
+    rows = await catalog.places_by_ids(db, a + f)
     groups = Counter(r["group"] for r in rows)
     return {"is_example": False, "code": code,
             "groups": [{"key": k, "label": label, "count": groups.get(k, 0)} for k, label in ACT_GROUPS if k != "festival"],
@@ -457,12 +464,12 @@ def dong_activities(key: str, code: str):
 
 
 @app.get("/api/regions/{key}/dongs/{code}/food")
-def dong_food(key: str, code: str):
+async def dong_food(key: str, code: str, db: AsyncSession = Depends(get_db)):
     """동네(읍·면·동) 안의 음식점: 대표사진(공공누리 1·3유형만)과 대표메뉴. 대표메뉴가 있는 곳, 사진이 있는 곳 순."""
     ids = hoods.food_ids(key, code)
     if ids is None:
         raise HTTPException(404, "동네를 찾을 수 없습니다.")
-    rows = [acts.by_id[i] for i in ids if i in acts.by_id]
+    rows = await catalog.places_by_ids(db, ids)
     rows.sort(key=lambda r: (r.get("menu") is None, r["image_url"] is None, r["name"]))
     return {"is_example": False, "code": code, "total": len(rows), "with_menu": sum(r.get("menu") is not None for r in rows),
             "items": [{k: r[k] for k in ("id", "name", "kind", "address", "image_url", "license", "lat", "lon")} | {"menu": r.get("menu")} for r in rows],
@@ -470,7 +477,8 @@ def dong_food(key: str, code: str):
 
 
 @app.get("/api/activities", response_model=ActivitiesResponse)
-def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12), attraction_id: Optional[str] = None):
+async def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12), attraction_id: Optional[str] = None,
+                     db: AsyncSession = Depends(get_db)):
     if sigungu_key not in engine.region_keys:
         raise HTTPException(404, "시군구를 찾을 수 없습니다.")
     origin = None
@@ -480,7 +488,7 @@ def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12)
             origin = (float(it["mapy"]), float(it["mapx"]))
         except (KeyError, ValueError):
             origin = None
-    groups, items = acts.for_region(sigungu_key, month, origin)
+    groups, items = await catalog.activities(db, sigungu_key, month, origin)
     return {"sigungu_key": sigungu_key, "month": month,
             "anchor": {"id": it["contentid"], "name": it["title"], "lat": origin[0], "lon": origin[1]} if origin else None,
             "groups": groups, "items": items,
@@ -491,9 +499,9 @@ def activities(sigungu_key: str, month: Optional[int] = Query(None, ge=1, le=12)
 
 
 @app.get("/images/tour/{cid}")
-def tour_image(cid: str, full: bool = False):
+async def tour_image(cid: str, full: bool = False, db: AsyncSession = Depends(get_db)):
     """활동 목록 사진 (공공누리 1·3유형만). full=1 이면 원본 크기 (사진 크게 보기용)."""
-    url = acts.photo_url(cid, full)
+    url = await catalog.primary_image(db, cid, full)
     if not url:
         raise HTTPException(404)
     cached = TOUR_THUMB / f"{cid}{'_full' if full else ''}.jpg"
@@ -511,17 +519,6 @@ def tour_image(cid: str, full: bool = False):
         except Exception:
             raise HTTPException(502, "사진을 받지 못했습니다.")
     return FileResponse(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
-
-
-def _extra_items(cid):
-    """저장해 둔 추가 사진 원문에서 공공누리 1·3유형만. 원문이 없으면 None."""
-    for d in EXTRA_DIRS:
-        for f in (d / f"{cid}.json", d / f"{cid}_Y.json"):
-            if f.exists():
-                it = ((json.loads(f.read_text(encoding="utf-8"))["response"]["body"].get("items") or {}).get("item")) or []
-                it = [it] if isinstance(it, dict) else it
-                return [x for x in it if x.get("cpyrhtDivCd") in ("Type1", "Type3") and (x.get("originimgurl") or x.get("smallimageurl"))]
-    return None
 
 
 def _tour_get(op, params, quota_msg, fail_msg):
@@ -546,56 +543,60 @@ def _tour_get(op, params, quota_msg, fail_msg):
     raise HTTPException(503, quota_msg)
 
 
-DETAIL_DIR = ROOT / "data/raw/tourapi/detailCommon2"
-
-
 @app.get("/api/places/{cid}/detail")
-def place_detail(cid: str):
+async def place_detail(cid: str, db: AsyncSession = Depends(get_db)):
     """체험·축제 등 장소 소개글(detailCommon2 overview)·홈페이지·전화. 받아 둔 원문이 없으면 그때 한 번 부르고 저장한다."""
-    if cid not in acts.by_id:
+    place, _ = await catalog.images(db, cid)
+    if place is None:
         raise HTTPException(404, "장소를 찾을 수 없습니다.")
-    f = DETAIL_DIR / f"{cid}.json"
-    if f.exists():
-        data = json.loads(f.read_text(encoding="utf-8"))
-    else:
+    attrs = dict(place.attributes or {})
+    if not attrs.get("overview"):
         data = _tour_get("detailCommon2", {"contentId": cid, "numOfRows": 1, "pageNo": 1},
                          "오늘 소개 조회 한도를 다 써서 불러올 수 없습니다. 내일 다시 시도해 주세요.", "소개를 불러오지 못했습니다.")
-        DETAIL_DIR.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    it = ((data["response"]["body"].get("items") or {}).get("item")) or [{}]
-    it = it[0] if isinstance(it, list) else it
+        items = ((data["response"]["body"].get("items") or {}).get("item")) or [{}]
+        item = items[0] if isinstance(items, list) else items
+        attrs.update({key: item[key] for key in ("overview", "homepage", "tel") if item.get(key)})
+        place.attributes = attrs
+        await db.commit()
     import re as _re
-    clean = lambda x: " ".join(_re.sub(r"<[^>]+>", " ", x or "").split()) or None
-    home = _re.search(r'href="([^"]+)"', it.get("homepage") or "")
-    return {"id": cid, "title": it.get("title"), "overview": clean(it.get("overview")), "tel": clean(it.get("tel")),
+    home = _re.search(r'href="([^"]+)"', attrs.get("homepage") or "")
+    return {"id": cid, "title": place.name, "overview": clean_html(attrs.get("overview")), "tel": clean_html(attrs.get("tel")),
             "homepage": home.group(1) if home else None, "source": "한국관광공사 TourAPI"}
 
 
 @app.get("/api/places/{cid}/photos")
-def place_photos(cid: str):
+async def place_photos(cid: str, db: AsyncSession = Depends(get_db)):
     """가게·관광지 추가 사진. 받아 둔 원문이 없으면 그때 TourAPI detailImage2 를 한 번 부르고 저장한다 (관광지 사진 수집과 하루 한도 공유)."""
-    if cid not in acts.by_id:
+    place, images = await catalog.images(db, cid)
+    if place is None:
         raise HTTPException(404, "장소를 찾을 수 없습니다.")
-    items = _extra_items(cid)
-    if items is None:
+    extra = [image for image in images if not image.is_primary]
+    if not extra:
         data = _tour_get("detailImage2", {"contentId": cid, "imageYN": "Y", "numOfRows": 30, "pageNo": 1},
                          "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요.", "추가 사진을 불러오지 못했습니다.")
-        EXTRA_DIRS[0].mkdir(parents=True, exist_ok=True)
-        (EXTRA_DIRS[0] / f"{cid}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        items = _extra_items(cid)
-    licence = {"Type1": "공공누리 제1유형 (출처표시)", "Type3": "공공누리 제3유형 (출처표시·변경금지)"}
-    return {"id": cid, "photos": [{"url": f"/images/extra/{cid}/{i}", "name": x.get("imgname"), "license": licence[x["cpyrhtDivCd"]]}
-                                  for i, x in enumerate(items)], "source": "한국관광공사 TourAPI"}
+        items = ((data["response"]["body"].get("items") or {}).get("item")) or []
+        items = [items] if isinstance(items, dict) else items
+        for item in items:
+            url, code = item.get("originimgurl") or item.get("smallimageurl"), item.get("cpyrhtDivCd")
+            if url and code in LICENSES:
+                db.add(PlaceImage(place_id=place.id, source_url=url, license_code=code, is_primary=False, is_active=True))
+        await db.commit()
+        _, images = await catalog.images(db, cid)
+        extra = [image for image in images if not image.is_primary]
+    return {"id": cid, "photos": [{"url": f"/images/extra/{cid}/{i}", "name": None,
+                                     "license": LICENSES[image.license_code]} for i, image in enumerate(extra)],
+            "source": "한국관광공사 TourAPI"}
 
 
 @app.get("/images/extra/{cid}/{n}")
-def extra_image(cid: str, n: int):
-    items = _extra_items(cid) or []
-    if not (0 <= n < len(items)):
+async def extra_image(cid: str, n: int, db: AsyncSession = Depends(get_db)):
+    _, images = await catalog.images(db, cid)
+    extra = [image for image in images if not image.is_primary]
+    if not (0 <= n < len(extra)):
         raise HTTPException(404)
     cached = EXTRA_IMG / f"{cid}_{n}.jpg"
     if not cached.exists():
-        url = items[n].get("originimgurl") or items[n].get("smallimageurl")  # 받아 둔 원문에 있는 주소만 쓴다
+        url = extra[n].source_url
         try:
             EXTRA_IMG.mkdir(parents=True, exist_ok=True)
             cached.write_bytes(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": cp.UA}), timeout=15).read())

@@ -10,7 +10,9 @@ Stage B  30곳 안에서만 재정렬. visual 은 Stage A 순서 그대로, 그 
 
 import io
 import re
+import statistics
 import uuid
+from collections import defaultdict
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -49,19 +51,48 @@ KOGL = {"Type1": "공공누리 제1유형 (출처표시)", "Type3": "공공누�
 CACHE_SIZE = 200
 
 
+def _database_index(records):
+    """Build the existing CLIP index shape from PostgreSQL catalog rows."""
+    eligible = {row["contentid"]: row for row in records
+                if row.get("firstimage2") and row.get("cpyrhtDivCd") in ("Type1", "Type3")}
+    kr = np.load(cp.WORK / "emb_kr.npz")
+    region_idx = defaultdict(list)
+    for index, content_id in enumerate(kr["names"]):
+        row = eligible.get(str(content_id))
+        if row and row["region_code"]:
+            region_idx[(row["region_code"], row["region_name"])].append(index)
+    regions = sorted(region_idx)
+    img_region = np.full(len(kr["vecs"]), -1)
+    for region, indexes in region_idx.items():
+        img_region[indexes] = regions.index(region)
+    reg_mean = np.stack([kr["vecs"][region_idx[region]].mean(0) for region in regions])
+    reg_mean /= np.linalg.norm(reg_mean, axis=1, keepdims=True)
+    names = {(row["region_code"], row["region_name"]): f'{row["sido"]} {row["region_name"]}'
+             for row in records if row["region_code"]}
+    points = defaultdict(list)
+    for row in records:
+        if row["region_code"] and row["mapy"] is not None and row["mapx"] is not None:
+            points[(row["region_code"], row["region_name"])].append((row["mapy"], row["mapx"]))
+    centers = {key: (round(statistics.median(lat for lat, _ in values), 4),
+                     round(statistics.median(lon for _, lon in values), 4)) for key, values in points.items()}
+    return ({"kv": kr["vecs"], "cid": kr["names"], "items": eligible, "regions": regions,
+             "rpos": {region: i for i, region in enumerate(regions)}, "img_region": img_region,
+             "name": names, "reg_mean": reg_mean}, centers)
+
+
 class Engine:
-    def __init__(self):
+    def __init__(self, catalog_records=None):
         import torch
         from transformers import CLIPModel, CLIPProcessor
         torch.set_num_threads(8)
         self.model = CLIPModel.from_pretrained(cp.MODEL_NAME).eval()
         self.proc = CLIPProcessor.from_pretrained(cp.MODEL_NAME)
-        self.I = sc.domestic_index()
+        self.I, centers = _database_index(catalog_records) if catalog_records is not None else (sc.domestic_index(), None)
         self.cid = np.array([str(c) for c in self.I["cid"]])
         self.ok = self.I["img_region"] >= 0
         self.region_keys = [f"{r[0]}_{r[1]}" for r in self.I["regions"]]
         self.region_index = {k: i for i, k in enumerate(self.region_keys)}
-        self.ctx = Context([(r[0], r[1]) for r in self.I["regions"]])
+        self.ctx = Context([(r[0], r[1]) for r in self.I["regions"]], centers)
         self.tagger = Tagger(self.model, self.proc)
         self.cache = QueryCache(CACHE_SIZE)
         self._demo = None
@@ -211,6 +242,29 @@ class Engine:
                 label = max(taste["refs"], key=lambda r: float(r[1] @ vecs[i]))[0]
                 reason = f"{label} 사진과 비슷"
             out.append({**ranked[i], "personal_component": round(float(pref[i]), 3), "personal_reason": reason})
+        return out
+
+    def similar_regions(self, taste, exclude=(), k=10):
+        """홈 '저장한 곳과 닮은 곳': 시군구 대표 사진(홈 피드에 보이는 사진)이 취향 벡터와 가장 닮은 순.
+        exclude(이미 저장한 시군구)는 뺀다. [(시군구 key, 이유 문장)]"""
+        if not hasattr(self, "_rep_vecs"):
+            d = self.I["kv"].shape[1]
+            vecs = []
+            for ri in range(len(self.region_keys)):
+                rep = self.region_photo(ri)
+                v = None if rep is None else self._attraction_vec(rep["attraction_id"])
+                vecs.append(np.zeros(d, dtype=self.I["kv"].dtype) if v is None else v)
+            self._rep_vecs = np.stack(vecs)
+        sims = self._rep_vecs @ taste["u"]
+        out = []
+        for ri in np.argsort(-sims, kind="stable"):
+            key = self.region_keys[ri]
+            if key in exclude or sims[ri] == 0:
+                continue
+            label = max(taste["refs"], key=lambda r: float(r[1] @ self._rep_vecs[ri]))[0]
+            out.append((key, f"{label} 사진과 비슷"))
+            if len(out) == k:
+                break
         return out
 
     # ---------------- 응답 조립

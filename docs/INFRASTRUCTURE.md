@@ -13,7 +13,7 @@
 - `airflow-api-server`, `airflow-dag-processor`, `airflow-scheduler`: DAG 파싱·등록과 LocalExecutor 기반 배치 운영
 - `mlflow`: CLIP·혼잡도 실험의 parameter, metric, artifact와 Git commit 추적
 
-PostgreSQL은 회원·저장 지역·피드백의 원본이며 수집 데이터의 게시 대상이다. 현재 추천·지역 상세 API는 `data/` 파일을 읽으므로 관광 콘텐츠 조회를 PostgreSQL로 전환하는 작업은 남아 있다. Redis 값은 삭제되어도 다시 로그인하거나 재계산할 수 있어야 한다. MinIO 데이터는 DB의 객체 키와 함께 백업해야 한다.
+PostgreSQL은 회원·저장 지역·피드백과 관광 콘텐츠의 원본이다. 관광지·레포츠·음식점·축제·공식 코스 API는 PostgreSQL을 조회하고, `data/`에는 수집 staging과 모델·지도 자산만 둔다. Redis 값은 삭제되어도 다시 로그인하거나 재계산할 수 있어야 한다. MinIO 데이터는 DB의 객체 키와 함께 백업해야 한다.
 
 회원 이메일은 대소문자를 무시하고 하나만 허용한다. 검증된 OAuth 이메일이 기존 검증 계정과 같으면 로그인 수단을 같은 회원에 연결한다. 이메일 인증 없이 가입한 계정은 계정 선점을 막기 위해 먼저 비밀번호로 로그인한 뒤 Google·Kakao를 명시적으로 연결해야 한다.
 
@@ -50,6 +50,14 @@ MINIO_ROOT_PASSWORD=change-me
 docker compose config --quiet
 docker compose up --build -d
 docker compose ps -a
+```
+
+기존 TourAPI 원본을 처음 게시할 때는 API 시작 전에 백필한다. 같은 날짜와 DAG ID로 다시 실행해도 중복 행을 만들지 않는다.
+
+```bash
+docker compose exec airflow-api-server bash -lc \
+  'cd /workspace && python src/ingest/publish_tour.py --logical-date "$(date +%F)" --dag-id manual_backfill'
+docker compose restart api
 ```
 
 최초 빌드는 Python·ML·Airflow 의존성과 MinIO 소스를 받아 컴파일하므로 오래 걸릴 수 있다. 공식 MinIO 컨테이너 이미지가 레지스트리에서 제공되지 않아 `infra/docker/Dockerfile.minio`가 고정 버전 소스를 직접 빌드한다. 이후 실행은 Docker 캐시를 사용한다.
@@ -109,7 +117,9 @@ Google·Kakao는 같은 이메일이라는 이유만으로 기존 계정에 자�
 - Current: PostgreSQL의 `regions`, `places`, `place_images`, `festivals`, 지역 시계열
 - Serving cache: Redis의 `query:*`, `auth:session:*`, `dataset_version`
 
-Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB 트랜잭션에서 idempotent upsert한다. 실패한 실행은 기존 게시 데이터를 교체하지 않는다. 게시가 끝나면 Redis 검색 캐시를 무효화하고 데이터 버전을 갱신한다.
+Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB 트랜잭션에서 idempotent upsert한다. 실패한 실행은 기존 게시 데이터를 교체하지 않는다. DAG별 `ingestion_runs`를 따로 기록하며, 게시가 끝나면 Redis 검색 캐시를 무효화하고 데이터 버전을 갱신한다.
+
+2026-10-10 수동 백필 결과는 활성 지역 230개, 장소·코스·축제 콘텐츠 31,707개, 이미지 메타데이터 109,399개, 축제 일정 883개다. 같은 논리 날짜와 DAG ID로 재실행해도 장소·이미지 중복 행은 생기지 않았다.
 
 ## Airflow 일정
 

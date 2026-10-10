@@ -37,7 +37,7 @@ with DAG(
     publish = BashOperator(
         task_id="publish",
         trigger_rule="none_failed",
-        bash_command="cd $PROJECT_ROOT && python src/ingest/publish_tour.py --logical-date {{ ds }}",
+        bash_command="cd $PROJECT_ROOT && python src/ingest/publish_tour.py --logical-date {{ ds }} --dag-id tour_data_daily",
     )
     cache_images = BashOperator(
         task_id="cache_images",
@@ -66,6 +66,6 @@ with DAG(
     )
     publish_catalog = BashOperator(
         task_id="publish",
-        bash_command="cd $PROJECT_ROOT && python src/ingest/publish_tour.py --logical-date {{ ds }}",
+        bash_command="cd $PROJECT_ROOT && python src/ingest/publish_tour.py --logical-date {{ ds }} --dag-id tour_catalog_daily",
     )
     collect_catalog >> publish_catalog

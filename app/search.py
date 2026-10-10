@@ -29,7 +29,7 @@ def _score(name, q, cho):
 
 
 class Search:
-    def __init__(self, acts, hoods, static):
+    def __init__(self, acts, hoods, static, include_places=True):
         dong_of = {}  # 장소 id → (시군구, 동 코드, 동 이름)
         self.dongs = []
         for key, rows in hoods.by_region.items():
@@ -38,6 +38,9 @@ class Search:
                 for i in d["act_ids"] + d["food_ids"]:
                     dong_of[i] = (d["code"], d["name"])
         self.places, seen = [], set()
+        if not include_places:
+            self.static = static
+            return
         for key, rows in acts.by_region.items():
             for r in rows:
                 seen.add(r["id"])

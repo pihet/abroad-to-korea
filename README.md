@@ -1,17 +1,19 @@
 # abroad-to-korea · 사진으로 찾는 국내 여행지
 
+> 최종 갱신: **2026-10-10 (Asia/Seoul)**
+
 해외 여행 사진을 올리면 분위기가 닮은 국내 시군구와 관광지를 추천하고, 혼잡도·날씨·예상 경비·동네별 할 거리와 공식 여행코스까지 이어서 보여 주는 웹서비스다.
 
 교육 과정 팀 프로젝트이며, 이 문서는 **2026-10-10 현재 코드와 로컬 Docker 환경**을 기준으로 작성했다. 상세 진행 기록과 평가 근거는 [`docs/HANDOFF.md`](docs/HANDOFF.md), 운영 방법은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 있다.
 
-## 현재 상태
+## 현재 상태 (2026-10-10 기준)
 
 - React 화면과 FastAPI API, 이메일·Google·Kakao 로그인, PostgreSQL·Redis·MinIO가 연결되어 있다.
 - Airflow 3의 API server, DAG processor, scheduler가 분리되어 4개 DAG를 등록·실행한다.
 - MLflow는 PostgreSQL backend와 MinIO artifact 저장소를 사용한다.
 - 회원·인증·저장 지역·피드백·사진 메타데이터는 PostgreSQL에 저장한다.
-- 추천과 지역 상세 콘텐츠는 현재 `data/` 파일을 서버 시작 시 메모리에 올려 제공한다.
-- 수집 데이터를 PostgreSQL로 게시하는 파이프라인과 스키마는 구현됐지만, API의 관광 콘텐츠 조회는 아직 DB로 전환하지 않았다.
+- 관광지·레포츠·음식점·축제·공식 코스 API는 PostgreSQL의 게시 데이터를 조회한다.
+- 추천 임베딩·행정동 경계·혼잡도·날씨 같은 모델·지도 자산은 `data/`에서 읽는다.
 
 ## 주요 기능
 
@@ -33,7 +35,7 @@
 flowchart TB
   USER["브라우저<br/>React · TypeScript · Leaflet"]
   EXT["외부 API<br/>TourAPI · DataLab · Open-Meteo<br/>Kakao · Google · Resend"]
-  FILES[("호스트 data/<br/>추천 인덱스 · 관광 콘텐츠 · 경계 · 예측 결과")]
+  FILES[("호스트 data/<br/>추천 인덱스 · 경계 · 예측 결과 · 수집 staging")]
 
   subgraph COMPOSE["Docker Compose"]
     API["FastAPI :8000<br/>추천 · 지역 · 회원 · 사진 API"]
@@ -68,7 +70,7 @@ flowchart TB
   MLFLOW --> MINIO
 ```
 
-현재는 하이브리드 구조다. PostgreSQL은 회원 데이터의 원본이지만 관광 추천·지역 상세는 `data/`가 serving source다. Airflow 게시가 정상화되고 API 조회가 전환된 뒤 관광 데이터도 PostgreSQL을 단일 원본으로 삼을 예정이다.
+2026-10-10 현재 PostgreSQL은 회원 데이터와 관광 콘텐츠의 serving source다. Airflow는 `data/raw/`에 받은 원본을 검증해 PostgreSQL에 멱등 게시하고 MinIO에 체크섬 단위로 보관한다. CLIP 임베딩·행정동 경계·예측 결과처럼 재생성 가능한 모델·지도 자산만 파일로 유지한다.
 
 ## 기술 스택
 
@@ -99,8 +101,8 @@ flowchart TB
 
 ### 혼잡도와 경비
 
-- 서비스 혼잡도는 시군구 월별 외지인 방문자 ridge 예측을 사용한다. 2025년 검증 WAPE는 5.6%, 전년 같은 달 기준선은 7.7%다.
-- 연휴 보정 모델은 별도 실험이며 현재 서비스 응답에는 월 단위 모델을 사용한다.
+- 2026-10-10 기준 서비스 혼잡도는 시군구 월별 외지인 방문자 ridge 예측을 사용한다. 2025년 검증 WAPE는 5.6%, 전년 같은 달 기준선은 7.7%다.
+- 연휴 보정 모델은 별도 실험이며 2026-10-10 현재 서비스 응답에는 월 단위 모델을 사용한다.
 - 예상 경비는 ML 예측이 아니라 국민여행조사 2023~2025 원자료의 1인 가중 중앙값과 25~75분위다.
 - MLflow 실험은 `clip-model-comparison`, `congestion-baseline`, `congestion-holiday-experiments`로 분리한다.
 
@@ -116,9 +118,11 @@ PostgreSQL 인스턴스 하나 안에서 애플리케이션·Airflow·MLflow DB�
 | 관광 데이터 | `regions`, `places`, `place_images`, `festivals` |
 | 분석 데이터 | `visitor_metrics`, `climate_daily`, `image_embeddings` |
 
-현재 migration head는 `20261010_03`이다. 이메일은 대소문자를 무시하고 유일하며, 사용자당 OAuth 공급자 하나, 익명·로그인 피드백 중복 방지, 주요 FK 삭제 정책과 pgvector HNSW 인덱스가 적용돼 있다.
+2026-10-10 기준 migration head는 `20261010_03`이다. 이메일은 대소문자를 무시하고 유일하며, 사용자당 OAuth 공급자 하나, 익명·로그인 피드백 중복 방지, 주요 FK 삭제 정책과 pgvector HNSW 인덱스가 적용돼 있다.
 
-## Airflow 일정
+같은 날 로컬 백필 기준 활성 데이터는 지역 230개, 장소·코스·축제 콘텐츠 31,707개, 이미지 메타데이터 109,399개, 축제 일정 883개다. 공식 코스 1,068개는 정류장 원문까지 게시됐다.
+
+## Airflow 일정 (2026-10-10 기준)
 
 기본 timezone이 UTC이므로 아래 한국 시각은 UTC+9로 환산한 값이다.
 
@@ -156,6 +160,14 @@ docker compose config --quiet
 docker compose up --build -d
 docker compose ps -a
 curl http://localhost:8000/api/health
+```
+
+기존 `data/raw/tourapi/`를 처음 게시하는 환경에서는 API를 시작하기 전에 한 번 백필한다.
+
+```bash
+docker compose exec airflow-api-server bash -lc \
+  'cd /workspace && python src/ingest/publish_tour.py --logical-date "$(date +%F)" --dag-id manual_backfill'
+docker compose restart api
 ```
 
 최초 빌드는 Python·ML 의존성과 MinIO 소스 빌드 때문에 오래 걸릴 수 있다. 정상 상태는 API·Airflow 3개 프로세스·email-worker·MinIO가 `Up`, PostgreSQL·Redis·MLflow가 `healthy`, `migrate`·`airflow-init`·`mlflow-db-init`가 `Exited (0)`이다.
@@ -256,9 +268,8 @@ data/                로컬 데이터, 본체는 Git 제외
 
 관광 사진은 공공누리 1·3유형만 서비스에 사용한다. 파일별 출처·라이선스와 재생성 방법은 [`data/README.md`](data/README.md)에 기록한다.
 
-## 아직 남은 것
+## 남은 작업 (2026-10-10 기준)
 
-- 관광 콘텐츠 API를 `data/` 파일에서 PostgreSQL 조회로 전환하고 실제 게시 데이터를 채우기
 - 로컬 LLM을 이용한 자연어 여행지 추천
 - 예약·결제 연동
 - 운영 환경의 HTTPS, 비밀 관리, 백업·복구, Airflow 실패 알림과 수집 지연 모니터링
