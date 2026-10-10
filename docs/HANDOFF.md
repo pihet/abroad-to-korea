@@ -1736,3 +1736,15 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 테스트 `test_place_info_text`. 전체 60개 통과
 - (같은 날 이어서) 장소 정보를 지역 상세 **예상 경비 바로 아래**에도: 대표 사진 장소(`d.photo`)의 주소·이용 시간·전화·지도. 색은 화면 테마 변수를 따른다(사진 보기는 어두운 색 그대로). 확인: 원주시 두물수변공원 — 반곡동·상시 개방·연중무휴·033-737-3655·지도 타일, 밝은·어두운 테마 캡처
 - (같은 날 이어서) Airflow 일정을 **자정(KST) 직후**로: TourAPI 하루 한도가 자정에 다시 차서. `tour_data_daily` 00:05, `tour_catalog_daily` 00:35, `regional_metrics_monthly` 매월 2일 00:20. 바꾼 시각(01:21)에 오늘 치 두 작업이 바로 시작됨. 10/9·10/10과 오늘 첫 시도 모두 **작업이 시작도 못 하고 실패**했다. 원인: Airflow 3 작업은 API 서버의 execution API 로 상태를 보고하는데 `execution_api_server_url`이 비어 있어 기본값 localhost 로 가서 `Connection refused` (scheduler 로그 `local_executor ... uhoh`). `AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-api-server:8080/execution/` 추가. 수동 자정 수집은 앞으로 하지 않는다 (Airflow 가 맡음)
+
+### 15-37. Airflow 작업이 한 번도 돌지 못하던 문제 4가지 · 할 거리 카드·팝업 (2026-10-11)
+
+- 증상: 매일 수집·매시간 사진 정리를 포함해 **모든 Airflow 작업이 실패**하고 있었다 (확인 가능한 기록: 10/9·10/10 일일, 10/10 13~16시 UTC 매시간). 하나씩 고치며 다음 원인이 차례로 드러났다
+  1. `execution_api_server_url` 없음 → 작업이 localhost 로 보고하려다 `Connection refused` → `AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-api-server:8080/execution/`
+  2. JWT 키가 컨테이너마다 무작위 → `Invalid auth token: Signature verification failed` → `.env`의 `AIRFLOW_JWT_SECRET`을 `AIRFLOW__API_AUTH__JWT_SECRET`으로
+  3. 컨테이너(uid 50000)가 호스트 `.env`(600)를 못 읽음 → `tour_attractions.load_api_key`가 PermissionError 를 무시(키는 env_file 로 이미 들어옴)
+  4. 컨테이너가 `data/`에 새 파일을 못 씀 → Airflow 를 호스트 uid 로 (`user: "${AIRFLOW_UID:-50000}:0"`, `.env`의 `AIRFLOW_UID=$(id -u)`)
+  5. (다시 돌릴 때) 두 DAG 의 게시가 겹쳐 `place_images` 교착 → `publish` 풀(1칸)로 직렬화
+- 결과: 2026-10-11 02:00 사진 정리 성공, 02:43 `tour_data_daily`·`tour_catalog_daily` 모든 작업 성공. 이후 api 재시작
+- **팀원 PC `.env`에 `AIRFLOW_UID`, `AIRFLOW_JWT_SECRET` 두 줄이 필요** (README 환경변수 표)
+- 할 거리: 먹거리·축제·체험과 사진 없는 곳을 빼고 물·바다·산·숲·레저·캠핑만(강릉 615 → 81곳). 목록은 AI 여행 결과와 같은 카드(`.ask-cards`), 누르면 지역 상세 단계의 전체 화면 사진 팝업(사진·소개·주소·시간·전화·지도). 팝업은 소개가 길어도 사진이 눌리지 않게 칸 크기를 고정하고 팝업 안에서 스크롤(데스크톱 사진 837×558, 폰 388×259 확인)
