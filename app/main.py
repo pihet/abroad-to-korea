@@ -18,6 +18,7 @@ from typing import Optional
 
 from fastapi import Cookie, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 from collections import Counter
@@ -31,13 +32,13 @@ from .courses import Courses
 from .cost import Cost
 from .travel_time import TravelError, TravelTime
 from .search import Search
-from .recommender import PRIORITIES, Engine, cp, sc
+from .recommender import PERSONAL_MIN, PERSONAL_WEIGHT, PRIORITIES, Engine, cp, sc
 from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
 from .auth import me_router, router as auth_router
 from .db import close_db, session_factory
-from .auth import SESSION_COOKIE, token_hash
+from .auth import SESSION_COOKIE, _principal_from_db, token_hash
 from .media import persist_upload, router as media_router
-from .models import AuthSession, FeedbackRecord
+from .models import AuthSession, FeedbackRecord, SavedRegion
 from sqlalchemy import select
 
 MAX_UPLOAD = 15 * 1024 * 1024
@@ -154,8 +155,23 @@ async def convert(image: UploadFile = File(...)):
     return Response(buf.getvalue(), media_type="image/jpeg")
 
 
+async def _user_taste(raw_session):
+    """로그인 사용자의 좋아요·별로예요·하트로 만든 취향 (engine.taste). 비로그인·DB 없음·신호 부족이면 None."""
+    factory = session_factory()
+    if factory is None or not raw_session:
+        return None
+    async with factory() as db:
+        principal = await _principal_from_db(db, raw_session)
+        if principal is None:
+            return None
+        votes = (await db.execute(select(FeedbackRecord.attraction_id, FeedbackRecord.value)
+                                  .where(FeedbackRecord.user_id == principal.id))).all()
+        saved = (await db.scalars(select(SavedRegion.region_key).where(SavedRegion.user_id == principal.id))).all()
+    return engine.taste([a for a, v in votes if v == 1], [a for a, v in votes if v == -1], saved)
+
+
 @app.post("/api/recommend", response_model=RecommendResponse)
-def recommend(req: RecommendRequest):
+async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
     if req.query_id not in engine.cache:
         raise HTTPException(404, "분석 결과가 만료됐습니다. 사진을 다시 분석해 주세요.")
     if req.sido and req.sido not in {s["sido"] for s in regions.static.values()}:
@@ -168,8 +184,9 @@ def recommend(req: RecommendRequest):
     exclude = engine.cache[req.query_id]["exclude"]
     if allowed is not None and exclude is not None:  # 필터 개수도 출발 시군구를 뺀 수로 보여 준다
         allowed = allowed - {exclude}
-    r = engine.recommend(req.query_id, req.travel_month, req.priority, req.origin, req.kept_tags, req.limit, req.offset,
-                         allowed)
+    taste = await _user_taste(raw_session)
+    r = await run_in_threadpool(engine.recommend, req.query_id, req.travel_month, req.priority, req.origin, req.kept_tags,
+                                req.limit, req.offset, allowed, taste)
     q = engine.cache[req.query_id]
     return {
         "query": {"query_id": req.query_id, "scene_tags": [t["tag"] for t in q["tags"]], "kept_tags": req.kept_tags,
@@ -178,6 +195,8 @@ def recommend(req: RecommendRequest):
                   "excluded_sigungu": _sigungu(q["exclude"])},
         "model": {"visual": "CLIP ViT-B/32 (frozen) · 관광지별 최고 1장 → 시군구 vote100 → 상위 30곳",
                   "rerank": "30곳 안에서만 재정렬 · 시각 가중치 0.5 이상 · 단일 종합점수 없음",
+                  "personal": {"on": taste is not None, "signals": taste["signals"] if taste else 0,
+                               "min_signals": PERSONAL_MIN, "weight": PERSONAL_WEIGHT},
                   "priorities": list(PRIORITIES)},
         "total_candidates": r["total"], "candidates": r["candidates"], "data_sources": DATA_SOURCES,
     }

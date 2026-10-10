@@ -447,3 +447,34 @@ def test_course_legs_validation(client):
     assert client.get("/api/legs?pts=37.75,128.89").status_code == 400  # 한 곳뿐
     assert client.get("/api/legs?pts=10,10;11,11").status_code == 400  # 한국 밖
     assert client.get("/api/legs?pts=abc;def").status_code == 400
+
+
+def test_personal_rerank(client, monkeypatch):
+    # 앞 테스트가 서버를 다시 띄우면 분석 캐시가 비므로 여기서 새로 분석한다
+    qid = client.post("/api/analyze", data={"demo_photo_id": DEMO}).json()["query_id"]
+    # 비로그인: 개인 맞춤 꺼짐, 순서는 사진 순서 그대로
+    base = rec(client, qid, limit=30)
+    assert base["model"]["personal"]["on"] is False
+    assert [c["visual_rank"] for c in base["candidates"]] == list(range(1, len(base["candidates"]) + 1))
+    assert all(c["rerank"]["personal_component"] is None for c in base["candidates"])
+
+    eng = main.engine
+    tail = [c["attraction"]["id"] for c in base["candidates"][-3:]]  # 사진 순위 맨 아래 3곳을 좋아요
+    assert eng.taste(tail[:2], [], []) is None  # 신호 3개 미만이면 끈다
+    taste = eng.taste(tail, [], [])
+    assert taste is not None and taste["signals"] == 3
+
+    async def fake_taste(_):
+        return taste
+    monkeypatch.setattr(main, "_user_taste", fake_taste)
+    got = rec(client, qid, limit=30)
+    assert got["model"]["personal"]["on"] is True
+    cands = got["candidates"]
+    assert sorted(c["sigungu"]["key"] for c in cands) == sorted(c["sigungu"]["key"] for c in base["candidates"])  # 같은 후보 안에서만
+    new_rank = {c["attraction"]["id"]: c["rank"] for c in cands}
+    old_rank = {c["attraction"]["id"]: c["rank"] for c in base["candidates"]}
+    assert all(new_rank[a] < old_rank[a] for a in tail)  # 좋아요한 쪽이 위로
+    moved = [c for c in cands if c["rank"] < old_rank[c["attraction"]["id"]]]
+    assert moved and all(c["rerank"]["personal_reason"].startswith("좋아요한") for c in moved)
+    # 사진 닮음이 주 신호: 취향 가중치 0.2 로는 30곳 중 최대 7계단(0.2/0.8 × 29)까지만 오른다
+    assert all(old_rank[c["attraction"]["id"]] - c["rank"] <= 7 for c in cands)

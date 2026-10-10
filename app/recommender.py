@@ -27,6 +27,9 @@ register_heif_opener()  # 아이폰 HEIC 사진 (#4)
 VOTE_K = 100
 N_CAND = 30
 VISUAL_WEIGHT = 0.5
+# 개인 맞춤 (docs/PERSONALIZATION_AND_DB_PLAN.md 5장): 로그인 사용자의 좋아요·별로예요·하트가 이만큼 모이면 켠다
+PERSONAL_MIN = 3
+PERSONAL_WEIGHT = 0.2  # 0.3을 넘기지 않는다 (사진 닮음이 주 신호)
 PRIORITIES = ("visual", "crowd", "near", "season")
 # 관광공사 분류 'NA02 자연경관(하천·해양)'에는 강·호수·저수지도 들어 있어 소분류로 바다와 물가를 나눈다
 SEA_CODES = {"NA020500", "NA020600", "NA020700", "NA020800", "NA020900"}  # 섬·염전·항구·해안절경·해변
@@ -57,6 +60,7 @@ class Engine:
         self.cid = np.array([str(c) for c in self.I["cid"]])
         self.ok = self.I["img_region"] >= 0
         self.region_keys = [f"{r[0]}_{r[1]}" for r in self.I["regions"]]
+        self.region_index = {k: i for i, k in enumerate(self.region_keys)}
         self.ctx = Context([(r[0], r[1]) for r in self.I["regions"]])
         self.tagger = Tagger(self.model, self.proc)
         self.cache = QueryCache(CACHE_SIZE)
@@ -161,13 +165,61 @@ class Engine:
         return [{**c, "visual_component": round(vis, 3), "condition_component": None if cond is None else round(cond, 3),
                  "condition_value": x} for _, _, c, vis, cond, x in scored]
 
+    # ---------------- 개인 맞춤 재정렬 (로그인 사용자만)
+    def _attraction_vec(self, cid):
+        """관광지 사진 임베딩 평균 (정규화). 사진 인덱스에 없으면 None."""
+        ix = np.where((self.cid == str(cid)) & self.ok)[0]
+        if not len(ix):
+            return None
+        v = self.I["kv"][ix].mean(0)
+        return v / np.linalg.norm(v)
+
+    def taste(self, likes, dislikes, saved):
+        """취향 벡터 u = normalize(Σ 좋아요 − 0.5·Σ 별로예요). 좋아요에는 하트 누른 시군구의 대표 사진도 넣는다.
+        likes·dislikes: 관광지 contentid, saved: 시군구 key. 신호가 PERSONAL_MIN 개 미만이면 None."""
+        refs, neg = [], []
+        for cid in likes:
+            if (v := self._attraction_vec(cid)) is not None:
+                refs.append((f"좋아요한 '{self.I['items'][str(cid)]['title']}'", v))
+        for key in saved:
+            ri = self.region_index.get(key)
+            rep = None if ri is None else self.region_photo(ri)
+            if rep and (v := self._attraction_vec(rep["attraction_id"])) is not None:
+                refs.append((f"저장한 '{key.split('_', 1)[1]}'", v))
+        for cid in dislikes:
+            if (v := self._attraction_vec(cid)) is not None:
+                neg.append(v)
+        if len(refs) + len(neg) < PERSONAL_MIN or not refs:
+            return None
+        u = sum(v for _, v in refs) - 0.5 * sum(neg, np.zeros_like(refs[0][1]))
+        n = np.linalg.norm(u)
+        return None if n == 0 else {"u": u / n, "refs": refs, "signals": len(refs) + len(neg)}
+
+    def personalize(self, ranked, taste):
+        """후보 안에서만 순서를 바꾼다: 점수 = (1−w)·지금 순위 백분위 + w·취향 유사도 백분위."""
+        n = len(ranked)
+        if taste is None or n < 2:
+            return [{**c, "personal_component": None, "personal_reason": None} for c in ranked]
+        vecs = self.I["kv"][[c["img_index"] for c in ranked]]
+        sim = vecs @ taste["u"]
+        pref = np.argsort(np.argsort(sim)) / (n - 1)   # 0 = 가장 덜 맞음, 1 = 가장 잘 맞음
+        scored = sorted(range(n), key=lambda i: (-((1 - PERSONAL_WEIGHT) * (1 - i / (n - 1)) + PERSONAL_WEIGHT * pref[i]), i))
+        out = []
+        for new, i in enumerate(scored):
+            reason = None
+            if new < i:  # 순위가 오른 후보: 가장 닮은 좋아요·저장 사진을 이유로 보여 준다
+                label = max(taste["refs"], key=lambda r: float(r[1] @ vecs[i]))[0]
+                reason = f"{label} 사진과 비슷"
+            out.append({**ranked[i], "personal_component": round(float(pref[i]), 3), "personal_reason": reason})
+        return out
+
     # ---------------- 응답 조립
-    def recommend(self, qid, month, priority, origin, kept_tags, limit, offset, allowed=None):
+    def recommend(self, qid, month, priority, origin, kept_tags, limit, offset, allowed=None, taste=None):
         q = self.cache[qid]
         cands = q["stage_a"] if allowed is None else self.stage_a(q["vec"], allowed)
         if not cands:
             return {"total": 0, "candidates": []}
-        ranked = self.stage_b(cands, month, priority, origin)
+        ranked = self.personalize(self.stage_b(cands, month, priority, origin), taste)
         out = []
         for rank, c in enumerate(ranked[offset:offset + limit], offset + 1):
             sido, sgg = self.region_keys[c["ri"]].split("_", 1)
@@ -189,7 +241,8 @@ class Engine:
                 "distance_km": self.ctx.distance(key, origin) if origin else None,
                 "map_links": _map_links(it["title"], lat, lon),
                 "rerank": {"visual_component": c["visual_component"], "condition_component": c["condition_component"],
-                           "condition_value": c["condition_value"]},
+                           "condition_value": c["condition_value"],
+                           "personal_component": c["personal_component"], "personal_reason": c["personal_reason"]},
             })
         return {"total": len(ranked), "candidates": out}
 
