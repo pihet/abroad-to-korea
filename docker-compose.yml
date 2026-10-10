@@ -4,6 +4,9 @@ x-airflow-common: &airflow-common
   build:
     context: .
     dockerfile: infra/docker/Dockerfile.airflow
+  # 호스트 사용자 uid 로 돌린다 (Airflow 공식 compose 방식). 기본 50000 이면 ./data 에 새 파일을 못 쓰고 .env 도 못 읽어
+  # 수집 작업이 PermissionError 로 실패했다 (2026-10-11). .env 의 AIRFLOW_UID = `id -u`
+  user: "${AIRFLOW_UID:-50000}:0"
   env_file: .env
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor

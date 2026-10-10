@@ -168,7 +168,7 @@ TourAPI 작업은 pool slot 1개로 한 번에 하나씩 돌리고, 일일 작�
 | 목적 | 키 |
 |---|---|
 | DB·캐시 | `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `AIRFLOW_DB_PASSWORD`, `MLFLOW_DB_PASSWORD`, `DATABASE_URL`, `REDIS_URL` |
-| Airflow | `AIRFLOW_JWT_SECRET` (아무 긴 무작위 문자열. scheduler·API server 가 같은 값을 써야 작업이 돈다: `python -c "import secrets;print(secrets.token_urlsafe(48))"`) |
+| Airflow | `AIRFLOW_UID` (호스트 사용자 uid, `id -u`. 없으면 수집이 `data/`에 못 써서 실패), `AIRFLOW_JWT_SECRET` (아무 긴 무작위 문자열. scheduler·API server 가 같은 값을 써야 작업이 돈다: `python -c "import secrets;print(secrets.token_urlsafe(48))"`) |
 | 객체·실험 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MLFLOW_TRACKING_URI` |
 | 인증·메일 | `PUBLIC_BASE_URL`, `COOKIE_SECURE`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` |
 | 데이터 API | `TOUR_API_KEY`(추가 키 `_2`~`_5`), `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `KAKAO_REST_API_KEY` |
