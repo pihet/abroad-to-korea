@@ -1,5 +1,10 @@
-from app.auth import normalize_email, password_hasher, token_hash
-from app.models import Base
+from datetime import datetime, timezone
+
+import pytest
+from fastapi import HTTPException
+
+from app.auth import ensure_oauth_auto_link_allowed, normalize_email, password_hasher, token_hash
+from app.models import Base, User
 from app.query_cache import QueryCache
 from src.ingest.publish_tour import festival_rows, region_map
 
@@ -21,6 +26,26 @@ def test_initial_schema_has_durable_and_cache_source_tables():
     }
     assert expected <= set(Base.metadata.tables)
     assert Base.metadata.tables["image_embeddings"].c.embedding.type.dim == 512
+
+
+def test_database_identity_constraints():
+    users = Base.metadata.tables["users"]
+    identities = Base.metadata.tables["auth_identities"]
+    feedback = Base.metadata.tables["feedback"]
+    assert "uq_users_email_normalized" in {index.name for index in users.indexes}
+    assert "uq_auth_user_provider" in {constraint.name for constraint in identities.constraints}
+    assert {"uq_feedback_user_vote", "uq_feedback_anonymous_vote"} <= {index.name for index in feedback.indexes}
+
+
+def test_oauth_only_auto_links_to_verified_email_accounts():
+    unverified = User(email="user@example.com", nickname="user", status="active")
+    with pytest.raises(HTTPException) as exc:
+        ensure_oauth_auto_link_allowed(unverified)
+    assert exc.value.status_code == 409
+
+    verified = User(email="user@example.com", nickname="user", status="active",
+                    email_verified_at=datetime.now(timezone.utc))
+    ensure_oauth_auto_link_allowed(verified)
 
 
 def test_query_cache_memory_fallback(monkeypatch):

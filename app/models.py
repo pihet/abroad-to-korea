@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -28,10 +28,14 @@ class User(TimestampMixin, Base):
     identities: Mapped[list["AuthIdentity"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
+Index("uq_users_email_normalized", func.lower(User.email), unique=True)
+
+
 class AuthIdentity(TimestampMixin, Base):
     __tablename__ = "auth_identities"
     __table_args__ = (
         UniqueConstraint("provider", "provider_subject", name="uq_auth_provider_subject"),
+        UniqueConstraint("user_id", "provider", name="uq_auth_user_provider"),
         CheckConstraint("(provider = 'email' AND password_hash IS NOT NULL) OR (provider <> 'email' AND password_hash IS NULL)",
                         name="ck_auth_password_provider"),
     )
@@ -117,11 +121,14 @@ class MediaAsset(TimestampMixin, Base):
 class FeedbackRecord(Base):
     __tablename__ = "feedback"
     __table_args__ = (
-        UniqueConstraint("query_id", "sigungu_key", "attraction_id", "user_id", name="uq_feedback_vote"),
+        Index("uq_feedback_user_vote", "query_id", "sigungu_key", "attraction_id", "user_id", unique=True,
+              postgresql_where=text("user_id IS NOT NULL")),
+        Index("uq_feedback_anonymous_vote", "query_id", "sigungu_key", "attraction_id", unique=True,
+              postgresql_where=text("user_id IS NULL")),
         CheckConstraint("value IN (-1, 1)", name="ck_feedback_value"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     query_id: Mapped[str] = mapped_column(String(40), index=True)
     sigungu_key: Mapped[str] = mapped_column(String(80), index=True)
     attraction_id: Mapped[str] = mapped_column(String(80))

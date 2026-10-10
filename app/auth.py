@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,13 @@ def token_hash(token: str) -> bytes:
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def ensure_oauth_auto_link_allowed(user: User) -> None:
+    if user.status != "active":
+        raise HTTPException(403, "사용할 수 없는 계정입니다.")
+    if user.email_verified_at is None:
+        raise HTTPException(409, "기존 이메일 계정으로 로그인한 뒤 소셜 로그인을 연결해 주세요.")
 
 
 async def redis_client() -> Redis | None:
@@ -453,10 +460,16 @@ async def oauth_callback(provider: Literal["google", "kakao"], code: str, state:
                                                           AuthIdentity.provider_subject == subject))
     if state_data["mode"] == "link":
         if identity:
+            if identity.user_id == uuid.UUID(state_data["user_id"]):
+                return RedirectResponse(f"{get_settings().public_base_url}/?account_linked={provider}", status_code=303)
             raise HTTPException(409, "이미 다른 계정에 연결된 로그인 수단입니다.")
         user = await db.get(User, uuid.UUID(state_data["user_id"]))
         if user is None or user.status != "active":
             raise HTTPException(401, "연결할 계정을 찾을 수 없습니다.")
+        same_provider = await db.scalar(select(AuthIdentity.id).where(
+            AuthIdentity.user_id == user.id, AuthIdentity.provider == provider))
+        if same_provider:
+            raise HTTPException(409, f"이미 {provider} 로그인이 연결되어 있습니다.")
         db.add(AuthIdentity(user_id=user.id, provider=provider, provider_subject=subject, provider_email=email))
         await db.commit()
         return RedirectResponse(f"{get_settings().public_base_url}/?account_linked={provider}", status_code=303)
@@ -465,11 +478,16 @@ async def oauth_callback(provider: Literal["google", "kakao"], code: str, state:
         if user is None or user.status != "active" or user.deleted_at is not None:
             raise HTTPException(403, "사용할 수 없는 계정입니다.")
     else:
-        user = User(email=email, nickname=nickname, status="active", email_verified_at=utcnow())
-        user.identities.append(AuthIdentity(provider=provider, provider_subject=subject, provider_email=email))
-        db.add(user)
-        await db.flush()
-        db.add(UserPreference(user_id=user.id))
+        user = await db.scalar(select(User).where(func.lower(User.email) == email, User.deleted_at.is_(None)))
+        if user:
+            ensure_oauth_auto_link_allowed(user)
+            db.add(AuthIdentity(user_id=user.id, provider=provider, provider_subject=subject, provider_email=email))
+        else:
+            user = User(email=email, nickname=nickname, status="active", email_verified_at=utcnow())
+            user.identities.append(AuthIdentity(provider=provider, provider_subject=subject, provider_email=email))
+            db.add(user)
+            await db.flush()
+            db.add(UserPreference(user_id=user.id))
     response = RedirectResponse(f"{get_settings().public_base_url}/", status_code=303)
     await _create_session(db, user, request, response)
     return response
