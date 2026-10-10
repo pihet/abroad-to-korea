@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type AnalyzeResponse, type Candidate, type Crop, type DemoPhoto, type RecommendResponse } from './api'
+import { api, type AnalyzeResponse, type Candidate, type Crop, type DemoPhoto, type Origin, type RecommendResponse } from './api'
 import { CropStep } from './components/CropStep'
 import './search.css'
 
@@ -40,10 +40,11 @@ async function croppedPreview(url: string, crop: Crop | null): Promise<string> {
   return c.toDataURL('image/jpeg', 0.9)
 }
 
-export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avatars }: {
+export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avatars, origin }: {
   start: Source | null  // 탐색에서 고른 해외 사진
   saved: string[]; onToggleSave: (key: string) => void; onOpen: (key: string) => void
   loggedIn: boolean; avatars: Record<string, string | undefined>
+  origin: Origin | null  // MY 의 기본 출발지. 있으면 결과에 그곳에서의 거리를 보여 준다
 }) {
   const [stage, setStage] = useState<Stage>('pick')
   const [source, setSource] = useState<Source | null>(null)
@@ -89,17 +90,17 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
   useEffect(() => {
     if (stage !== 'result' || !analysis) return
     setBusy(true); setErr(null)
-    api.recommend({ query_id: analysis.query_id, priority: 'visual', limit: PAGE, offset: 0 })
+    api.recommend({ query_id: analysis.query_id, priority: 'visual', origin, limit: PAGE, offset: 0 })
       .then(r => { setRes(r); setList(r.candidates) })
       .catch(e => setErr(e.message))
       .finally(() => setBusy(false))
-  }, [stage, analysis])
+  }, [stage, analysis, origin])
 
   const more = async () => {
     if (!analysis) return
     setBusy(true)
     try {
-      const r = await api.recommend({ query_id: analysis.query_id, priority: 'visual', limit: PAGE, offset: list.length })
+      const r = await api.recommend({ query_id: analysis.query_id, priority: 'visual', origin, limit: PAGE, offset: list.length })
       setList([...list, ...r.candidates])
     } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
@@ -151,7 +152,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
       {err && <p className="ig-err" role="alert">{err}</p>}
       {!res && <p className="ig-wait">닮은 곳을 찾는 중…</p>}
       <ul className="ig-feed">
-        {list.map(c => <ResultPost key={c.sigungu.key} c={c} avatar={avatars[c.sigungu.key]}
+        {list.map(c => <ResultPost key={c.sigungu.key} c={c} avatar={avatars[c.sigungu.key]} origin={origin}
           saved={saved.includes(c.sigungu.key)} voted={votes[c.sigungu.key]}
           onSave={() => onToggleSave(c.sigungu.key)} onOpen={() => onOpen(c.sigungu.key)}
           onVote={v => vote(c, v)} />)}
@@ -198,15 +199,15 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
 const Heart = ({ on }: { on: boolean }) => <svg viewBox="0 0 24 24" className={on ? 'ic fill' : 'ic'} aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6C1.2 8.2 3 4.5 6.6 4.5c2.2 0 3.6 1.3 5.4 3.3 1.8-2 3.2-3.3 5.4-3.3 3.6 0 5.4 3.7 3.8 6.9C19 15.6 12 20 12 20z" /></svg>
 
 // 결과 게시물: 프로필(시군구 대표 사진) + 후보 사진 한 장(누르면 지역 상세) + 하트·닮았어요·별로예요 + 닮은 장면 태그
-function ResultPost({ c, avatar, saved, voted, onSave, onOpen, onVote }: {
-  c: Candidate; avatar?: string; saved: boolean; voted: 1 | -1 | undefined
+function ResultPost({ c, avatar, origin, saved, voted, onSave, onOpen, onVote }: {
+  c: Candidate; avatar?: string; origin: Origin | null; saved: boolean; voted: 1 | -1 | undefined
   onSave: () => void; onOpen: () => void; onVote: (v: 1 | -1) => void
 }) {
   return (
     <li className="post">
       <div className="post-head">
         <span className="av">{avatar ? <img src={avatar} alt="" /> : <i>{c.sigungu.name.slice(0, 1)}</i>}</span>
-        <span><b>{c.attraction.name}</b><small>{c.sigungu.sido} {c.sigungu.name}{c.distance_km != null ? ` · ${c.distance_km}km` : ''}</small></span>
+        <span><b>{c.attraction.name}</b><small>{c.sigungu.sido} {c.sigungu.name}{c.distance_km != null && origin ? ` · ${origin}에서 ${c.distance_km}km` : ''}</small></span>
       </div>
       <button type="button" className="post-ph" onClick={onOpen} aria-label={`${c.sigungu.name} 자세히 보기`}>
         <img src={c.attraction.image_url} alt={c.attraction.name} loading="lazy" />

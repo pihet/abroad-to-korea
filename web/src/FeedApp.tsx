@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { authApi, festivalsApi, regionsApi, type AuthUser, type Festival, type RegionRow } from './api'
+import { authApi, festivalsApi, regionsApi, type AuthUser, type Festival, type Origin, type RegionRow } from './api'
 import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
@@ -96,6 +96,7 @@ export default function FeedApp() {
   const [accountOpen, setAccountOpen] = useState(false)
   // 홈 '저장한 곳과 닮은 곳' (로그인 + 좋아요·별로예요·하트 3개 이상일 때만 서버가 채운다)
   const [similar, setSimilar] = useState<{ key: string; reason: string }[]>([])
+  const [origin, setOrigin] = useState<Origin | null>(null)  // MY 의 기본 출발지 (로그인 사용자)
   const more = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -112,6 +113,10 @@ export default function FeedApp() {
       setSaved(merged)
       await Promise.all(merged.filter(k => !remote.includes(k)).map(k => authApi.saveRegion(k)))
     }).catch(() => {})
+  }, [user])
+  useEffect(() => {
+    if (!user) { setOrigin(null); return }
+    fetch('/api/my/taste').then(r => r.ok ? r.json() : null).then((d: { origin: Origin | null } | null) => setOrigin(d?.origin ?? null)).catch(() => {})
   }, [user])
   useEffect(() => {
     if (!user) { setSimilar([]); return }
@@ -253,10 +258,10 @@ export default function FeedApp() {
 
       {tab === 'ask' && <FeedAsk onOpen={setOpen} />}
 
-      {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
+      {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} onAccount={() => setAccountOpen(true)} onOpen={setOpen} onOrigin={setOrigin} />}
 
       <div hidden={tab !== 'search'}>
-        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} />
+        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} origin={origin} />
       </div>
 
       <nav className="ig-tabs" aria-label="메뉴">

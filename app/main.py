@@ -41,7 +41,7 @@ from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
 from .media import persist_upload, router as media_router
 from .personal import router as personal_router
-from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion
+from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion, UserPreference
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -167,7 +167,8 @@ async def convert(image: UploadFile = File(...)):
 
 
 async def _user_signals(raw_session):
-    """로그인 사용자의 (좋아요 관광지, 별로예요 관광지, 하트 시군구). 비로그인·DB 없음이면 None."""
+    """로그인 사용자의 신호와 MY 설정. {likes, dislikes, saved, personal, origin}. 비로그인·DB 없음이면 None.
+    likes·dislikes: 닮았어요·별로예요 관광지, saved: 하트 시군구, personal: 개인 맞춤 켜기(기본 켬), origin: 기본 출발지."""
     factory = session_factory()
     if factory is None or not raw_session:
         return None
@@ -178,24 +179,31 @@ async def _user_signals(raw_session):
         votes = (await db.execute(select(FeedbackRecord.attraction_id, FeedbackRecord.value)
                                   .where(FeedbackRecord.user_id == principal.id))).all()
         saved = (await db.scalars(select(SavedRegion.region_key).where(SavedRegion.user_id == principal.id))).all()
-    return [a for a, v in votes if v == 1], [a for a, v in votes if v == -1], list(saved)
+        pref = await db.get(UserPreference, principal.id)
+    return {"likes": [a for a, v in votes if v == 1], "dislikes": [a for a, v in votes if v == -1], "saved": list(saved),
+            "personal": (pref.preferences or {}).get("personal", True) if pref else True,
+            "origin": pref.origin if pref and pref.origin in ORIGINS else None}
+
+
+def _taste_of(s):
+    """_user_signals 결과로 만든 취향 (engine.taste). 개인 맞춤을 껐거나 신호가 부족하면 None."""
+    return engine.taste(s["likes"], s["dislikes"], s["saved"]) if s and s["personal"] else None
 
 
 async def _user_taste(raw_session):
-    """로그인 사용자의 좋아요·별로예요·하트로 만든 취향 (engine.taste). 비로그인·DB 없음·신호 부족이면 None."""
-    s = await _user_signals(raw_session)
-    return None if s is None else engine.taste(*s)
+    """로그인 사용자의 좋아요·별로예요·하트로 만든 취향. 비로그인·DB 없음·꺼짐·신호 부족이면 None."""
+    return _taste_of(await _user_signals(raw_session))
 
 
 @app.get("/api/my/taste")
 async def my_taste(raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
-    """MY 탭의 '내 취향' 상태: 신호 개수와 개인 맞춤이 켜졌는지."""
+    """MY 탭의 '내 취향' 상태: 신호 개수, 개인 맞춤 설정(enabled)과 실제로 켜졌는지(on), 기본 출발지."""
     s = await _user_signals(raw_session)
     if s is None:
-        return {"logged_in": False, "on": False, "likes": 0, "dislikes": 0, "saved": 0, "min_signals": PERSONAL_MIN}
-    likes, dislikes, saved = s
-    return {"logged_in": True, "on": engine.taste(likes, dislikes, saved) is not None,
-            "likes": len(likes), "dislikes": len(dislikes), "saved": len(saved), "min_signals": PERSONAL_MIN}
+        return {"logged_in": False, "on": False, "enabled": True, "origin": None,
+                "likes": 0, "dislikes": 0, "saved": 0, "min_signals": PERSONAL_MIN}
+    return {"logged_in": True, "on": _taste_of(s) is not None, "enabled": s["personal"], "origin": s["origin"],
+            "likes": len(s["likes"]), "dislikes": len(s["dislikes"]), "saved": len(s["saved"]), "min_signals": PERSONAL_MIN}
 
 
 @app.post("/api/recommend", response_model=RecommendResponse)

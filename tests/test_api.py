@@ -497,7 +497,8 @@ def test_personal_rerank(client, monkeypatch):
 
 def test_my_taste_anonymous(client):
     r = client.get("/api/my/taste").json()
-    assert r == {"logged_in": False, "on": False, "likes": 0, "dislikes": 0, "saved": 0, "min_signals": 3}
+    assert r == {"logged_in": False, "on": False, "enabled": True, "origin": None,
+                 "likes": 0, "dislikes": 0, "saved": 0, "min_signals": 3}
 
 
 def test_my_similar(client):
@@ -511,3 +512,26 @@ def test_my_similar(client):
     got = eng.similar_regions(taste, set(saved), 5)
     assert len(got) == 5 and not {k for k, _ in got} & set(saved)
     assert all(why.endswith("사진과 비슷") for _, why in got)
+
+
+def test_my_personal_off(client, monkeypatch):
+    # 신호가 충분해도 MY 에서 개인 맞춤을 끄면 취향·닮은 곳 줄이 모두 꺼진다
+    saved = main.engine.region_keys[:3]
+    sig = {"likes": [], "dislikes": [], "saved": saved, "personal": True, "origin": "부산"}
+    assert main._taste_of(sig) is not None
+    async def fake(_):
+        return {**sig, "personal": False}
+    monkeypatch.setattr(main, "_user_signals", fake)
+    assert main._taste_of({**sig, "personal": False}) is None
+    assert client.get("/api/my/similar").json() == {"on": False, "regions": []}
+    r = client.get("/api/my/taste").json()
+    assert r["on"] is False and r["enabled"] is False and r["origin"] == "부산" and r["saved"] == 3
+
+
+def test_my_login_required(client):
+    # 반응 목록·취소·설정·축제는 로그인한 사람만 (DB 없는 테스트 환경은 503)
+    for method, url, body in [("get", "/api/my/votes", None), ("delete", "/api/my/votes/1", None),
+                              ("put", "/api/my/settings", {"personal": False, "origin": None}),
+                              ("get", "/api/my/festivals", None)]:
+        r = client.request(method.upper(), url, json=body)
+        assert r.status_code in (401, 503), (url, r.status_code)

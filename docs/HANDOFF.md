@@ -1678,3 +1678,14 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 홈 줄: 로그인하고 신호(좋아요·별로예요·하트)가 3개 이상이면 축제 줄 위에 "저장한 곳과 닮은 곳" 10곳. `GET /api/my/similar?limit=10` (`app/personal.py`) → `Engine.similar_regions()`가 15-29의 취향 벡터와 시군구마다 대표 사진 1장의 임베딩을 비교해 고른다. 이미 저장한 곳은 뺀다. 비로그인이면 `{"on": false, "regions": []}`이고 줄이 안 뜬다
 - 확인 (8000번 Docker, 새 계정, 강릉·목포·제주 저장): 서귀포·인제·동해·울진·진도·군포·서초·영덕·영양·당진. 시군구마다 사진 1장만 비교해서 군포·서초처럼 어색한 결과가 섞인다. 시험 계정은 탈퇴로 지움
 - 테스트 `test_my_similar`: 비로그인은 빈 목록, 저장한 3곳은 빼고 k곳
+
+### 15-31. MY 탭 기능 3개: 반응 목록·개인 맞춤 끄기·기본 출발지·저장한 곳 축제 (2026-10-10)
+
+- API는 모두 `app/personal.py` (`/api/my/*`, 로그인 필요, DB 없으면 503)
+  - `GET /api/my/votes`: 내가 누른 닮았어요·별로예요 (관광지마다 마지막 것, 최근 순). `DELETE /api/my/votes/{attraction_id}`: 그 관광지 반응을 DB에서 지워 개인 맞춤에서 뺀다. 평가용 `feedback.jsonl` 기록은 남는다
+  - `PUT /api/my/settings {personal, origin}`: `user_preferences.preferences.personal`(기본 켬)과 `user_preferences.origin`(서울·부산·대구·광주·대전 또는 null). 새 테이블·마이그레이션 없음
+  - `GET /api/my/festivals?days=31`: 저장한 시군구에서 오늘부터 31일 안에 열리거나 열리고 있는 축제 (`catalog.festivals` 재사용)
+- `app/main.py` `_user_signals()`가 dict(`likes, dislikes, saved, personal, origin`)를 돌려주고, `_taste_of()`가 꺼져 있으면 None → 사진으로 찾기 재정렬·홈 '닮은 곳' 줄이 함께 꺼진다. `/api/my/taste`에 `enabled`·`origin` 추가
+- 화면: MY에 스위치·출발지 칩, 저장한 곳 아래 축제 목록, 맨 아래 반응 목록(취소 버튼). 출발지를 고르면 사진으로 찾기 결과에 "부산에서 40km"
+- 확인 (8000번 Docker, 새 계정 2개, 끝나고 탈퇴): 전주·강릉·제주 저장 → 축제 9개, 반응 2개 표시, 스위치 끄기 → `personal.on=false`·닮은 곳 빈 목록, 취소 → 1개, 부산 출발 → 결과 "창원시 · 부산에서 40km"
+- 테스트: `test_my_personal_off`(끄면 취향·닮은 곳 꺼짐), `test_my_login_required`. 전체 54개 통과
