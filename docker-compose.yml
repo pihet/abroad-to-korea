@@ -8,6 +8,7 @@ x-airflow-common: &airflow-common
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/  # Airflow 3 작업이 상태를 보고하는 곳. 없으면 localhost 로 가서 모든 작업이 'Connection refused' 로 실패했다 (2026-10-11)
     AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul  # 시각 표시·스케줄 기준 (DAG 는 start_date 에도 tz 를 적는다)
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/airflow
