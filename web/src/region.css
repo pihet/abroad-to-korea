@@ -43,7 +43,6 @@
 .pi-kakao { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--pi-link) }
 
 /* 예상 경비 아래 '대표 사진 장소' 정보 */
-.ig .igr-spot { margin: 4px 16px 10px }
-.ig .igr-spot-h { margin: 0 0 2px; font-size: 14px }
-.ig .igr-spot-h .tag { display: inline-flex; align-items: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px; font-size: 10.5px; font-weight: 700; border-radius: 4px; background: #ee2a7b; color: #fff; margin-right: 4px }
+.ig .igr-spot { margin: 0 16px 10px }
+.ig .igr-cap .tag { display: inline-flex; align-items: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px; font-size: 10.5px; font-weight: 700; border-radius: 4px; background: #ee2a7b; color: #fff; margin-right: 4px }
 .ig .igr-spot .pi-map { background: var(--ig-soft) }
