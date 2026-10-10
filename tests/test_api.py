@@ -478,3 +478,8 @@ def test_personal_rerank(client, monkeypatch):
     assert moved and all(c["rerank"]["personal_reason"].startswith("좋아요한") for c in moved)
     # 사진 닮음이 주 신호: 취향 가중치 0.2 로는 30곳 중 최대 7계단(0.2/0.8 × 29)까지만 오른다
     assert all(old_rank[c["attraction"]["id"]] - c["rank"] <= 7 for c in cands)
+
+
+def test_my_taste_anonymous(client):
+    r = client.get("/api/my/taste").json()
+    assert r == {"logged_in": False, "on": False, "likes": 0, "dislikes": 0, "saved": 0, "min_signals": 3}

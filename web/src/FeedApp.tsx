@@ -4,14 +4,15 @@ import { FeedRegion } from './FeedRegion'
 import { FeedSearch, type Source } from './FeedSearch'
 import { RegionSearch } from './RegionSearch'
 import { FeedExplore } from './FeedExplore'
+import { FeedMy } from './FeedMy'
 import { useDragScroll } from './dragScroll'
 import { AccountModal } from './AccountModal'
 import './feed.css'
 
-// 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · 저장 + 지역 검색 · 지역 상세.
+// 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · MY(프로필·내 취향·저장) + 지역 검색 · 지역 상세.
 // 사진은 공공누리 3유형이 섞여 있어 정사각형으로 자르지 않는다 (object-fit: contain).
 
-type Tab = 'home' | 'explore' | 'search' | 'saved'
+type Tab = 'home' | 'explore' | 'search' | 'my'
 // coverTags: 동그라미 사진은 그 분류에 맞는 해시태그가 붙은 관광지 사진으로 고른다 (앞에 있는 태그부터)
 // kind: 그 분류를 고르면 시군구 대표 사진 대신 그 분류 사진을 보여 준다 (strict면 그런 사진이 있는 곳만)
 type Story = { id: string; label: string; match: (r: RegionRow) => boolean; coverTags?: string[]; kind?: 'sea' | 'mountain' | 'city'; strict?: boolean }
@@ -60,7 +61,7 @@ const Icon = {
   home: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" />,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
   plus: <><rect x="3" y="3" width="18" height="18" rx="5" /><path d="M12 8v8M8 12h8" /></>,
-  bookmark: <path d="M6 3h12v18l-6-5-6 5z" />,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></>,
   heart: <path d="M12 20s-7-4.4-9.2-8.6C1.2 8.2 3 4.5 6.6 4.5c2.2 0 3.6 1.3 5.4 3.3 1.8-2 3.2-3.3 5.4-3.3 3.6 0 5.4 3.7 3.8 6.9C19 15.6 12 20 12 20z" />,
   photo: <><rect x="3" y="5" width="18" height="15" rx="3" /><circle cx="12" cy="12.5" r="3.5" /><path d="M8 5l1.5-2h5L16 5" /></>,
   map: <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z" /><path d="M9 4v14M15 6v14" /></>,
@@ -163,7 +164,6 @@ export default function FeedApp() {
       <header className="ig-top">
         <b className="ig-logo">닮은꼴<i>.</i></b>
         <div className="ig-top-act">
-          <button type="button" className="account-trigger" onClick={() => setAccountOpen(true)}>{user ? user.nickname : '로그인'}</button>
           <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
         </div>
@@ -225,17 +225,7 @@ export default function FeedApp() {
 
       {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); nav('search') }} />}
 
-      {rows && tab === 'saved' && (
-        saved.length === 0 ? <p className="ig-wait">하트를 누른 곳이 여기에 모여요.</p> : (
-          <div className="ig-grid">
-            {rows.filter(r => saved.includes(r.key)).map(r => (
-              <button key={r.key} type="button" onClick={() => setOpen(r.key)} aria-label={`${r.sido} ${r.name}`}>
-                <img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" />
-              </button>
-            ))}
-          </div>
-        )
-      )}
+      {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
 
       <div hidden={tab !== 'search'}>
         <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} />
@@ -245,7 +235,7 @@ export default function FeedApp() {
         <button type="button" aria-pressed={tab === 'home'} onClick={() => nav('home')}><Svg d={Icon.home} fill={tab === 'home'} /><small>홈</small></button>
         <button type="button" aria-pressed={tab === 'explore'} onClick={() => nav('explore')}><Svg d={Icon.search} /><small>탐색</small></button>
         <button type="button" aria-pressed={tab === 'search'} onClick={goSearch}><Svg d={Icon.plus} /><small>사진으로 찾기</small></button>
-        <button type="button" aria-pressed={tab === 'saved'} onClick={() => nav('saved')}><Svg d={Icon.bookmark} fill={tab === 'saved'} /><small>저장</small></button>
+        <button type="button" aria-pressed={tab === 'my'} onClick={() => nav('my')}><Svg d={Icon.user} fill={tab === 'my'} /><small>MY</small></button>
       </nav>
 
       {finding && rows && <RegionSearch rows={rows} shortSido={shortSido} onClose={() => setFinding(false)}

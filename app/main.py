@@ -155,8 +155,8 @@ async def convert(image: UploadFile = File(...)):
     return Response(buf.getvalue(), media_type="image/jpeg")
 
 
-async def _user_taste(raw_session):
-    """로그인 사용자의 좋아요·별로예요·하트로 만든 취향 (engine.taste). 비로그인·DB 없음·신호 부족이면 None."""
+async def _user_signals(raw_session):
+    """로그인 사용자의 (좋아요 관광지, 별로예요 관광지, 하트 시군구). 비로그인·DB 없음이면 None."""
     factory = session_factory()
     if factory is None or not raw_session:
         return None
@@ -167,7 +167,24 @@ async def _user_taste(raw_session):
         votes = (await db.execute(select(FeedbackRecord.attraction_id, FeedbackRecord.value)
                                   .where(FeedbackRecord.user_id == principal.id))).all()
         saved = (await db.scalars(select(SavedRegion.region_key).where(SavedRegion.user_id == principal.id))).all()
-    return engine.taste([a for a, v in votes if v == 1], [a for a, v in votes if v == -1], saved)
+    return [a for a, v in votes if v == 1], [a for a, v in votes if v == -1], list(saved)
+
+
+async def _user_taste(raw_session):
+    """로그인 사용자의 좋아요·별로예요·하트로 만든 취향 (engine.taste). 비로그인·DB 없음·신호 부족이면 None."""
+    s = await _user_signals(raw_session)
+    return None if s is None else engine.taste(*s)
+
+
+@app.get("/api/my/taste")
+async def my_taste(raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    """MY 탭의 '내 취향' 상태: 신호 개수와 개인 맞춤이 켜졌는지."""
+    s = await _user_signals(raw_session)
+    if s is None:
+        return {"logged_in": False, "on": False, "likes": 0, "dislikes": 0, "saved": 0, "min_signals": PERSONAL_MIN}
+    likes, dislikes, saved = s
+    return {"logged_in": True, "on": engine.taste(likes, dislikes, saved) is not None,
+            "likes": len(likes), "dislikes": len(dislikes), "saved": len(saved), "min_signals": PERSONAL_MIN}
 
 
 @app.post("/api/recommend", response_model=RecommendResponse)
