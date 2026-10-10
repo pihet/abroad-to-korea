@@ -1,12 +1,17 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+import pendulum
 
 from airflow import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 
 
+KST = "Asia/Seoul"  # 스케줄은 한국 시각 (2026-10-11 UTC 에서 바꿈, 실행 시각은 그대로)
+
+
 with DAG(
     "user_media_cleanup_hourly",
-    start_date=datetime(2026, 10, 8),
+    start_date=pendulum.datetime(2026, 10, 8, tz=KST),
     schedule="@hourly",
     catchup=False,
     max_active_runs=1,
@@ -18,8 +23,8 @@ with DAG(
 
 with DAG(
     "regional_metrics_monthly",
-    start_date=datetime(2026, 11, 1),
-    schedule="0 3 2 * *",
+    start_date=pendulum.datetime(2026, 11, 1, tz=KST),
+    schedule="0 12 2 * *",  # 매월 2일 12:00 KST
     catchup=False,
     max_active_runs=1,
     default_args={"owner": "data", "retries": 3, "retry_delay": timedelta(minutes=30)},

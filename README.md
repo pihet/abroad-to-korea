@@ -144,14 +144,14 @@ PostgreSQL 인스턴스 하나에 애플리케이션·Airflow·MLflow DB와 계�
 
 ## Airflow 일정
 
-timezone이 UTC라 한국 시각은 +9시간이다.
+Airflow timezone은 **한국 시각(Asia/Seoul)** 이다 (2026-10-11 UTC에서 바꿈, 실제 실행 시각은 그대로). DAG의 cron과 `start_date`도 한국 시각으로 적는다.
 
-| DAG | 주기 | 한국 시각 | 작업 |
-|---|---|---|---|
-| `tour_data_daily` | 매일 `00:15 UTC` | 09:15 | 추가 사진·대표메뉴·향후 365일 축제 수집, 게시, 사진 캐시 |
-| `tour_catalog_daily` | 매일 `01:45 UTC` | 10:45 | 관광지·레포츠·음식점 목록 수집과 게시 |
-| `user_media_cleanup_hourly` | 매시간 | 매시간 | 기한이 지난 사용자 사진(바꾼 프로필 사진 포함) 삭제 |
-| `regional_metrics_monthly` | 매월 2일 `03:00 UTC` | 12:00 | 방문자 수와 행정동 인구 수집 |
+| DAG | 주기 (한국 시각) | 작업 |
+|---|---|---|
+| `tour_data_daily` | 매일 09:15 | 추가 사진·대표메뉴·향후 365일 축제 수집, 게시, 사진 캐시 |
+| `tour_catalog_daily` | 매일 10:45 | 관광지·레포츠·음식점 목록 수집과 게시 |
+| `user_media_cleanup_hourly` | 매시간 | 기한이 지난 사용자 사진(바꾼 프로필 사진 포함) 삭제 |
+| `regional_metrics_monthly` | 매월 2일 12:00 | 방문자 수와 행정동 인구 수집 |
 
 TourAPI 작업은 pool slot 1개로 한 번에 하나씩 돌리고, 일일 작업은 최대 3회 재시도한다.
 

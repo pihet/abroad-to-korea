@@ -1,17 +1,20 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+import pendulum
 
 from airflow import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 
 
 DEFAULT_ARGS = {"owner": "data", "retries": 3, "retry_delay": timedelta(minutes=10)}
+KST = "Asia/Seoul"  # 스케줄은 한국 시각 (2026-10-11 UTC 에서 바꿈, 실행 시각은 그대로)
 
 
 with DAG(
     "tour_data_daily",
     default_args=DEFAULT_ARGS,
-    start_date=datetime(2026, 10, 8),
-    schedule="15 0 * * *",
+    start_date=pendulum.datetime(2026, 10, 8, tz=KST),
+    schedule="15 9 * * *",  # 매일 09:15 KST
     catchup=False,
     max_active_runs=1,
     tags=["tourapi", "daily"],
@@ -49,8 +52,8 @@ with DAG(
 with DAG(
     "tour_catalog_daily",
     default_args=DEFAULT_ARGS,
-    start_date=datetime(2026, 10, 8),
-    schedule="45 1 * * *",
+    start_date=pendulum.datetime(2026, 10, 8, tz=KST),
+    schedule="45 10 * * *",  # 매일 10:45 KST
     catchup=False,
     max_active_runs=1,
     tags=["tourapi", "catalog"],
