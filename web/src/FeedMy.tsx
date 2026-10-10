@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AuthUser, RegionRow } from './api'
+import { shortSido } from './regionLabel'
 import './my.css'
 
 // MY 탭: 프로필 · 내 취향 상태 · 저장한 곳 · 저장한 곳의 축제 · 내가 누른 반응.
@@ -22,6 +23,7 @@ export function FeedMy({ user, rows, saved, accountOpen, onAccount, onOpen }: {
   const [votes, setVotes] = useState<Vote[]>([])
   const [fests, setFests] = useState<Fest[]>([])
   const [err, setErr] = useState<string | null>(null)
+  const [allSaved, setAllSaved] = useState(false)  // 저장한 곳: 가로 한 줄 ↔ 전체 격자
   const loadTaste = () => getJson<Taste>('/api/my/taste').then(setTaste)
   // 하트를 누르거나 로그인 상태가 바뀌면 다시 센다
   useEffect(() => { loadTaste() }, [user, saved.length, accountOpen])
@@ -59,15 +61,19 @@ export function FeedMy({ user, rows, saved, accountOpen, onAccount, onOpen }: {
       </section>
 
 
-      <h2 className="my-h">저장한 곳 <small>{mine.length}</small></h2>
+      <div className="my-hrow">
+        <h2 className="my-h">저장한 곳 <small>{mine.length}</small></h2>
+        {mine.length > 2 && <button type="button" onClick={() => setAllSaved(!allSaved)}>{allSaved ? '접기' : `전체 ${mine.length}`} ›</button>}
+      </div>
       {mine.length === 0 ? <p className="ig-wait">하트를 누른 곳이 여기에 모여요.</p> : (
-        <div className="ig-grid">
-          {mine.map(r => (
-            <button key={r.key} type="button" onClick={() => onOpen(r.key)} aria-label={`${r.sido} ${r.name}`}>
-              <img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" />
-            </button>
-          ))}
-        </div>
+        <section className={`ig-strip my-saved${allSaved ? ' all' : ''}`}>
+          <ol data-drag>
+            {mine.map(r => <li key={r.key}><button type="button" onClick={() => onOpen(r.key)}>
+              <span className="ph"><img src={r.photo!.image_url} alt={r.photo!.name} loading="lazy" /></span>
+              <b>{r.name}</b><small>{shortSido(r.sido)} · {r.photo!.name}</small>
+            </button></li>)}
+          </ol>
+        </section>
       )}
 
       {user && mine.length > 0 && <>

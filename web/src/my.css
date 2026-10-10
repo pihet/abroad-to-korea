@@ -33,3 +33,15 @@
 .ig .my-list em.down { color: #ed4956 }
 .ig .my-date { flex: none; width: 84px; font-size: 13px; font-weight: 700; color: #ee2a7b }
 .ig .my-undo { flex: none; height: 28px; padding: 0 10px; border-radius: 8px; background: var(--ig-soft); font-size: 13px; color: var(--ig-ink); cursor: pointer }
+
+/* 저장한 곳: 홈 가로 줄(.ig-strip)과 같은 카드. '전체'를 누르면 두 줄 격자. 사진은 자르지 않는다 (공공누리 3유형) */
+.ig .my-hrow { display: flex; align-items: center; justify-content: space-between; padding-right: 16px }
+.ig .my-hrow button { font-size: 13px; font-weight: 700; color: var(--ig-sub); cursor: pointer }
+.ig .my-saved { border-bottom: 0; padding-top: 0 }
+.ig .my-saved li { width: 132px }
+.ig .my-saved .ph { width: 132px; height: 99px; border-radius: 12px }
+.ig .my-saved b { font-size: 14px; margin-top: 2px }
+.ig .my-saved b, .ig .my-saved small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ig .my-saved.all ol { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 10px; overflow: visible }
+.ig .my-saved.all li { width: auto; min-width: 0 }
+.ig .my-saved.all .ph { width: 100%; height: auto; aspect-ratio: 4 / 3 }
