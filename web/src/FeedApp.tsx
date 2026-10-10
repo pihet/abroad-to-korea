@@ -261,8 +261,8 @@ export default function FeedApp() {
       <nav className="ig-tabs" aria-label="메뉴">
         <button type="button" aria-pressed={tab === 'home'} onClick={() => nav('home')}><Svg d={Icon.home} fill={tab === 'home'} /><small>홈</small></button>
         <button type="button" aria-pressed={tab === 'explore'} onClick={() => nav('explore')}><Svg d={Icon.search} /><small>탐색</small></button>
-        <button type="button" aria-pressed={tab === 'ask'} onClick={() => nav('ask')}><Svg d={Icon.chat} fill={tab === 'ask'} /><small>AI 여행</small></button>
         <button type="button" aria-pressed={tab === 'search'} onClick={goSearch}><Svg d={Icon.plus} /><small>사진으로 찾기</small></button>
+        <button type="button" aria-pressed={tab === 'ask'} onClick={() => nav('ask')}><Svg d={Icon.chat} fill={tab === 'ask'} /><small>AI 여행</small></button>
         <button type="button" aria-pressed={tab === 'my'} onClick={() => nav('my')}><Svg d={Icon.user} fill={tab === 'my'} /><small>MY</small></button>
       </nav>
 
