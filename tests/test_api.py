@@ -483,3 +483,16 @@ def test_personal_rerank(client, monkeypatch):
 def test_my_taste_anonymous(client):
     r = client.get("/api/my/taste").json()
     assert r == {"logged_in": False, "on": False, "likes": 0, "dislikes": 0, "saved": 0, "min_signals": 3}
+
+
+def test_my_similar(client):
+    # 비로그인이면 빈 목록
+    assert client.get("/api/my/similar").json() == {"on": False, "regions": []}
+    # 저장한 3곳으로 취향을 만들면 그 3곳을 빼고 k곳을 고른다
+    eng = main.engine
+    saved = eng.region_keys[:3]
+    taste = eng.taste([], [], saved)
+    assert taste is not None
+    got = eng.similar_regions(taste, set(saved), 5)
+    assert len(got) == 5 and not {k for k, _ in got} & set(saved)
+    assert all(why.endswith("사진과 비슷") for _, why in got)

@@ -92,6 +92,8 @@ export default function FeedApp() {
   const [saved, setSaved] = useState<string[]>(loadSaved)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
+  // 홈 '저장한 곳과 닮은 곳' (로그인 + 좋아요·별로예요·하트 3개 이상일 때만 서버가 채운다)
+  const [similar, setSimilar] = useState<{ key: string; reason: string }[]>([])
   const more = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -109,6 +111,11 @@ export default function FeedApp() {
       await Promise.all(merged.filter(k => !remote.includes(k)).map(k => authApi.saveRegion(k)))
     }).catch(() => {})
   }, [user])
+  useEffect(() => {
+    if (!user) { setSimilar([]); return }
+    fetch('/api/my/similar?limit=10').then(r => r.ok ? r.json() : { regions: [] })
+      .then((d: { regions: { key: string; reason: string }[] }) => setSimilar(d.regions)).catch(() => setSimilar([]))
+  }, [user, saved.length, tab])
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { setShown(PAGE); window.scrollTo(0, 0) }, [story, tab])
   useEffect(() => {
@@ -185,6 +192,23 @@ export default function FeedApp() {
         <button type="button" className="ig-cta" onClick={goSearch}>
           <Svg d={Icon.photo} /><span><b>가고 싶은 해외 사진이 있나요?</b><small>사진을 올리면 분위기가 닮은 국내 여행지를 찾아 드려요</small></span>
         </button>
+
+        {story === 'all' && similar.length > 0 && (
+          <section className="ig-strip like">
+            <div className="ig-strip-head"><b>저장한 곳과 닮은 곳</b><small>내가 누른 닮았어요·하트로 골랐어요</small></div>
+            <ol data-drag>
+              {similar.map(({ key, reason }) => {
+                const r = rows.find(x => x.key === key)
+                return r?.photo ? (
+                  <li key={key}><button type="button" onClick={() => setOpen(key)}>
+                    <span className="ph"><img src={r.photo.image_url} alt={r.photo.name} loading="lazy" /></span>
+                    <b>{shortSido(r.sido)} {r.name}</b><small>{reason}</small>
+                  </button></li>
+                ) : null
+              })}
+            </ol>
+          </section>
+        )}
 
         {story === 'all' && fest && fest.items.length > 0 && (
           <section className="ig-strip fest">

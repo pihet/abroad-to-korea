@@ -38,6 +38,7 @@ from .auth import me_router, router as auth_router
 from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
 from .media import persist_upload, router as media_router
+from .personal import router as personal_router
 from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,6 +90,7 @@ app = FastAPI(title="닮은꼴 국내 여행지 API", version="0.1.0", lifespan=
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(media_router)
+app.include_router(personal_router)
 
 
 @app.get("/api/health")

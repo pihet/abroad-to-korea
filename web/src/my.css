@@ -12,3 +12,6 @@
 .ig .my-taste small { color: var(--ig-sub) }
 .ig .my-h { margin: 8px 16px 8px; font-size: 15px; font-weight: 700 }
 .ig .my-h small { margin-left: 4px; color: var(--ig-sub); font-weight: 600 }
+
+/* 홈 '저장한 곳과 닮은 곳' 줄: 이유 문장은 두 줄까지 */
+.ig .ig-strip.like small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35 }
