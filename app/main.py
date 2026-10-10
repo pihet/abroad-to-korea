@@ -7,6 +7,7 @@
 
 import hashlib
 import io
+import re as _re
 import json
 import sys
 import time
@@ -24,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 
 from collections import Counter
 
-from .activities import GROUPS as ACT_GROUPS
+from .activities import FOOD_INTRO as FOOD_INTRO_DIR, GROUPS as ACT_GROUPS
 from .neighborhoods import CREDIT as DONG_CREDIT, Neighborhoods
 from .regions import Regions
 from .context import DATA_SOURCES, ROOT
@@ -636,25 +637,80 @@ def _tour_get(op, params, quota_msg, fail_msg):
     raise HTTPException(503, quota_msg)
 
 
+# 소개정보(detailIntro2)에서 쓰는 칸: 분류(contentTypeId) → (이용 시간, 쉬는 날, 문의 전화). 분류마다 칸 이름이 다르다
+INTRO_FIELDS = {
+    "12": ("usetime", "restdate", "infocenter"),                                  # 관광지
+    "14": ("usetimeculture", "restdateculture", "infocenterculture"),             # 문화시설
+    "15": ("playtime", None, "sponsor1tel"),                                      # 축제
+    "28": ("usetimeleports", "restdateleports", "infocenterleports"),             # 레포츠
+    "38": ("opentime", "restdateshopping", "infocentershopping"),                 # 쇼핑
+    "39": ("opentimefood", "restdatefood", "infocenterfood"),                     # 음식점
+}
+
+
+def _lines(value):
+    """TourAPI 글의 <br> 은 줄바꿈으로, 나머지 태그는 지운다."""
+    text = _re.sub(r"<br\s*/?>", "\n", value or "", flags=_re.I)
+    out = "\n".join(" ".join(_re.sub(r"<[^>]+>", " ", line).split()) for line in text.splitlines())
+    return out.strip() or None
+
+
+def _bullets(text):
+    """'- 영업시간 11:40~20:00- 준비시간 14:00~17:00' 처럼 줄바꿈 없이 붙은 항목을 한 줄씩 나눈다 (원문이 '- '로 시작할 때만)."""
+    if not text or not text.lstrip().startswith("-"):
+        return text
+    return _re.sub(r"(?<=\S)\s*-\s+(?=\S)", "\n- ", text.strip())
+
+
+def _intro(place, cid):
+    """이용 시간·쉬는 날·문의 전화. 음식점은 받아 둔 원문(detailIntro2_ct39)을 먼저 보고, 없으면 TourAPI 를 한 번 부른다.
+    한도 초과·오류면 None (소개글은 그대로 보여 준다)."""
+    fields = INTRO_FIELDS.get(place.content_type)
+    if fields is None:
+        return {}
+    item = None
+    cached = FOOD_INTRO_DIR / f"{cid}.json"
+    try:
+        data = json.loads(cached.read_text(encoding="utf-8")) if place.content_type == "39" and cached.exists() else \
+            _tour_get("detailIntro2", {"contentId": cid, "contentTypeId": place.content_type, "numOfRows": 1, "pageNo": 1}, "", "")
+        items = ((data["response"]["body"].get("items") or {}).get("item")) or [{}]
+        item = items[0] if isinstance(items, list) else items
+    except (HTTPException, KeyError, ValueError, OSError):
+        return None
+    hours, rest, phone = (_lines(item.get(f)) if f else None for f in fields)
+    return {"hours": hours, "rest": rest, "phone": phone}
+
+
 @app.get("/api/places/{cid}/detail")
 async def place_detail(cid: str, db: AsyncSession = Depends(get_db)):
-    """체험·축제 등 장소 소개글(detailCommon2 overview)·홈페이지·전화. 받아 둔 원문이 없으면 그때 한 번 부르고 저장한다."""
+    """장소 소개글(detailCommon2 overview)·홈페이지·전화와 이용 시간·쉬는 날(detailIntro2)·주소·좌표.
+    받아 둔 원문이 없으면 그때 한 번 부르고 places.attributes 에 저장한다 (TourAPI 하루 한도를 수집과 함께 쓴다)."""
     place, _ = await catalog.images(db, cid)
     if place is None:
         raise HTTPException(404, "장소를 찾을 수 없습니다.")
     attrs = dict(place.attributes or {})
+    changed = False
     if not attrs.get("overview"):
         data = _tour_get("detailCommon2", {"contentId": cid, "numOfRows": 1, "pageNo": 1},
                          "오늘 소개 조회 한도를 다 써서 불러올 수 없습니다. 내일 다시 시도해 주세요.", "소개를 불러오지 못했습니다.")
         items = ((data["response"]["body"].get("items") or {}).get("item")) or [{}]
         item = items[0] if isinstance(items, list) else items
         attrs.update({key: item[key] for key in ("overview", "homepage", "tel") if item.get(key)})
+        changed = True
+    if "intro" not in attrs:
+        intro = await run_in_threadpool(_intro, place, cid)
+        if intro is not None:  # 실패는 저장하지 않아 다음에 다시 시도한다
+            attrs["intro"] = intro
+            changed = True
+    if changed:
         place.attributes = attrs
         await db.commit()
-    import re as _re
+    intro = attrs.get("intro") or {}
     home = _re.search(r'href="([^"]+)"', attrs.get("homepage") or "")
-    return {"id": cid, "title": place.name, "overview": clean_html(attrs.get("overview")), "tel": clean_html(attrs.get("tel")),
-            "homepage": home.group(1) if home else None, "source": "한국관광공사 TourAPI"}
+    return {"id": cid, "title": place.name, "overview": clean_html(attrs.get("overview")),
+            "tel": clean_html(attrs.get("tel")) or intro.get("phone"), "homepage": home.group(1) if home else None,
+            "hours": _bullets(intro.get("hours")), "rest": _bullets(intro.get("rest")), "address": place.address,
+            "lat": place.latitude, "lon": place.longitude, "source": "한국관광공사 TourAPI"}
 
 
 @app.get("/api/places/{cid}/photos")

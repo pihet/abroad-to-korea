@@ -258,7 +258,10 @@ export interface SearchResult {
 export const searchApi = (q: string, signal?: AbortSignal) =>
   fetch(`/api/search?q=${encodeURIComponent(q)}&limit=12`, { signal }).then(r => json<SearchResult>(r))
 
-export interface PlaceDetail { id: string; title: string | null; overview: string | null; tel: string | null; homepage: string | null; source: string }
+export interface PlaceDetail {
+  id: string; title: string | null; overview: string | null; tel: string | null; homepage: string | null; source: string
+  hours?: string | null; rest?: string | null; address?: string | null; lat?: number | null; lon?: number | null  // 이용 시간·쉬는 날(detailIntro2)·주소·좌표
+}
 export const placeDetailApi = (cid: string) => fetch(`/api/places/${cid}/detail`).then(r => json<PlaceDetail>(r))
 
 export interface PlacePhotos { id: string; photos: { url: string; name: string | null; license: string }[]; source: string }

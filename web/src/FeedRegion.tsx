@@ -5,6 +5,7 @@ import { CourseView } from './components/CourseView'
 import { DongFood } from './components/DongFood'
 import { NeighborhoodMap } from './components/NeighborhoodMap'
 import { PhotoViewer } from './components/PhotoViewer'
+import { PlaceInfo } from './components/PlaceInfo'
 import { RainCheck } from './components/RainCheck'
 import './region.css'
 
@@ -163,9 +164,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
               {!about && !aboutErr && <p className="pv-sub">소개를 불러오는 중…</p>}
               {aboutErr && <p className="pv-sub">{aboutErr}</p>}
               {about?.overview && <p className="pv-txt">{about.overview}</p>}
-              {peek.address && <p className="pv-sub">주소 {peek.address}</p>}
-              {about?.tel && <p className="pv-sub">전화 {about.tel}</p>}
-              {about?.homepage && <p className="pv-links"><a href={about.homepage} target="_blank" rel="noopener">홈페이지</a></p>}
+              {about && <PlaceInfo d={{ ...about, address: about.address ?? peek.address, lat: about.lat ?? peek.lat, lon: about.lon ?? peek.lon }} name={peek.name} />}
             </PhotoViewer>
           )}
           <section className="igr-src" aria-label="출처">

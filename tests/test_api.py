@@ -616,3 +616,12 @@ def test_community_feedback(client, monkeypatch):
     votes.clear(); votes[tail["attraction"]["id"]] = (1, 0)
     one = {c["attraction"]["id"]: c["rank"] for c in rec(client, qid, limit=30)["candidates"]}
     assert 30 - one[tail["attraction"]["id"]] <= 3
+
+
+def test_place_info_text():
+    # 장소 정보: TourAPI 글의 <br> 은 줄바꿈, '- 항목- 항목' 처럼 붙은 목록은 한 줄씩
+    assert main._lines("09:00~18:00<br />(입장 마감 17:00)") == "09:00~18:00\n(입장 마감 17:00)"
+    assert main._lines("<b>상시</b> 개방") == "상시 개방"
+    assert main._bullets("- 입실 13:00- 퇴실 12:00") == "- 입실 13:00\n- 퇴실 12:00"
+    assert main._bullets("09:00-18:00") == "09:00-18:00"  # '- '로 시작하지 않으면 그대로
+    assert set(main.INTRO_FIELDS) == {"12", "14", "15", "28", "38", "39"}

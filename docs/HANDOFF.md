@@ -1726,3 +1726,11 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 만족도 지표 `GET /api/feedback/stats`: 순위 구간(1~5·6~10·11~20·21~30)별 닮았어요 비율, 탐색 사진·올린 사진별. 비로그인 표도 센다. 구간당 30표 미만이면 흔들림이 크다 → 발표 전 팀원이 탐색 사진으로 반응을 100개 이상 눌러야 의미 있는 숫자
 - 확인 (8000번, 시험 계정 3개, 끝나고 표·계정 삭제): 교토 후시미 사진 1위 창경궁 홍화문에 별로예요 3 → 비로그인 검색에서 5위, 25위 강릉 경포대에 닮았어요 3 → 21위. 같은 사람이 다시 검색해 또 눌러도 1표. 이전 세션 시험 계정(마이점검·취향테스트)의 반응 4개도 지움, 남은 반응 4개(정찬·sexy1)
 - 테스트 `test_community_feedback`. 전체 59개 통과
+
+### 15-36. Airflow 한국 시각 · 장소 정보(주소·이용 시간·전화·지도) (2026-10-11)
+
+- Airflow: `AIRFLOW__CORE__DEFAULT_TIMEZONE=Asia/Seoul`, DAG 4개 `start_date`를 `pendulum.datetime(..., tz="Asia/Seoul")`로, cron 을 한국 시각으로 다시 적음(09:15·10:45·매시간·매월 2일 12:00). 실제 실행 시각은 그대로. 확인: `airflow dags details` timetable `15 9 * * *`, next-execution 2026-10-11T00:15+00:00(=09:15 KST), import 오류 없음
+- 장소 정보: `/api/places/{cid}/detail`이 `hours`·`rest`(detailIntro2, 분류마다 칸 이름이 달라 `INTRO_FIELDS` 표)·`address`·`lat`·`lon`을 더 준다. 전화는 detailCommon2 `tel`이 없으면 소개정보의 문의 전화. 음식점은 받아 둔 `detailIntro2_ct39` 원문을 먼저 쓰고, 나머지는 처음 열 때 TourAPI 를 한 번 불러 `places.attributes.intro`에 저장(실패는 저장 안 해 다음에 다시 시도). 붙어 있는 '- 항목- 항목'은 줄을 나눈다
+- 화면 `web/src/components/PlaceInfo.tsx`: 주소(복사) · 이용 시간·쉬는 날 · 전화(누르면 걸기) · 홈페이지 · 위치 지도(Leaflet, OSM) + 카카오맵 링크. 축제·체험 카드 사진 보기와 동네 음식점 사진 보기에 붙임
+- 확인 (8000번): 원주 관광지·축제·레포츠·음식점 각 1곳 API 응답에 전화·시간·쉬는 날·주소·좌표, 화면 캡처(나오라쇼: 주소·19:50~21:00·033-749-4860·지도 타일). 음식점 사진 보기 화면은 캡처로 확인하지 않음(같은 부품)
+- 테스트 `test_place_info_text`. 전체 60개 통과
