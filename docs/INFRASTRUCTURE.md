@@ -131,12 +131,12 @@ Airflow 게시 작업은 원본 필수값을 먼저 검사하고 하나의 DB �
 
 | DAG | 일정 | 작업 |
 |---|---|---|
-| `tour_data_daily` | 매일 `09:15` KST | 추가 사진·음식 메뉴·향후 365일 축제 수집, 게시, 사진 캐시 |
-| `tour_catalog_daily` | 매일 `10:45` KST | 관광지·레포츠·음식점 카탈로그 수집과 게시 |
+| `tour_data_daily` | 매일 `00:05` KST | 추가 사진·음식 메뉴·향후 365일 축제 수집, 게시, 사진 캐시 |
+| `tour_catalog_daily` | 매일 `00:35` KST | 관광지·레포츠·음식점 카탈로그 수집과 게시 |
 | `user_media_cleanup_hourly` | 매시간 | 만료된 사용자 업로드 삭제 |
-| `regional_metrics_monthly` | 매월 2일 `12:00` KST | 방문자 수·행정동 인구 수집 |
+| `regional_metrics_monthly` | 매월 2일 `00:20` KST | 방문자 수·행정동 인구 수집 |
 
-2026-10-11부터 `AIRFLOW__CORE__DEFAULT_TIMEZONE=Asia/Seoul`(docker-compose)이고, DAG는 `pendulum.datetime(..., tz="Asia/Seoul")`로 `start_date`를 적어 cron을 한국 시각으로 읽는다. UTC 때와 실제 실행 시각은 같다 (예: 09:15 KST = 00:15 UTC). `airflow dags next-execution`은 UTC로 찍히니 +9시간 해서 본다. TourAPI 작업은 `tourapi` pool의 슬롯 1개로 직렬화하고, 일일 DAG는 3회 재시도한다.
+2026-10-11부터 `AIRFLOW__CORE__DEFAULT_TIMEZONE=Asia/Seoul`(docker-compose)이고, DAG는 `pendulum.datetime(..., tz="Asia/Seoul")`로 `start_date`를 적어 cron을 한국 시각으로 읽는다. TourAPI 하루 한도가 자정(KST)에 다시 차므로 일일 수집은 자정 직후(00:05·00:35)에 돈다. `airflow dags next-execution`은 UTC로 찍히니 +9시간 해서 본다 (00:05 KST = 전날 15:05 UTC). TourAPI 작업은 `tourapi` pool의 슬롯 1개로 직렬화하고, 일일 DAG는 3회 재시도한다.
 
 새 DAG는 등록 즉시 활성화된다. 이 설정을 적용하기 전에 이미 등록되어 일시 중지된 DAG는 한 번만 `docker compose exec airflow-api-server airflow dags unpause '.*' --treat-dag-id-as-regex -y`로 활성화한다.
 

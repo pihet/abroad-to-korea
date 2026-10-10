@@ -27,14 +27,23 @@
 .ig .course-stops li::before { z-index: 0 }
 
 /* 사진 보기 아래 장소 정보 (PlaceInfo): 주소·이용 시간·전화·홈페이지 줄 + 위치 지도 */
-.pi { margin-top: 6px; border-top: 1px solid #2a2f33 }
-.pi-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 2px; border-bottom: 1px solid #2a2f33; font-size: 14.5px; color: #eef1f2; line-height: 1.5 }
-.pi-row > svg { flex: none; width: 20px; height: 20px; margin-top: 1px; fill: none; stroke: #9aa3a8; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round }
+.pi { --pi-ink: #eef1f2; --pi-sub: #aab2b6; --pi-line: #2a2f33; --pi-icon: #9aa3a8; --pi-btn: #3a4146; --pi-link: #6cc4ff; --pi-tel: #ff5c8a
+  margin-top: 6px; border-top: 1px solid var(--pi-line) }
+/* 지역 상세 화면(밝은·어두운 테마)에서는 화면 색을 따른다 */
+.ig .igr-spot .pi { --pi-ink: var(--ig-ink); --pi-sub: var(--ig-sub); --pi-line: var(--ig-line); --pi-icon: var(--ig-sub); --pi-btn: var(--ig-line); --pi-link: #0095f6; --pi-tel: #e8396f }
+.pi-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--pi-line); font-size: 14.5px; color: var(--pi-ink); line-height: 1.5 }
+.pi-row > svg { flex: none; width: 20px; height: 20px; margin-top: 1px; fill: none; stroke: var(--pi-icon); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round }
 .pi-row > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere }
-.pi-row small { font-size: 12.5px; color: #aab2b6 }
+.pi-row small { font-size: 12.5px; color: var(--pi-sub) }
 .pi-pre { white-space: pre-line }
-.pi-row button { flex: none; height: 30px; padding: 0 12px; border: 1px solid #3a4146; border-radius: 8px; background: transparent; color: #cfd5d8; font-size: 13px; font-weight: 600; cursor: pointer }
-.pi-row a { color: #ff5c8a; text-decoration: underline; text-underline-offset: 3px }
-.pi-row a.plain { color: #6cc4ff }
+.pi-row button { flex: none; height: 30px; padding: 0 12px; border: 1px solid var(--pi-btn); border-radius: 8px; background: transparent; color: var(--pi-ink); font-size: 13px; font-weight: 600; cursor: pointer }
+.pi-row a { color: var(--pi-tel); text-decoration: underline; text-underline-offset: 3px }
+.pi-row a.plain { color: var(--pi-link) }
 .pi-map { height: 180px; margin-top: 12px; border-radius: 12px; overflow: hidden; background: #1a1e21 }
-.pi-kakao { display: inline-block; margin-top: 8px; font-size: 13px; color: #6cc4ff }
+.pi-kakao { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--pi-link) }
+
+/* 예상 경비 아래 '대표 사진 장소' 정보 */
+.ig .igr-spot { margin: 4px 16px 10px }
+.ig .igr-spot-h { margin: 0 0 2px; font-size: 14px }
+.ig .igr-spot-h .tag { display: inline-flex; align-items: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px; font-size: 10.5px; font-weight: 700; border-radius: 4px; background: #ee2a7b; color: #fff; margin-right: 4px }
+.ig .igr-spot .pi-map { background: var(--ig-soft) }

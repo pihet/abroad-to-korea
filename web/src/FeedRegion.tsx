@@ -32,6 +32,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const [peek, setPeek] = useState<ActivityItem | null>(null)
   const [about, setAbout] = useState<PlaceDetail | null>(null)  // 누른 축제·체험의 소개글 (처음 한 번 TourAPI 에서 받아 저장)
   const [aboutErr, setAboutErr] = useState<string | null>(null)
+  const [spot, setSpot] = useState<PlaceDetail | null>(null)  // 대표 사진 장소의 주소·이용 시간·전화·위치 (예상 경비 아래)
   const [viewing, setViewing] = useState(false)
   useEffect(() => {
     setAbout(null); setAboutErr(null)
@@ -49,6 +50,11 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
     setCost(null)
     fetch(`/api/regions/${encodeURIComponent(regionKey)}/cost`).then(r => (r.ok ? r.json() : null)).then(setCost).catch(() => setCost(null))
   }, [regionKey, initialDong])
+  const spotId = d?.photo?.attraction_id
+  useEffect(() => {
+    setSpot(null)
+    if (spotId) placeDetailApi(spotId).then(setSpot).catch(() => setSpot(null))  // 한도 초과 등이면 줄째 숨긴다
+  }, [spotId])
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', esc); document.body.style.overflow = 'hidden'
@@ -65,6 +71,12 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
     r.flags.city ? '#도시' : '#시골소도시',
   ].filter(Boolean) as string[] : []
   const c1 = cost?.['1night'], c0 = cost?.day
+  const placeBlock = d?.photo && spot ? (
+    <div className="igr-spot">
+      <p className="igr-spot-h"><span className="tag">대표 사진 장소</span> <b>{d.photo.name}</b></p>
+      <PlaceInfo d={spot} name={d.photo.name} />
+    </div>
+  ) : null
   const costLine = c1 ? (
     <p className="igr-cost">
       <span className="tag">예상 경비</span> 1박 2일 1인 <b>약 {won(c1.median)}원</b>으로 추정됩니다
@@ -120,13 +132,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
                 <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정{hidden(allFests, fests)}</small></div>
                 <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
-              {costLine}
+              {costLine}{placeBlock}
               {exps.length > 0 && <>
                 <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등{hidden(allExps, exps)}</small></div>
                 <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
             </section>
-          ) : costLine && <section className="igr-now">{costLine}</section>}
+          ) : (costLine || placeBlock) && <section className="igr-now">{costLine}{placeBlock}</section>}
 
           <nav className="igr-tabs" role="tablist">
             {TABS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}

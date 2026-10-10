@@ -7,14 +7,14 @@ from airflow.providers.standard.operators.bash import BashOperator
 
 
 DEFAULT_ARGS = {"owner": "data", "retries": 3, "retry_delay": timedelta(minutes=10)}
-KST = "Asia/Seoul"  # 스케줄은 한국 시각 (2026-10-11 UTC 에서 바꿈, 실행 시각은 그대로)
+KST = "Asia/Seoul"  # 스케줄은 한국 시각. TourAPI 하루 한도가 자정(KST)에 다시 차서 자정 직후에 받는다 (2026-10-11)
 
 
 with DAG(
     "tour_data_daily",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 10, 8, tz=KST),
-    schedule="15 9 * * *",  # 매일 09:15 KST
+    schedule="5 0 * * *",  # 매일 00:05 KST
     catchup=False,
     max_active_runs=1,
     tags=["tourapi", "daily"],
@@ -53,7 +53,7 @@ with DAG(
     "tour_catalog_daily",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 10, 8, tz=KST),
-    schedule="45 10 * * *",  # 매일 10:45 KST
+    schedule="35 0 * * *",  # 매일 00:35 KST (tourapi pool 슬롯 1개라 위 작업과 겹치지 않는다)
     catchup=False,
     max_active_runs=1,
     tags=["tourapi", "catalog"],
