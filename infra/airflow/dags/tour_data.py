@@ -39,6 +39,7 @@ with DAG(
     )
     publish = BashOperator(
         task_id="publish",
+        pool="publish",  # 두 DAG 의 게시가 겹치면 place_images 에서 교착(deadlock)이 난다 (2026-10-11)
         trigger_rule="none_failed",
         bash_command="cd $PROJECT_ROOT && python src/ingest/publish_tour.py --logical-date {{ ds }} --dag-id tour_data_daily",
     )
@@ -69,6 +70,7 @@ with DAG(
     )
     publish_catalog = BashOperator(
         task_id="publish",
+        pool="publish",
         bash_command="cd $PROJECT_ROOT && python src/ingest/publish_tour.py --logical-date {{ ds }} --dag-id tour_catalog_daily",
     )
     collect_catalog >> publish_catalog

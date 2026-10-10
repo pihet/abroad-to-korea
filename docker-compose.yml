@@ -189,7 +189,7 @@ services:
 
   airflow-init:
     <<: *airflow-common
-    command: bash -c "airflow db migrate && airflow pools set tourapi 1 'TourAPI 호출 직렬화'"
+    command: bash -c "airflow db migrate && airflow pools set tourapi 1 'TourAPI 호출 직렬화' && airflow pools set publish 1 'PostgreSQL 게시 직렬화 (두 DAG 가 동시에 게시하면 place_images 교착)'"
     restart: "no"
 
   airflow-api-server:
