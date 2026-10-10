@@ -7,6 +7,7 @@
 - `api`: FastAPI 서비스, 추천·지역 정보·회원·사진 보관 API
 - `postgres`: 하나의 PostgreSQL 인스턴스 안에 서비스·Airflow·MLflow DB를 분리, `pgvector` 포함
 - `redis`: 로그인 세션·OAuth state·호출 제한·검색 결과 캐시
+- `ollama`: Qwen 2.5 3B 로컬 LLM, 자연어 여행 요청을 제한된 추천 조건으로 변환
 - `minio`: 사용자 사진, `bronze/` 원본 응답, 관광지 사진 파일
 - `migrate`: API 시작 전에 Alembic 스키마를 적용하고 종료하는 일회성 컨테이너
 - `airflow-init`: Airflow 메타 DB와 TourAPI pool을 준비하고 종료하는 일회성 컨테이너
@@ -28,6 +29,7 @@ PostgreSQL은 회원·저장 지역·피드백과 관광 콘텐츠의 원본이�
 | Redis | `localhost:6379` | 컨테이너 내부에서는 `redis:6379` |
 | MinIO S3 API | `http://localhost:9000` | 애플리케이션 객체 저장소 |
 | MinIO 콘솔 | `http://localhost:9001` | 객체·버킷 확인 |
+| Ollama | `http://localhost:11434` | API 컨테이너에서는 `ollama:11434` |
 
 호스트의 기존 PostgreSQL이 `5432`를 사용하므로 Docker PostgreSQL은 충돌을 피하기 위해 `5434`로 공개한다. DBeaver는 Host `127.0.0.1`, Port `5434`, Database `abroad_to_korea`, Username `app`, Password는 `.env`의 `APP_DB_PASSWORD`로 접속한다.
 
@@ -48,6 +50,8 @@ MINIO_ROOT_PASSWORD=change-me
 
 ```bash
 docker compose config --quiet
+docker compose up -d ollama
+docker compose exec ollama ollama pull qwen2.5:3b
 docker compose up --build -d
 docker compose ps -a
 ```
@@ -62,7 +66,9 @@ docker compose restart api
 
 최초 빌드는 Python·ML·Airflow 의존성과 MinIO 소스를 받아 컴파일하므로 오래 걸릴 수 있다. 공식 MinIO 컨테이너 이미지가 레지스트리에서 제공되지 않아 `infra/docker/Dockerfile.minio`가 고정 버전 소스를 직접 빌드한다. 이후 실행은 Docker 캐시를 사용한다.
 
-`postgres`, `redis`, `mlflow`는 `healthy`, `api`, `minio`, `airflow-api-server`, `airflow-dag-processor`, `airflow-scheduler`는 `Up`이어야 한다. `migrate`, `mlflow-db-init`, `airflow-init`은 작업 성공 후 `Exited (0)`인 것이 정상이다.
+`postgres`, `redis`, `ollama`, `mlflow`는 `healthy`, `api`, `minio`, `airflow-api-server`, `airflow-dag-processor`, `airflow-scheduler`는 `Up`이어야 한다. `migrate`, `mlflow-db-init`, `airflow-init`은 작업 성공 후 `Exited (0)`인 것이 정상이다.
+
+Ollama 모델은 `ollama-data` 볼륨에 남는다. `docker compose down -v`를 실행하면 모델과 데이터 저장소 볼륨이 함께 삭제되므로 사용하지 않는다.
 
 ## 데이터베이스 초기화와 변경
 

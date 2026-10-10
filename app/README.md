@@ -12,6 +12,7 @@ docker compose restart api                      # 모델 자산 또는 DB 파생
 |---|---|
 | `main.py` | 앱 시작, 모든 API 경로, 사진·화면 파일 제공 |
 | `recommender.py` | 추천 엔진: 사진 → 닮은 시군구 (CLIP, `src/model` 인덱스 함수를 읽기만 함) |
+| `llm.py` | Ollama 자연어 요청 → 검증된 여행 조건·CLIP 텍스트 프롬프트 |
 | `tags.py` | 사진 장면 태그 (CLIP 텍스트 유사도) |
 | `context.py`, `regions.py` | 시군구 조건: 혼잡도(실측·예측), 날씨, 바다·산 등 필터 |
 | `activities.py`, `courses.py`, `neighborhoods.py` | 지역 상세: 관광지·축제·음식점, 공식 여행코스, 읍·면·동 |

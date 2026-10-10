@@ -99,6 +99,21 @@ class RecommendResponse(BaseModel):
     data_sources: list[dict]
 
 
+class NaturalRecommendRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=300)
+    limit: int = Field(default=5, ge=1, le=10)
+
+
+class NaturalRecommendResponse(BaseModel):
+    is_example: bool = False
+    message: str
+    interpretation: dict
+    llm: dict
+    total_candidates: int
+    candidates: list[Candidate]
+    data_sources: list[dict]
+
+
 class Feedback(BaseModel):
     query_id: str
     sigungu_key: str

@@ -33,7 +33,9 @@ from .catalog import Catalog, LICENSES, clean_html
 from .travel_time import TravelError, TravelTime
 from .search import Search
 from .recommender import PERSONAL_MIN, PERSONAL_WEIGHT, PRIORITIES, Engine, cp, sc
-from .schemas import ActivitiesResponse, AnalyzeResponse, Crop, Feedback, RecommendRequest, RecommendResponse
+from .schemas import (ActivitiesResponse, AnalyzeResponse, Crop, Feedback, NaturalRecommendRequest,
+                      NaturalRecommendResponse, RecommendRequest, RecommendResponse)
+from .llm import TripPlanner
 from .auth import me_router, router as auth_router
 from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
@@ -58,6 +60,7 @@ regions: Optional[Regions] = None
 hoods: Optional[Neighborhoods] = None
 MISSING_PHOTOS: set[str] = set()
 catalog = Catalog()
+trip_planner = TripPlanner()
 
 
 @asynccontextmanager
@@ -224,6 +227,32 @@ async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(N
                                "min_signals": PERSONAL_MIN, "weight": PERSONAL_WEIGHT},
                   "priorities": list(PRIORITIES)},
         "total_candidates": r["total"], "candidates": r["candidates"], "data_sources": DATA_SOURCES,
+    }
+
+
+@app.post("/api/travel/recommend", response_model=NaturalRecommendResponse)
+async def natural_recommend(req: NaturalRecommendRequest,
+                            raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    """자연어는 Ollama가 조건으로 바꾸고, 실제 후보는 기존 CLIP·PostgreSQL 데이터에서만 고른다."""
+    parsed = await trip_planner.interpret(req.query)
+    intent = parsed.intent
+    qid, tags = await run_in_threadpool(engine.analyze_text, intent.visual_prompt_en)
+    allowed = regions.allowed(intent.month, intent.filters, intent.sido)
+    taste = await _user_taste(raw_session)
+    result = await run_in_threadpool(engine.recommend, qid, intent.month, intent.priority, intent.origin,
+                                     None, req.limit, 0, allowed, taste)
+    labels = {item["key"]: item["label"] for item in regions.filter_meta(intent.month)}
+    conditions = [labels[key] for key in intent.filters]
+    scope = intent.sido or "전국"
+    condition_text = f" · {', '.join(conditions)}" if conditions else ""
+    message = f"{scope}{condition_text} 조건으로 실제 관광 데이터에서 {result['total']}곳을 찾았습니다."
+    return {
+        "message": message,
+        "interpretation": {**intent.model_dump(), "scene_tags": [tag["tag"] for tag in tags],
+                           "allowed_regions": None if allowed is None else len(allowed)},
+        "llm": {"provider": "ollama", "model": trip_planner.model, "used": parsed.used_llm,
+                "fallback_reason": parsed.fallback_reason},
+        "total_candidates": result["total"], "candidates": result["candidates"], "data_sources": DATA_SOURCES,
     }
 
 

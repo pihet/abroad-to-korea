@@ -105,6 +105,14 @@ class Engine:
             f = f if isinstance(f, torch.Tensor) else f.pooler_output
         return torch.nn.functional.normalize(f, dim=-1).numpy()[0]
 
+    def embed_text(self, text):
+        """CLIP 공통 공간에서 자연어 풍경 설명을 국내 관광 사진과 비교한다."""
+        import torch
+        with torch.no_grad():
+            f = self.model.get_text_features(**self.proc(text=[text], return_tensors="pt", padding=True))
+            f = f if isinstance(f, torch.Tensor) else f.pooler_output
+        return torch.nn.functional.normalize(f, dim=-1).numpy()[0]
+
     @staticmethod
     def open_image(data, crop=None):
         img = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))  # 휴대폰 사진 회전 반영
@@ -130,6 +138,15 @@ class Engine:
         qid = uuid.uuid4().hex[:12]
         allowed = None if exclude_ri is None else set(range(len(self.I["regions"]))) - {exclude_ri}
         self.cache[qid] = {"vec": v, "tags": self.tagger.top(v), "stage_a": self.stage_a(v, allowed), "exclude": exclude_ri}
+        while len(self.cache) > CACHE_SIZE:
+            self.cache.popitem(last=False)
+        return qid, self.cache[qid]["tags"]
+
+    def analyze_text(self, text):
+        """영문 풍경 설명으로 사진 검색과 같은 추천 캐시를 만든다."""
+        v = self.embed_text(text)
+        qid = uuid.uuid4().hex[:12]
+        self.cache[qid] = {"vec": v, "tags": self.tagger.top(v), "stage_a": self.stage_a(v), "exclude": None}
         while len(self.cache) > CACHE_SIZE:
             self.cache.popitem(last=False)
         return qid, self.cache[qid]["tags"]

@@ -60,6 +60,20 @@ services:
       timeout: 3s
       retries: 10
 
+  ollama:
+    image: ollama/ollama:0.12.3
+    environment:
+      OLLAMA_KEEP_ALIVE: 5m
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   minio:
     image: abroad-to-korea-minio:RELEASE.2025-09-07T16-13-09Z
     build:
@@ -140,6 +154,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin-change-me}
       MINIO_SECURE: "false"
       HF_HOME: /models/huggingface
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-60}
     ports:
       - "8000:8000"
     volumes:
@@ -199,3 +216,4 @@ volumes:
   redis-data:
   minio-data:
   hf-cache:
+  ollama-data:

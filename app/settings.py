@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     minio_secure: bool = False
     minio_bucket: str = "abroad-to-korea"
 
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:3b"
+    ollama_timeout_seconds: float = 60.0
+
 
 @lru_cache
 def get_settings() -> Settings:

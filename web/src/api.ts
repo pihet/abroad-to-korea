@@ -82,6 +82,19 @@ export interface RecommendResponse {
   data_sources: { name: string; as_of: string; period: string }[]
 }
 
+export interface NaturalRecommendResponse {
+  is_example: boolean
+  message: string
+  interpretation: {
+    visual_prompt_en: string; month: number | null; priority: string; origin: Origin | null
+    filters: FilterKey[]; sido: string | null; scene_tags: string[]; allowed_regions: number | null
+  }
+  llm: { provider: 'ollama'; model: string; used: boolean; fallback_reason: string | null }
+  total_candidates: number
+  candidates: Candidate[]
+  data_sources: { name: string; as_of: string; period: string }[]
+}
+
 export interface Crop { x: number; y: number; w: number; h: number }
 
 async function json<T>(res: Response): Promise<T> {
@@ -119,6 +132,11 @@ export const api = {
                       kept_tags?: string[]; limit?: number; offset?: number; filters?: FilterKey[]; sido?: string | null }) =>
     fetch('/api/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => json<RecommendResponse>(r)),
+
+  naturalRecommend: (query: string, limit = 5) =>
+    fetch('/api/travel/recommend', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, limit }),
+    }).then(r => json<NaturalRecommendResponse>(r)),
 
   feedback: (body: { query_id: string; sigungu_key: string; attraction_id: string; value: 1 | -1 }) =>
     fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })

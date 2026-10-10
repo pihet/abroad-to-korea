@@ -12,6 +12,7 @@ from PIL import Image
 
 import app.activities as acts_mod
 import app.main as main
+from app.llm import IntentResult, TravelIntent
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = "kyoto__fushimi__1.jpg"
@@ -80,6 +81,20 @@ def test_recommend_contract(client, qid):
         cg = c["congestion"]
         if cg is not None:
             assert len(cg["monthly"]) == 12 and cg["basis"] == "forecast" and cg["basis_month"] == "2026-10"
+
+
+def test_natural_language_recommendation_uses_grounded_candidates(client, monkeypatch):
+    async def fake_interpret(_query):
+        return IntentResult(intent=TravelIntent(visual_prompt_en="a quiet beach and fishing village",
+                                                filters=["sea", "calm"]), used_llm=True)
+
+    monkeypatch.setattr(main.trip_planner, "interpret", fake_interpret)
+    response = client.post("/api/travel/recommend", json={"query": "사람이 적은 조용한 바다", "limit": 3})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["llm"]["used"] is True and body["interpretation"]["filters"] == ["sea", "calm"]
+    assert len(body["candidates"]) == 3
+    assert all(candidate["attraction"]["source"] == "한국관광공사 TourAPI" for candidate in body["candidates"])
 
 
 def test_visual_matches_existing_vote100(client, qid):

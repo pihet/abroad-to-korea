@@ -90,12 +90,40 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 
 /* 아래 탭 */
 .ig-tabs { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 470px; z-index: 30;
-  display: grid; grid-template-columns: repeat(4, 1fr); height: 58px; background: var(--ig-bg); border-top: 1px solid var(--ig-line) }
+  display: grid; grid-template-columns: repeat(5, 1fr); height: 58px; background: var(--ig-bg); border-top: 1px solid var(--ig-line) }
 .ig-tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--ig-sub) }
 .ig-tabs button[aria-pressed="true"] { color: var(--ig-ink) }
 .ig-tabs small { font-size: 10.5px }
 
 @media (max-width: 470px) { .ig { border: 0 } }
+
+/* 자연어 여행 추천 */
+.ask { padding: 18px 16px 24px }
+.ask-head b { font-size: 22px; letter-spacing: -.03em }
+.ask-head p { margin: 5px 0 12px; color: var(--ig-sub); font-size: 13px; line-height: 1.5 }
+.ask-head div { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none }
+.ask-head div button { flex: none; padding: 7px 10px !important; border-radius: 999px; background: var(--ig-soft) !important; font-size: 12px !important }
+.ask-form { position: relative; margin-top: 14px; padding: 13px; border: 1px solid var(--ig-line); border-radius: 16px }
+.ask-form label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
+.ask-form textarea { display: block; width: 100%; resize: none; border: 0; outline: 0; padding: 0; color: var(--ig-ink); background: transparent; font: inherit; font-size: 15px; line-height: 1.5 }
+.ask-form textarea::placeholder { color: var(--ig-sub) }
+.ask-form button { display: block; margin: 8px 0 0 auto; padding: 9px 15px !important; border-radius: 999px; color: #fff !important; background: #0095f6 !important; font-size: 13px !important; font-weight: 800 !important }
+.ask-form button:disabled { opacity: .5; cursor: default }
+.ask-error { margin: 12px 0; color: #ed4956; font-size: 13px }
+.ask-summary { margin: 20px 0 10px; padding: 14px; border-radius: 14px; background: var(--ig-soft) }
+.ask-summary b { display: block }
+.ask-summary b { font-size: 14px; line-height: 1.45 }
+.ask-summary div { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px }
+.ask-summary span { font-size: 11px; color: #0095f6 }
+.ask-results { list-style: none; margin: 0; padding: 0 }
+.ask-results li { border-bottom: 1px solid var(--ig-line) }
+.ask-results button { display: flex; align-items: center; width: 100%; gap: 12px; padding: 12px 0 !important; text-align: left }
+.ask-results img { width: 94px; height: 76px; object-fit: contain; border-radius: 10px; background: var(--ig-soft) }
+.ask-rank { flex: none; min-width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #ee2a7b; font-size: 11px; font-weight: 800 }
+.ask-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px }
+.ask-copy b { font-size: 15px }
+.ask-copy small { color: var(--ig-sub); font-size: 12px }
+.ask-copy em { color: #0095f6; font-size: 11.5px; font-style: normal }
 
 /* 계정 */
 .account-layer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow-y: auto; padding: 24px 16px; background: rgba(0, 0, 0, .58); backdrop-filter: blur(3px) }

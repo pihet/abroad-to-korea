@@ -21,6 +21,7 @@
 |---|---|
 | 탐색 | 230개 시군구 사진 피드, 이름·초성 검색, 조건 칩, 월별 순위와 축제 목록 |
 | 사진 추천 | JPG·PNG·WEBP·HEIC, 관심 영역 자르기, CLIP 장면 태그, 닮은 시군구 최대 30곳 |
+| 자연어 추천 | Ollama가 여행 문장을 조건으로 변환, CLIP·PostgreSQL이 실제 관광지 후보 선정 |
 | 재정렬 | 사진 유사도 우선, 출발지 거리, 혼잡도·계절 조건과 로그인 사용자 취향으로 후보 30곳 안에서 재정렬 |
 | 지역 상세 | 월별 방문자·혼잡도, 16일 비 예보와 과거 기록, 읍·면·동 지도, 관광지·레포츠·음식점·축제 |
 | 여행 계획 | 1인 당일·1박 예상 경비, 한국관광공사 공식 코스, 자동차·단거리 도보 이동 시간 |
@@ -48,6 +49,7 @@ flowchart TB
     AFDP["Airflow DAG processor"]
     AFS["Airflow scheduler<br/>LocalExecutor"]
     MLFLOW["MLflow :5000"]
+    OLLAMA["Ollama :11434<br/>Qwen 2.5 3B · 자연어 조건 추출"]
   end
 
   USER <-- "HTTP · JSON · 이미지" --> API
@@ -56,6 +58,7 @@ flowchart TB
   API --> REDIS
   API --> MINIO
   API --> EXT
+  API -- "구조화된 여행 조건" --> OLLAMA
   MIG --> PG
   MAIL --> PG
   MAIL --> EXT
@@ -78,7 +81,7 @@ flowchart TB
 |---|---|
 | Frontend | React 19, TypeScript 6, Vite 8, Leaflet |
 | API | FastAPI, Pydantic, SQLAlchemy async, Uvicorn |
-| ML·분석 | PyTorch CPU, Transformers CLIP ViT-B/32, scikit-learn, LightGBM |
+| ML·분석 | Ollama, Qwen 2.5 3B, PyTorch CPU, Transformers CLIP ViT-B/32, scikit-learn, LightGBM |
 | Data | pandas, NumPy, TourAPI, DataLabService, Open-Meteo |
 | Storage | PostgreSQL 16 + pgvector, Redis 7.4, MinIO |
 | Workflow·MLOps | Airflow 3.1.1 LocalExecutor, Alembic, MLflow 3.15 |
@@ -88,6 +91,22 @@ flowchart TB
 개발·API Python 패키지는 루트 [`requirements.txt`](requirements.txt) 하나에서 관리한다. Airflow·MLflow 컨테이너에만 필요한 런타임 패키지는 각 Dockerfile에 버전을 고정해 API 이미지가 불필요하게 커지는 것을 막는다.
 
 ## 추천·예측
+
+### 로컬 LLM 자연어 추천
+
+Ollama는 장소를 직접 생성하지 않고 사용자의 문장을 월·지역·분위기·거리 조건과 영문 CLIP 풍경 설명으로 바꾼다. 실제 후보와 사진은 PostgreSQL에 게시된 TourAPI 데이터에서만 반환한다. Ollama가 꺼져 있거나 응답 형식이 잘못되면 제한적인 키워드 해석으로 대체한다.
+
+```bash
+docker compose up -d ollama
+docker compose exec ollama ollama pull qwen2.5:3b
+docker compose up --build -d api
+
+curl -X POST http://localhost:8000/api/travel/recommend \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"부산에서 가까운 조용한 바다 마을", "limit":5}'
+```
+
+API 컨테이너는 `http://ollama:11434`, 호스트에서 직접 실행한 API는 기본값 `http://localhost:11434`를 사용한다. 모델 파일은 `ollama-data` Docker 볼륨에 보관된다.
 
 ### 사진 유사도
 
@@ -270,7 +289,7 @@ data/                로컬 데이터, 본체는 Git 제외
 
 ## 남은 작업 (2026-10-10 기준)
 
-- 로컬 LLM을 이용한 자연어 여행지 추천
+- 실제 사용자 질문을 이용한 자연어 추천 품질 평가
 - 예약·결제 연동
 - 운영 환경의 HTTPS, 비밀 관리, 백업·복구, Airflow 실패 알림과 수집 지연 모니터링
 - 더 큰 홀드아웃과 여러 평가자를 이용한 추천 품질 검증

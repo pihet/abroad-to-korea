@@ -7,12 +7,13 @@ import { FeedExplore } from './FeedExplore'
 import { FeedMy } from './FeedMy'
 import { useDragScroll } from './dragScroll'
 import { AccountModal } from './AccountModal'
+import { FeedAsk } from './FeedAsk'
 import './feed.css'
 
 // 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · MY(프로필·내 취향·저장) + 지역 검색 · 지역 상세.
 // 사진은 공공누리 3유형이 섞여 있어 정사각형으로 자르지 않는다 (object-fit: contain).
 
-type Tab = 'home' | 'explore' | 'search' | 'my'
+type Tab = 'home' | 'explore' | 'ask' | 'search' | 'my'
 // coverTags: 동그라미 사진은 그 분류에 맞는 해시태그가 붙은 관광지 사진으로 고른다 (앞에 있는 태그부터)
 // kind: 그 분류를 고르면 시군구 대표 사진 대신 그 분류 사진을 보여 준다 (strict면 그런 사진이 있는 곳만)
 type Story = { id: string; label: string; match: (r: RegionRow) => boolean; coverTags?: string[]; kind?: 'sea' | 'mountain' | 'city'; strict?: boolean }
@@ -65,6 +66,7 @@ const Icon = {
   heart: <path d="M12 20s-7-4.4-9.2-8.6C1.2 8.2 3 4.5 6.6 4.5c2.2 0 3.6 1.3 5.4 3.3 1.8-2 3.2-3.3 5.4-3.3 3.6 0 5.4 3.7 3.8 6.9C19 15.6 12 20 12 20z" />,
   photo: <><rect x="3" y="5" width="18" height="15" rx="3" /><circle cx="12" cy="12.5" r="3.5" /><path d="M8 5l1.5-2h5L16 5" /></>,
   map: <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z" /><path d="M9 4v14M15 6v14" /></>,
+  chat: <path d="M4 5h16v11H9l-5 4z" />,
 }
 const Svg = ({ d, fill }: { d: React.ReactNode; fill?: boolean }) =>
   <svg viewBox="0 0 24 24" className={fill ? 'ic fill' : 'ic'} aria-hidden="true">{d}</svg>
@@ -249,6 +251,8 @@ export default function FeedApp() {
 
       {tab === 'explore' && <FeedExplore onPick={p => { setStart({ kind: 'demo', photo: p, url: p.image_url }); nav('search') }} />}
 
+      {tab === 'ask' && <FeedAsk onOpen={setOpen} />}
+
       {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
 
       <div hidden={tab !== 'search'}>
@@ -258,6 +262,7 @@ export default function FeedApp() {
       <nav className="ig-tabs" aria-label="메뉴">
         <button type="button" aria-pressed={tab === 'home'} onClick={() => nav('home')}><Svg d={Icon.home} fill={tab === 'home'} /><small>홈</small></button>
         <button type="button" aria-pressed={tab === 'explore'} onClick={() => nav('explore')}><Svg d={Icon.search} /><small>탐색</small></button>
+        <button type="button" aria-pressed={tab === 'ask'} onClick={() => nav('ask')}><Svg d={Icon.chat} fill={tab === 'ask'} /><small>AI 여행</small></button>
         <button type="button" aria-pressed={tab === 'search'} onClick={goSearch}><Svg d={Icon.plus} /><small>사진으로 찾기</small></button>
         <button type="button" aria-pressed={tab === 'my'} onClick={() => nav('my')}><Svg d={Icon.user} fill={tab === 'my'} /><small>MY</small></button>
       </nav>
