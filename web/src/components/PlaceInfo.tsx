@@ -12,13 +12,14 @@ const HOME = 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.5 3.8 5.5
 
 // 사진 보기 아래 장소 정보: 주소(복사) · 이용 시간·쉬는 날 · 전화(누르면 걸기) · 홈페이지 · 위치 지도.
 // 값은 한국관광공사 TourAPI (detailCommon2·detailIntro2). 없는 칸은 줄째 숨긴다
-export function PlaceInfo({ d, name }: { d: PlaceDetail; name: string }) {
+// map=false: 지역 상세처럼 아래에 이미 지도가 있는 화면에서는 위치 지도를 빼고 카카오맵 링크만 둔다
+export function PlaceInfo({ d, name, map: showMap = true }: { d: PlaceDetail; name: string; map?: boolean }) {
   const [copied, setCopied] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<LMap | null>(null)
 
   useEffect(() => {
-    if (d.lat == null || d.lon == null || !box.current) return
+    if (!showMap || d.lat == null || d.lon == null || !box.current) return
     let off = false
     loadLeaflet().then(L => {
       if (off || !box.current || map.current) return
@@ -29,7 +30,7 @@ export function PlaceInfo({ d, name }: { d: PlaceDetail; name: string }) {
       L.circleMarker([d.lat!, d.lon!], { radius: 9, color: '#fff', weight: 3, fillColor: '#ee2a7b', fillOpacity: 1 }).addTo(map.current)
     })
     return () => { off = true; map.current?.remove(); map.current = null }
-  }, [d.lat, d.lon])
+  }, [showMap, d.lat, d.lon])
 
   const copy = () => {
     if (!d.address) return
@@ -49,8 +50,8 @@ export function PlaceInfo({ d, name }: { d: PlaceDetail; name: string }) {
       </span></div>}
       {d.homepage && <div className="pi-row"><Ico d={HOME} /><span><a href={d.homepage} target="_blank" rel="noopener" className="plain">홈페이지</a></span></div>}
       {d.lat != null && d.lon != null && <>
-        <div ref={box} className="pi-map" role="img" aria-label={`${name} 위치 지도`} />
-        <a className="pi-kakao" href={`https://map.kakao.com/link/map/${encodeURIComponent(name)},${d.lat},${d.lon}`} target="_blank" rel="noopener">카카오맵에서 크게 보기 ›</a>
+        {showMap && <div ref={box} className="pi-map" role="img" aria-label={`${name} 위치 지도`} />}
+        <a className="pi-kakao" href={`https://map.kakao.com/link/map/${encodeURIComponent(name)},${d.lat},${d.lon}`} target="_blank" rel="noopener">{showMap ? '카카오맵에서 크게 보기 ›' : '카카오맵에서 위치 보기 ›'}</a>
       </>}
     </div>
   )

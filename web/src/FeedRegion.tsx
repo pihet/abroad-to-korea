@@ -74,7 +74,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const placeBlock = d?.photo && spot ? (
     <div className="igr-spot">
       {/* 어느 장소인지는 사진 아래 줄(하트 옆)에 '대표 사진 장소'로 적혀 있다 */}
-      <PlaceInfo d={spot} name={d.photo.name} />
+      <PlaceInfo d={spot} name={d.photo.name} map={false} />
     </div>
   ) : null
   const costLine = c1 ? (
@@ -120,7 +120,7 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
           {d.photo && <figure className="igr-photo top"><img src={d.photo.image_url} alt={d.photo.name} /></figure>}
           {/* 하트는 사진 위가 아니라 사진 아래 줄 오른쪽에 (공공누리 3유형 사진에는 아무것도 얹지 않는다) */}
           <div className="igr-cap">
-            <span>{d.photo && <><span className="tag">대표 사진 장소</span> {d.photo.name}</>}</span>
+            <span>{d.photo && <><span className="tag">대표 사진 장소</span> <b>{d.photo.name}</b></>}</span>
             <button type="button" className="igr-heart" aria-pressed={saved} onClick={onToggleSave} aria-label={saved ? '저장 취소' : '저장'}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6C1.2 8.2 3 4.5 6.6 4.5c2.2 0 3.6 1.3 5.4 3.3 1.8-2 3.2-3.3 5.4-3.3 3.6 0 5.4 3.7 3.8 6.9C19 15.6 12 20 12 20z" /></svg>
             </button>

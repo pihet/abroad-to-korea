@@ -44,5 +44,6 @@
 
 /* 예상 경비 아래 '대표 사진 장소' 정보 */
 .ig .igr-spot { margin: 0 16px 10px }
+.ig .igr-cap b { font-size: 14px; font-weight: 700; color: var(--ig-ink) }
 .ig .igr-cap .tag { display: inline-flex; align-items: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px; font-size: 10.5px; font-weight: 700; border-radius: 4px; background: #ee2a7b; color: #fff; margin-right: 4px }
 .ig .igr-spot .pi-map { background: var(--ig-soft) }
