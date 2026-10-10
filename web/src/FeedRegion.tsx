@@ -89,8 +89,9 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   // 사진 줄에는 사진 있는 곳만 (사진 없는 곳은 '할 거리' 탭 지도·목록에 그대로 있다)
   const allFests = (items ?? []).filter(i => i.group === 'festival' && i.schedule === '예정').sort((a, b) => (a.period ?? '').localeCompare(b.period ?? ''))
   const allExps = (items ?? []).filter(i => i.group === 'experience')
-  const fests = allFests.filter(i => i.image_url), exps = allExps.filter(i => i.image_url)
-  const hidden = (all: unknown[], shown: unknown[]) => (all.length > shown.length ? ` · 사진 없는 ${all.length - shown.length}곳은 할 거리 탭에` : '')
+  // 사진 있는 곳을 앞에. 사진 없는 곳도 글자 카드로 보여 준다 (할 거리 탭에는 축제·체험을 넣지 않는다)
+  const photoFirst = (xs: ActivityItem[]) => [...xs.filter(i => i.image_url), ...xs.filter(i => !i.image_url)]
+  const fests = photoFirst(allFests), exps = photoFirst(allExps)
 
   return (
     <div className="igr" role="dialog" aria-modal="true" aria-label={r ? `${r.sido} ${r.name}` : '지역 정보'}>
@@ -129,12 +130,12 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
           {(fests.length > 0 || exps.length > 0) ? (
             <section className="igr-now">
               {fests.length > 0 && <>
-                <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정{hidden(allFests, fests)}</small></div>
+                <div className="igr-now-head"><b>열리는 축제</b><small>{fests.length}개 · 한국관광공사 축제 일정</small></div>
                 <ol data-drag>{fests.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.period ?? ''} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
               {costLine}{placeBlock}
               {exps.length > 0 && <>
-                <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등{hidden(allExps, exps)}</small></div>
+                <div className="igr-now-head"><b>체험 활동</b><small>{exps.length}곳 · 체험마을·체험장 등</small></div>
                 <ol data-drag>{exps.map(x => <NowCard key={x.id} x={x} on={peek?.id === x.id} sub={x.kind} onClick={() => { setPeek(x); setViewing(true) }} />)}</ol>
               </>}
             </section>
@@ -213,11 +214,12 @@ function CommonsCredits() {
 
 // 축제·체험 카드: 사진(자르지 않음) + 이름 + 기간/종류. 누르면 아래에 주소·지도 링크
 function NowCard({ x, on, sub, onClick }: { x: ActivityItem; on: boolean; sub: string; onClick: () => void }) {
-  const [broken, setBroken] = useState(false)  // 원본 사진이 지워진 곳(404)은 카드째 숨긴다 (사진 줄에는 사진 있는 곳만)
-  if (broken) return null
+  const [broken, setBroken] = useState(false)  // 사진이 없거나 원본이 지워진 곳(404)은 글자 카드로
   return (
     <li><button type="button" aria-pressed={on} onClick={onClick}>
-      <span className="ph"><img src={x.image_url ?? ''} alt={x.name} loading="lazy" onError={() => setBroken(true)} /></span>
+      <span className="ph">{x.image_url && !broken
+        ? <img src={x.image_url} alt={x.name} loading="lazy" onError={() => setBroken(true)} />
+        : <i>사진 없음</i>}</span>
       <b>{x.name}</b><small>{sub}</small>
     </button></li>
   )

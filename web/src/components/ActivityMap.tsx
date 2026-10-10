@@ -6,8 +6,10 @@ import { activitiesApi, type ActivitiesResponse, type ActivityItem } from '../ap
 const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => L.default ?? L)
 
 const PAGE = 12
+// 할 거리는 '가 볼 곳'만: 먹거리는 동네·먹거리 탭, 축제·체험은 지역 상세 위쪽 줄에 따로 있어 뺀다 (2026-10-11)
+const PLACE_GROUPS = ['water', 'mountain', 'leisure', 'camping']
 
-// 시군구 "할 만한 것": 번호 마커 지도 + 같은 번호의 목록. 묶음 칩으로 거른다.
+// 시군구 "할 거리": 번호 마커 지도 + 같은 번호의 목록(사진 있는 곳, 가까운 순). 사진 없는 곳은 아래에 접어 둔다. 묶음 칩으로 거른다.
 export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGroup = 'all' }: {
   sigunguKey: string; sigunguName: string; attractionId: string; initialGroup?: string
 }) {
@@ -27,10 +29,11 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
     activitiesApi(sigunguKey, attractionId).then(setData).catch(e => setErr(e.message))
   }, [sigunguKey, attractionId])
 
-  const list: ActivityItem[] = useMemo(() => {
-    if (!data) return []
-    return (group === 'all' ? data.items : data.items.filter(i => i.group === group)).slice(0, shown)
-  }, [data, group, shown])
+  const places = useMemo(() => (data?.items ?? []).filter(i => PLACE_GROUPS.includes(i.group)), [data])
+  const inGroup = useMemo(() => (group === 'all' ? places : places.filter(i => i.group === group)), [places, group])
+  const withPhoto = useMemo(() => inGroup.filter(i => i.image_url && !broken.has(i.id)), [inGroup, broken])
+  const noPhoto = useMemo(() => inGroup.filter(i => !i.image_url || broken.has(i.id)), [inGroup, broken])
+  const list: ActivityItem[] = useMemo(() => withPhoto.slice(0, shown), [withPhoto, shown])
 
   // 지도 그리기: 목록에 보이는 곳만 같은 번호로 표시
   useEffect(() => {
@@ -81,41 +84,42 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
 
   if (err) return <p className="error">{err}</p>
   if (!data) return <p className="fine">불러오는 중…</p>
-  const total = group === 'all' ? data.items.length : data.groups.find(g => g.key === group)?.count ?? 0
+  const groups = data.groups.filter(g => PLACE_GROUPS.includes(g.key))
+  const count = (k: string) => places.filter(i => i.group === k).length
 
   return (
     <div className="acts">
       <div className="acts-chips" role="group" aria-label="활동 묶음">
-        <button type="button" aria-pressed={group === 'all'} onClick={() => { setGroup('all'); setShown(PAGE) }}>전체 {data.items.length}</button>
-        {data.groups.map(g => (
-          <button key={g.key} type="button" className={`g-${g.key}`} aria-pressed={group === g.key} disabled={!g.count}
+        <button type="button" aria-pressed={group === 'all'} onClick={() => { setGroup('all'); setShown(PAGE) }}>전체 {places.length}</button>
+        {groups.map(g => (
+          <button key={g.key} type="button" className={`g-${g.key}`} aria-pressed={group === g.key} disabled={!count(g.key)}
                   onClick={() => { setGroup(g.key); setShown(PAGE) }}>
-            <i aria-hidden="true" />{g.label} {g.count}
+            <i aria-hidden="true" />{g.label} {count(g.key)}
           </button>
         ))}
       </div>
-      {data.items.length === 0 ? <p className="fine">{sigunguName}에는 아직 등록된 활동 정보가 없습니다.</p> : <>
+      {places.length === 0 ? <p className="fine">{sigunguName}에는 아직 등록된 관광지·레포츠 정보가 없습니다.</p> : <>
         <div className="acts-map" ref={box} role="region" aria-label={`${sigunguName} 활동 지도`} />
         <ol className="acts-list">
           {list.map((it, i) => (
             <li key={it.id} className={active === it.id ? 'on' : ''}>
               <button type="button" onClick={() => setActive(it.id)}>
                 <span className={`num g-${it.group}`}>{i + 1}</span>
-                {it.image_url && !broken.has(it.id)
-                  ? <img src={it.image_url} alt="" loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
-                  : <span className="noimg" aria-hidden="true" />}
+                <img src={it.image_url!} alt="" loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
                 <span className="txt">
                   <b>{it.name}</b>
                   <small>{it.kind}{it.distance_km != null ? ` · ${it.distance_km}km` : ''}</small>
-                  {it.menu && <small className="menu">대표메뉴 · {it.menu}</small>}
-                  {it.period && <small className={it.schedule === '예정' ? 'fest' : 'fest past'}>{it.period} · {it.schedule === '예정' ? '2026년 일정' : '지난 개최 기록, 다음 일정 미정'}</small>}
                 </span>
               </button>
             </li>
           ))}
         </ol>
-        {list.length < total && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({list.length} / {total})</button>}
-        <ul className="acts-notes">{data.notes.map(n => <li key={n}>{n}</li>)}</ul>
+        {list.length < withPhoto.length && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({list.length} / {withPhoto.length})</button>}
+        {noPhoto.length > 0 && <details className="acts-nophoto">
+          <summary>사진 없는 곳 {noPhoto.length}곳</summary>
+          <ul>{noPhoto.map(it => <li key={it.id}><b>{it.name}</b> <small>{it.kind}{it.distance_km != null ? ` · ${it.distance_km}km` : ''}</small></li>)}</ul>
+        </details>}
+        <p className="acts-note">사진 속 장소에서 가까운 순 · 한국관광공사 TourAPI 관광지·레포츠</p>
       </>}
     </div>
   )
