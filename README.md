@@ -1,4 +1,6 @@
-# abroad-to-korea · 사진으로 찾는 국내 여행지
+# pickkorea · 사진으로 찾는 국내 여행지
+
+저장소 이름은 abroad-to-korea, 서비스 이름은 pickkorea (2026-10-11 닮은꼴에서 바꿈).
 
 > 최종 갱신: **2026-10-10 (Asia/Seoul)**
 

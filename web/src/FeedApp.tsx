@@ -170,7 +170,7 @@ export default function FeedApp() {
   return (
     <div className="ig">
       <header className="ig-top">
-        <b className="ig-logo">닮은꼴<i>.</i></b>
+        <b className="ig-logo">pickkorea<i>.</i></b>
         <div className="ig-top-act">
           <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
