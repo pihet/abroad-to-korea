@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as LMap, LayerGroup } from 'leaflet'
-import { activitiesApi, type ActivitiesResponse, type ActivityItem } from '../api'
+import { activitiesApi, placeDetailApi, type ActivitiesResponse, type ActivityItem, type PlaceDetail } from '../api'
+import { PhotoViewer } from './PhotoViewer'
+import { PlaceInfo } from './PlaceInfo'
 
 // 지도 라이브러리는 이 패널을 처음 열 때만 불러온다 (첫 화면을 가볍게)
 const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => L.default ?? L)
@@ -19,6 +21,8 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
   const [shown, setShown] = useState(PAGE)
   const [active, setActive] = useState<string | null>(null)
   const [broken, setBroken] = useState<Set<string>>(new Set())  // 원본이 지워진 사진
+  const [view, setView] = useState<ActivityItem | null>(null)  // 카드를 누르면 사진 보기 + 장소 정보
+  const [info, setInfo] = useState<PlaceDetail | null>(null)
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<LMap | null>(null)
   const layer = useRef<LayerGroup | null>(null)
@@ -81,6 +85,7 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
   }, [data, list, active])
 
   useEffect(() => () => { map.current?.remove(); map.current = null }, [])
+  useEffect(() => { setInfo(null); if (view) placeDetailApi(view.id).then(setInfo).catch(() => setInfo(null)) }, [view])
 
   if (err) return <p className="error">{err}</p>
   if (!data) return <p className="fine">불러오는 중…</p>
@@ -100,15 +105,20 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
       </div>
       {places.length === 0 ? <p className="fine">{sigunguName}에는 아직 등록된 관광지·레포츠 정보가 없습니다.</p> : <>
         <div className="acts-map" ref={box} role="region" aria-label={`${sigunguName} 활동 지도`} />
-        <ol className="acts-list">
+        {/* AI 여행 결과와 같은 카드 (feed.css .ask-cards). 번호 색은 지도 점과 같은 묶음 색 */}
+        <ol className="ask-cards acts-cards">
           {list.map((it, i) => (
-            <li key={it.id} className={active === it.id ? 'on' : ''}>
-              <button type="button" onClick={() => setActive(it.id)}>
-                <span className={`num g-${it.group}`}>{i + 1}</span>
-                <img src={it.image_url!} alt="" loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
-                <span className="txt">
-                  <b>{it.name}</b>
-                  <small>{it.kind}{it.distance_km != null ? ` · ${it.distance_km}km` : ''}</small>
+            <li key={it.id} className={active === it.id ? 'top' : undefined}>
+              <button type="button" className="ask-card" onClick={() => { setActive(it.id); setView(it) }}>
+                <img src={it.image_url!} alt={it.name} loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
+                <span className="ask-copy">
+                  <b><span className={`ask-rank g-${it.group}`}>{i + 1}</span>{it.name}</b>
+                  <small>{it.address ?? sigunguName}</small>
+                  <span className="ask-chips">
+                    <i>{it.kind}</i>
+                    {it.distance_km != null && <i>{it.distance_km}km</i>}
+                    <i className="more">상세보기 ›</i>
+                  </span>
                 </span>
               </button>
             </li>
@@ -120,6 +130,11 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
           <ul>{noPhoto.map(it => <li key={it.id}><b>{it.name}</b> <small>{it.kind}{it.distance_km != null ? ` · ${it.distance_km}km` : ''}</small></li>)}</ul>
         </details>}
         <p className="acts-note">사진 속 장소에서 가까운 순 · 한국관광공사 TourAPI 관광지·레포츠</p>
+        {view && <PhotoViewer cid={view.id} name={view.name} main={view.image_url?.startsWith('/images/tour/') ? `${view.image_url}?full=1` : view.image_url} mainLicense={view.license} onClose={() => setView(null)}>
+          <p className="pv-sub">{view.kind}{view.distance_km != null ? ` · 사진 속 장소에서 ${view.distance_km}km` : ''}</p>
+          {info?.overview && <p className="pv-txt">{info.overview}</p>}
+          {info ? <PlaceInfo d={{ ...info, address: info.address ?? view.address, lat: info.lat ?? view.lat, lon: info.lon ?? view.lon }} name={view.name} /> : <p className="pv-sub">정보를 불러오는 중…</p>}
+        </PhotoViewer>}
       </>}
     </div>
   )

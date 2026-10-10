@@ -56,3 +56,8 @@
 .ig .acts-nophoto ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.7 }
 .ig .acts-nophoto b { color: var(--ig-ink); font-weight: 600 }
 .ig .acts-note { margin: 0; font-size: 12px; color: var(--ig-sub) }
+
+/* 할 거리 카드: AI 여행 카드(.ask-cards)를 그대로 쓰고 번호 색만 묶음 색으로, 고른 카드는 묶음 색 테두리 */
+.ig .acts-cards .ask-rank { background: var(--g, #ee2a7b) }
+.ig .acts-cards .ask-card { padding-right: 10px !important }
+.ig .acts-cards .ask-chips i:first-child { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 22px }
