@@ -48,13 +48,9 @@
 .ig .igr-cap .tag { display: inline-flex; align-items: center; line-height: 1; padding: 2.5px 6px; vertical-align: 2px; font-size: 10.5px; font-weight: 700; border-radius: 4px; background: #ee2a7b; color: #fff; margin-right: 4px }
 .ig .igr-spot .pi-map { background: var(--ig-soft) }
 
-/* 할 거리 (ActivityMap): 분류 칩 한 줄(넘치면 옆으로 밀기), 사진 없는 곳 접기, 설명 한 줄 */
+/* 할 거리 (ActivityMap): 분류 칩 한 줄(넘치면 옆으로 밀기), 설명 한 줄 */
 .ig .acts-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none }
 .ig .acts-chips button { flex: none }
-.ig .acts-nophoto { font-size: 13px; color: var(--ig-sub) }
-.ig .acts-nophoto summary { cursor: pointer; padding: 4px 0 }
-.ig .acts-nophoto ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.7 }
-.ig .acts-nophoto b { color: var(--ig-ink); font-weight: 600 }
 .ig .acts-note { margin: 0; font-size: 12px; color: var(--ig-sub) }
 
 /* 할 거리 카드: AI 여행 카드(.ask-cards)를 그대로 쓰고 번호 색만 묶음 색으로, 고른 카드는 묶음 색 테두리 */

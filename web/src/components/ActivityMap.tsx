@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as LMap, LayerGroup } from 'leaflet'
-import { activitiesApi, placeDetailApi, type ActivitiesResponse, type ActivityItem, type PlaceDetail } from '../api'
-import { PhotoViewer } from './PhotoViewer'
-import { PlaceInfo } from './PlaceInfo'
+import { activitiesApi, type ActivitiesResponse, type ActivityItem } from '../api'
 
 // 지도 라이브러리는 이 패널을 처음 열 때만 불러온다 (첫 화면을 가볍게)
 const loadLeaflet = () => Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => L.default ?? L)
@@ -11,9 +9,10 @@ const PAGE = 12
 // 할 거리는 '가 볼 곳'만: 먹거리는 동네·먹거리 탭, 축제·체험은 지역 상세 위쪽 줄에 따로 있어 뺀다 (2026-10-11)
 const PLACE_GROUPS = ['water', 'mountain', 'leisure', 'camping']
 
-// 시군구 "할 거리": 번호 마커 지도 + 같은 번호의 목록(사진 있는 곳, 가까운 순). 사진 없는 곳은 아래에 접어 둔다. 묶음 칩으로 거른다.
-export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGroup = 'all' }: {
-  sigunguKey: string; sigunguName: string; attractionId: string; initialGroup?: string
+// 시군구 "할 거리": 번호 마커 지도 + 같은 번호의 카드 목록(사진 있는 곳만, 가까운 순). 묶음 칩으로 거른다.
+// onPick: 카드를 누르면 지역 상세가 사진 팝업(사진·소개·주소·시간·전화)을 띄운다. 이 탭 안에서 띄우면 탭 영역에 갇혀 사진이 작아진다
+export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGroup = 'all', onPick }: {
+  sigunguKey: string; sigunguName: string; attractionId: string; initialGroup?: string; onPick?: (it: ActivityItem) => void
 }) {
   const [data, setData] = useState<ActivitiesResponse | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -21,8 +20,6 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
   const [shown, setShown] = useState(PAGE)
   const [active, setActive] = useState<string | null>(null)
   const [broken, setBroken] = useState<Set<string>>(new Set())  // 원본이 지워진 사진
-  const [view, setView] = useState<ActivityItem | null>(null)  // 카드를 누르면 사진 보기 + 장소 정보
-  const [info, setInfo] = useState<PlaceDetail | null>(null)
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<LMap | null>(null)
   const layer = useRef<LayerGroup | null>(null)
@@ -33,11 +30,10 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
     activitiesApi(sigunguKey, attractionId).then(setData).catch(e => setErr(e.message))
   }, [sigunguKey, attractionId])
 
-  const places = useMemo(() => (data?.items ?? []).filter(i => PLACE_GROUPS.includes(i.group)), [data])
+  // 사진 없는 곳은 보여 주지 않는다 (2026-10-11 사용자 결정). 원본이 지워진 사진(broken)도 뺀다
+  const places = useMemo(() => (data?.items ?? []).filter(i => PLACE_GROUPS.includes(i.group) && i.image_url && !broken.has(i.id)), [data, broken])
   const inGroup = useMemo(() => (group === 'all' ? places : places.filter(i => i.group === group)), [places, group])
-  const withPhoto = useMemo(() => inGroup.filter(i => i.image_url && !broken.has(i.id)), [inGroup, broken])
-  const noPhoto = useMemo(() => inGroup.filter(i => !i.image_url || broken.has(i.id)), [inGroup, broken])
-  const list: ActivityItem[] = useMemo(() => withPhoto.slice(0, shown), [withPhoto, shown])
+  const list: ActivityItem[] = useMemo(() => inGroup.slice(0, shown), [inGroup, shown])
 
   // 지도 그리기: 목록에 보이는 곳만 같은 번호로 표시
   useEffect(() => {
@@ -85,7 +81,6 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
   }, [data, list, active])
 
   useEffect(() => () => { map.current?.remove(); map.current = null }, [])
-  useEffect(() => { setInfo(null); if (view) placeDetailApi(view.id).then(setInfo).catch(() => setInfo(null)) }, [view])
 
   if (err) return <p className="error">{err}</p>
   if (!data) return <p className="fine">불러오는 중…</p>
@@ -109,7 +104,7 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
         <ol className="ask-cards acts-cards">
           {list.map((it, i) => (
             <li key={it.id} className={active === it.id ? 'top' : undefined}>
-              <button type="button" className="ask-card" onClick={() => { setActive(it.id); setView(it) }}>
+              <button type="button" className="ask-card" onClick={() => { setActive(it.id); onPick?.(it) }}>
                 <img src={it.image_url!} alt={it.name} loading="lazy" onError={() => setBroken(new Set(broken).add(it.id))} />
                 <span className="ask-copy">
                   <b><span className={`ask-rank g-${it.group}`}>{i + 1}</span>{it.name}</b>
@@ -124,17 +119,8 @@ export function ActivityMap({ sigunguKey, sigunguName, attractionId, initialGrou
             </li>
           ))}
         </ol>
-        {list.length < withPhoto.length && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({list.length} / {withPhoto.length})</button>}
-        {noPhoto.length > 0 && <details className="acts-nophoto">
-          <summary>사진 없는 곳 {noPhoto.length}곳</summary>
-          <ul>{noPhoto.map(it => <li key={it.id}><b>{it.name}</b> <small>{it.kind}{it.distance_km != null ? ` · ${it.distance_km}km` : ''}</small></li>)}</ul>
-        </details>}
+        {list.length < inGroup.length && <button type="button" className="ghost wide" onClick={() => setShown(shown + PAGE)}>더 보기 ({list.length} / {inGroup.length})</button>}
         <p className="acts-note">사진 속 장소에서 가까운 순 · 한국관광공사 TourAPI 관광지·레포츠</p>
-        {view && <PhotoViewer cid={view.id} name={view.name} main={view.image_url?.startsWith('/images/tour/') ? `${view.image_url}?full=1` : view.image_url} mainLicense={view.license} onClose={() => setView(null)}>
-          <p className="pv-sub">{view.kind}{view.distance_km != null ? ` · 사진 속 장소에서 ${view.distance_km}km` : ''}</p>
-          {info?.overview && <p className="pv-txt">{info.overview}</p>}
-          {info ? <PlaceInfo d={{ ...info, address: info.address ?? view.address, lat: info.lat ?? view.lat, lon: info.lon ?? view.lon }} name={view.name} /> : <p className="pv-sub">정보를 불러오는 중…</p>}
-        </PhotoViewer>}
       </>}
     </div>
   )

@@ -167,13 +167,13 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
           )}
           {tab === 'acts' && (
             <section className="igr-sec">
-              <ActivityMap sigunguKey={regionKey} sigunguName={r.name} attractionId={d.photo?.attraction_id ?? ''} />
+              <ActivityMap sigunguKey={regionKey} sigunguName={r.name} attractionId={d.photo?.attraction_id ?? ''} onPick={x => { setPeek(x); setViewing(true) }} />
             </section>
           )}
           {/* 축제·체험 카드를 누르면: 큰 사진(넘겨 보기) + 소개·기간·주소·전화·홈페이지 */}
           {viewing && peek && (
             <PhotoViewer cid={peek.id} name={peek.name} main={peek.image_url?.startsWith('/images/tour/') ? `${peek.image_url}?full=1` : peek.image_url} mainLicense={peek.license} onClose={() => { setViewing(false); setPeek(null) }}>
-              <p className="pv-sub">{peek.kind}{peek.period ? ` · ${peek.period}` : ''}</p>
+              <p className="pv-sub">{peek.kind}{peek.period ? ` · ${peek.period}` : peek.distance_km != null ? ` · 사진 속 장소에서 ${peek.distance_km}km` : ''}</p>
               {!about && !aboutErr && <p className="pv-sub">소개를 불러오는 중…</p>}
               {aboutErr && <p className="pv-sub">{aboutErr}</p>}
               {about?.overview && <p className="pv-txt">{about.overview}</p>}
