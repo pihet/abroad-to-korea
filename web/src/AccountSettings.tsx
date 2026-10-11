@@ -166,13 +166,13 @@ export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
     {askMsg && <p className={askMsg.ok ? 'acs-ok' : 'account-message'} role="status">{askMsg.text}</p>}
 
     <button className="account-submit secondary" type="button" disabled={busy} onClick={logout}>로그아웃</button>
-    <div className="acs-leave">
-      {!leaving ? <button type="button" className="acs-link" onClick={() => setLeaving(true)}>회원 탈퇴</button> : <>
-        <p>탈퇴하면 저장한 곳과 설정, 로그인 정보가 지워지고 되돌릴 수 없어요.</p>
-        <button type="button" className="danger" disabled={busy} onClick={leave}>탈퇴하기</button>
-        <button type="button" className="acs-link" onClick={() => setLeaving(false)}>취소</button>
-      </>}
-    </div>
-    <p className="acs-legal"><a href="/terms.html" target="_blank" rel="noopener">이용약관</a> · <a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></p>
+    <p className="acs-foot">
+      <a href="/terms.html" target="_blank" rel="noopener">이용약관</a> · <a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a> · <button type="button" onClick={() => setLeaving(true)}>회원 탈퇴</button>
+    </p>
+    {leaving && <div className="acs-leave">
+      <p>탈퇴하면 저장한 곳과 설정, 로그인 정보가 지워지고 되돌릴 수 없어요.</p>
+      <button type="button" className="danger" disabled={busy} onClick={leave}>탈퇴하기</button>
+      <button type="button" className="acs-link" onClick={() => setLeaving(false)}>취소</button>
+    </div>}
   </div>
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { artistName } from './credit'
 import { api, type AnalyzeResponse, type Candidate, type Crop, type DemoPhoto, type RecommendResponse } from './api'
 import { CropStep } from './components/CropStep'
 import './search.css'
@@ -145,6 +146,7 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
         <div>
           <b>내 사진과 닮은 국내 여행지</b>
           <small>사진이 닮은 {res?.total_candidates ?? '…'}곳 중에서{analysis.excluded_sigungu ? ` · 출발 지역(${analysis.excluded_sigungu.name}) 제외` : ''}</small>
+          {source?.kind === 'demo' && <small className="ig-credit">사진 {artistName(source.photo.artist)} · <a href={source.photo.license_url || source.photo.source_page} target="_blank" rel="noopener">{source.photo.license}</a> · 위키미디어 커먼즈</small>}
         </div>
       </section>
       <p className="ig-mytags">{analysis.scene_tags.map(t => <span key={t.tag}>#{t.tag}</span>)}</p>

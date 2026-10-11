@@ -8,6 +8,7 @@ import { PhotoViewer } from './components/PhotoViewer'
 import { PlaceInfo } from './components/PlaceInfo'
 import { RainCheck } from './components/RainCheck'
 import './region.css'
+import { artistName } from './credit'
 
 // 지역 상세 (인스타그램 프로필형): 프로필 머리 → 동네 하이라이트 → 탭(동네·먹거리 / 언제 갈까 / 할 거리).
 // 지도·음식점·비 예보 부품은 예전 상세 화면과 같은 것을 쓴다.
@@ -212,7 +213,7 @@ function CommonsCredits() {
     <details onToggle={e => { if ((e.target as HTMLDetailsElement).open && !list) api.demoPhotos().then(setList).catch(() => setList([])) }}>
       <summary>사진별 저작자 보기</summary>
       {list === null ? <p>불러오는 중…</p> : (
-        <ul>{list.map(p => <li key={p.photo_id}>{p.country} {p.place_name} {p.scene_label} · {p.artist} · <a href={p.license_url} target="_blank" rel="noopener">{p.license}</a></li>)}</ul>
+        <ul>{list.map(p => <li key={p.photo_id}>{p.country} {p.place_name} {p.scene_label} · {artistName(p.artist)} · <a href={p.license_url} target="_blank" rel="noopener">{p.license}</a></li>)}</ul>
       )}
     </details>
   )

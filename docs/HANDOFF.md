@@ -1846,3 +1846,11 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 | Pretendard 글꼴·Leaflet | OFL·BSD | 가능 |
 
 출처: Qwen 라이선스 https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE · Open-Meteo https://open-meteo.com/en/terms · OSM 타일 https://operations.osmfoundation.org/policies/tiles/ · 카카오모빌리티 https://devtalk.kakao.com/t/directions-api-navigation-api/149487 · data.go.kr 메타데이터 15101578·15101972 · 원자료 https://know.tour.go.kr/stat/nRawDataDownloadDis19Re.do
+
+### 15-47. 커먼즈 사진 작가 표시 · 계정 설정 아래쪽 정리 (2026-10-11)
+
+- 탐색 사진으로 찾은 결과 위 '사진이 닮은 30곳 중에서' 밑에 작게 "사진 작가 · 라이선스(링크) · 위키미디어 커먼즈" (CC BY·BY-SA 표시 의무, 15-46)
+  - 작가 칸에 위키 링크 문법·긴 이용 안내문이 섞인 6장은 이름만 뽑는다 (`web/src/credit.ts` `artistName`, 지역 상세 맨 아래 해외 사진 출처에도 같이 씀). 213장 모두 넣어 보고 빈 이름·50자 넘는 이름 없음 확인
+  - 남은 것: 탐색 격자와 사진으로 찾기 첫 화면 예시 카드에는 아직 작가 표시가 없다
+- 계정 설정 맨 아래: 로그아웃 밑에 구분선, 그 아래 한 줄 "이용약관 · 개인정보처리방침 · 회원 탈퇴" (작은 회색). 회원 탈퇴를 누르면 그 밑에 확인 문구와 탈퇴하기·취소
+- 확인: 8000번에서 작가 표시 2장(일반 이름, 안내문이 섞인 Wolfgang Moroder) 정상·링크는 라이선스 주소. 시험 계정으로 아래쪽 화면·탈퇴 확인 → 탈퇴 후 401. 확인 중 쌓인 검색 기록 2행 삭제
