@@ -37,6 +37,7 @@ export function PlaceInfo({ d, name, map: showMap = true }: { d: PlaceDetail; na
     navigator.clipboard?.writeText(d.address).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }).catch(() => {})
   }
   const phones = (d.tel ?? '').split(/[,\n]/).map(x => x.trim()).filter(Boolean)
+  const homepage = d.homepage && /^https?:\/\//i.test(d.homepage) ? d.homepage : null  // 바깥(TourAPI) 값이라 http(s) 주소만 링크로
   return (
     <div className="pi">
       {d.address && <div className="pi-row"><Ico d={PIN} /><span>{d.address}</span>
@@ -48,7 +49,7 @@ export function PlaceInfo({ d, name, map: showMap = true }: { d: PlaceDetail; na
       {phones.length > 0 && <div className="pi-row"><Ico d={PHONE} /><span>
         {phones.map(p => <a key={p} href={`tel:${p.replace(/[^\d+]/g, '')}`}>{p}</a>)}
       </span></div>}
-      {d.homepage && <div className="pi-row"><Ico d={HOME} /><span><a href={d.homepage} target="_blank" rel="noopener" className="plain">홈페이지</a></span></div>}
+      {homepage && <div className="pi-row"><Ico d={HOME} /><span><a href={homepage} target="_blank" rel="noopener" className="plain">홈페이지</a></span></div>}
       {d.lat != null && d.lon != null && <>
         {showMap && <div ref={box} className="pi-map" role="img" aria-label={`${name} 위치 지도`} />}
         <a className="pi-kakao" href={`https://map.kakao.com/link/map/${encodeURIComponent(name)},${d.lat},${d.lon}`} target="_blank" rel="noopener">{showMap ? '카카오맵에서 크게 보기 ›' : '카카오맵에서 위치 보기 ›'}</a>

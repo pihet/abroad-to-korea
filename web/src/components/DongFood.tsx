@@ -13,8 +13,14 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
   const [view, setView] = useState<DF['items'][number] | null>(null)
   useEffect(() => { setD(null); setShown(PAGE); dongFoodApi(regionKey, code).then(setD).catch(() => setD(null)) }, [regionKey, code])
   // 가게를 누르면 주소·영업시간·쉬는 날·전화·위치 (처음 한 번 TourAPI 에서 받아 저장)
-  const [info, setInfo] = useState<PlaceDetail | null>(null)
-  useEffect(() => { setInfo(null); if (view) placeDetailApi(view.id).then(setInfo).catch(() => setInfo(null)) }, [view])
+  const [info, setInfo] = useState<PlaceDetail | 'error' | null>(null)
+  useEffect(() => {
+    setInfo(null)
+    if (!view) return
+    let live = true  // 다른 가게를 연 뒤 늦게 온 앞 가게의 응답은 버린다
+    placeDetailApi(view.id).then(x => { if (live) setInfo(x) }).catch(() => { if (live) setInfo('error') })
+    return () => { live = false }
+  }, [view])
   if (!d) return <p className="fine">음식점을 불러오는 중…</p>
   // 사진 칸에는 사진 있는 가게만. 사진 없는 가게는 아래 접힌 목록(이름·대표메뉴)으로, 지도 점에는 그대로 있다
   const withPhoto = d.items.filter(it => it.image_url && !broken.has(it.id))
@@ -47,7 +53,8 @@ export function DongFood({ regionKey, code, name }: { regionKey: string; code: s
       {view && <PhotoViewer cid={view.id} name={view.name} main={view.image_url && !broken.has(view.id) ? (view.image_url.startsWith('/images/tour/') ? `${view.image_url}?full=1` : view.image_url) : null}
                             mainLicense={view.license} onClose={() => setView(null)}>
         {view.menu && <p className="pv-sub">대표메뉴 · {view.menu}</p>}
-        {info ? <PlaceInfo d={info} name={view.name} /> : <p className="pv-sub">가게 정보를 불러오는 중…</p>}
+        {info === 'error' ? <p className="pv-sub">가게 정보를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>
+          : info ? <PlaceInfo d={info} name={view.name} /> : <p className="pv-sub">가게 정보를 불러오는 중…</p>}
       </PhotoViewer>}
     </div>
   )

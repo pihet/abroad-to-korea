@@ -36,7 +36,10 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const [viewing, setViewing] = useState(false)
   useEffect(() => {
     setAbout(null); setAboutErr(null)
-    if (peek) placeDetailApi(peek.id).then(setAbout).catch(e => setAboutErr(e.message))
+    if (!peek) return
+    let live = true  // 다른 카드를 누른 뒤 늦게 온 앞 장소의 응답은 버린다 (다른 곳의 전화·주소가 보이지 않게)
+    placeDetailApi(peek.id).then(x => { if (live) setAbout(x) }).catch(e => { if (live) setAboutErr(e.message) })
+    return () => { live = false }
   }, [peek])
   const [cost, setCost] = useState<RegionCost | null>(null)
   const [dong, setDong] = useState<string | null>(null)
@@ -53,7 +56,10 @@ export function FeedRegion({ regionKey, initialDong, saved, onToggleSave, onClos
   const spotId = d?.photo?.attraction_id
   useEffect(() => {
     setSpot(null)
-    if (spotId) placeDetailApi(spotId).then(setSpot).catch(() => setSpot(null))  // 한도 초과 등이면 줄째 숨긴다
+    if (!spotId) return
+    let live = true
+    placeDetailApi(spotId).then(x => { if (live) setSpot(x) }).catch(() => {})  // 한도 초과 등이면 줄째 숨긴다
+    return () => { live = false }
   }, [spotId])
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
