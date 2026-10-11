@@ -156,8 +156,7 @@ export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
       )}
     </>}
 
-    <h3>문의하기</h3>
-    {ask === null ? <button type="button" className="acs-link" onClick={() => { setAsk(''); setAskMsg(null) }}>문의하기</button> : (
+    {ask === null ? <button type="button" className="acs-link acs-ask-open" onClick={() => { setAsk(''); setAskMsg(null) }}>문의하기</button> : (
       <form className="account-form" onSubmit={sendAsk}>
         <textarea className="acs-ask" value={ask} onChange={e => setAsk(e.target.value)} minLength={5} maxLength={2000} rows={5}
           placeholder="불편한 점이나 바라는 점을 적어 주세요. 답은 가입한 이메일로 보내 드려요." required />

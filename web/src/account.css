@@ -34,3 +34,4 @@
 .acs-search:focus { border-color: #222 }
 .acs-item.col .acs-chips + .acs-chips { margin-top: 8px }
 .acs-ask { width: 100%; border: 1px solid #d9d9d9; padding: 10px 12px; font: inherit; font-size: 13px; color: #151515; background: #fff; resize: vertical; outline: 0 }
+.acs-ask-open { display: block; margin-top: 18px }
