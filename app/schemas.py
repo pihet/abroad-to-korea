@@ -40,6 +40,7 @@ class RecommendRequest(BaseModel):
     offset: int = Field(default=0, ge=0, le=29)
     filters: list[FilterKey] = []
     sido: Optional[str] = None
+    example: bool = False  # 화면이 스스로 부르는 예시 카드. 사람이 한 검색이 아니라 검색 기록에 남기지 않는다
 
 
 class MonthPoint(BaseModel):

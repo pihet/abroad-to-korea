@@ -43,7 +43,7 @@ from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
 from .media import persist_upload, router as media_router
 from .personal import router as personal_router
-from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion, User, UserPreference
+from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion, SearchLog, User, UserPreference
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -198,6 +198,21 @@ def _taste_of(s):
     return engine.taste(s["likes"], s["dislikes"], s["saved"]) if s and s["personal"] else None
 
 
+async def _log_search(raw_session, kind, *, query=None, photo_key=None, params=None, candidates=(), total=None):
+    """검색 기록을 search_logs 에 남긴다. 기록이 실패해도 검색 결과는 그대로 돌려준다."""
+    factory = session_factory()
+    if factory is None:
+        return
+    try:
+        async with factory() as db:
+            principal = await _principal_from_db(db, raw_session) if raw_session else None
+            db.add(SearchLog(user_id=principal.id if principal else None, kind=kind, query=query, photo_key=photo_key,
+                             params=params or {}, result_keys=[c["sigungu"]["key"] for c in candidates][:10], total=total))
+            await db.commit()
+    except Exception as e:  # noqa: BLE001 — 기록은 부가 기능이라 검색을 막지 않는다
+        print(f"[search_log] 저장 실패: {e!r}", flush=True)
+
+
 async def _photo_votes(photo_key):
     """같은 사진에 로그인 사용자들이 누른 반응 {관광지 contentid: (닮았어요, 별로예요)}.
     한 사람은 관광지마다 마지막 표 하나만 센다. 비로그인 표는 검색마다 새 번호라 한 사람이 여러 번 셀 수 있어 뺀다."""
@@ -255,6 +270,10 @@ async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(N
     r = await run_in_threadpool(engine.recommend, req.query_id, req.travel_month, req.priority, req.origin, req.kept_tags,
                                 req.limit, req.offset, allowed, taste, votes)
     q = engine.cache[req.query_id]
+    if req.offset == 0 and not req.example:  # 더 보기로 이어 받는 요청은 같은 검색이라 한 번만 센다
+        await _log_search(raw_session, "photo", photo_key=q.get("photo_key"), candidates=r["candidates"], total=r["total"],
+                          params={"priority": req.priority, "origin": req.origin, "sido": req.sido, "filters": req.filters,
+                                  "month": req.travel_month})
     return {
         "query": {"query_id": req.query_id, "scene_tags": [t["tag"] for t in q["tags"]], "kept_tags": req.kept_tags,
                   "month": req.travel_month, "priority": req.priority, "origin": req.origin,
@@ -287,6 +306,8 @@ async def natural_recommend(req: NaturalRecommendRequest,
     scope = intent.sido or "전국"
     condition_text = f" · {', '.join(conditions)}" if conditions else ""
     message = f"{scope}{condition_text} 조건으로 실제 관광 데이터에서 {result['total']}곳을 찾았습니다."
+    await _log_search(raw_session, "ai", query=req.query, params={**intent.model_dump(), "used_llm": parsed.used_llm},
+                      candidates=result["candidates"], total=result["total"])
     return {
         "message": message,
         "interpretation": {**intent.model_dump(), "scene_tags": [tag["tag"] for tag in tags],
@@ -436,10 +457,14 @@ async def rankings(month: Optional[int] = Query(None, ge=1, le=12), db: AsyncSes
 
 @app.get("/api/search")
 async def search_names(q: str = Query(..., min_length=1, max_length=40), limit: int = Query(20, ge=1, le=50),
-                       db: AsyncSession = Depends(get_db)):
-    """읍·면·동과 장소(관광지·레포츠·음식점·축제) 이름 검색. 이름 앞에서 맞는 것 → 안에서 맞는 것 → 초성으로 맞는 것 순."""
+                       db: AsyncSession = Depends(get_db),
+                       raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    """읍·면·동과 장소(관광지·레포츠·음식점·축제) 이름 검색. 이름 앞에서 맞는 것 → 안에서 맞는 것 → 초성으로 맞는 것 순.
+    화면은 글자를 칠 때마다(0.2초 쉬면) 부르므로, 기록에는 '강', '강릉'처럼 입력 중간 값도 남는다."""
     dongs = search.find(q, limit)["dongs"]
-    return {"q": q, "dongs": dongs, "places": await catalog.search_places(db, q, limit)}
+    places = await catalog.search_places(db, q, limit)
+    await _log_search(raw_session, "name", query=q, total=len(dongs) + len(places))
+    return {"q": q, "dongs": dongs, "places": places}
 
 
 @app.get("/api/festivals")

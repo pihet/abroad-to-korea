@@ -146,6 +146,21 @@ class Inquiry(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class SearchLog(Base):
+    """검색 기록: 사진으로 찾기(photo)·AI 여행 질문(ai)·이름 검색(name). 사진 자체는 남기지 않고 photo_key 만 둔다.
+    비로그인은 user_id 가 비어 있다. 로그인 사용자의 기록은 탈퇴 때 지운다."""
+    __tablename__ = "search_logs"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(10), index=True)
+    query: Mapped[str | None] = mapped_column(Text)
+    photo_key: Mapped[str | None] = mapped_column(String(64))
+    params: Mapped[dict] = mapped_column(JSONB, default=dict)          # 고른 조건 (출발지·시도·필터, AI 해석 결과)
+    result_keys: Mapped[list] = mapped_column(JSONB, default=list)     # 보여 준 시군구 상위 10개
+    total: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
 class DataSource(TimestampMixin, Base):
     __tablename__ = "data_sources"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

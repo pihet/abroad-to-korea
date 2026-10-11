@@ -26,7 +26,7 @@ let examplesCache: Promise<Example[]> | null = null  // 화면을 다시 열 때
 function loadExamples(demos: DemoPhoto[]): Promise<Example[]> {
   examplesCache ??= Promise.all(EXAMPLE_IDS.map(id => demos.find(d => d.photo_id === id)).filter((d): d is DemoPhoto => !!d).map(async photo => {
     const a = await api.analyze({ demoPhotoId: photo.photo_id })
-    const r = await api.recommend({ query_id: a.query_id, priority: 'visual', limit: 1, offset: 0 })
+    const r = await api.recommend({ query_id: a.query_id, priority: 'visual', limit: 1, offset: 0, example: true })
     return { photo, top: r.candidates[0] }
   })).catch(e => { examplesCache = null; throw e })
   return examplesCache

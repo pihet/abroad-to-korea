@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import get_db
-from .models import AuthIdentity, AuthSession, EmailOutbox, Inquiry, OneTimeToken, SavedRegion, User, UserPreference
+from .models import AuthIdentity, AuthSession, EmailOutbox, Inquiry, OneTimeToken, SavedRegion, SearchLog, User, UserPreference
 from .settings import get_settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -311,9 +311,9 @@ async def delete_account(response: Response, principal: Annotated[Principal, Dep
         raise HTTPException(404, "계정을 찾을 수 없습니다.")
     hashes = list((await db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == user.id))).all())
     user.status, user.deleted_at = "deleted", now
-    # 이메일·닉네임·로그인 수단·저장·설정·문의를 지운다 (탈퇴 뒤 개인정보를 남기지 않고, 같은 주소로 다시 가입할 수 있게)
+    # 이메일·닉네임·로그인 수단·저장·설정·문의·검색 기록을 지운다 (탈퇴 뒤 개인정보를 남기지 않고, 같은 주소로 다시 가입할 수 있게)
     user.email, user.nickname = f"deleted-{user.id}@deleted.invalid", "탈퇴한 사용자"
-    for model in (AuthIdentity, SavedRegion, UserPreference, Inquiry):
+    for model in (AuthIdentity, SavedRegion, UserPreference, Inquiry, SearchLog):
         await db.execute(delete(model).where(model.user_id == user.id))
     await db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
     assets = (await db.scalars(select(MediaAsset).where(MediaAsset.owner_user_id == user.id,

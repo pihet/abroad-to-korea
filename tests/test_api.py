@@ -19,6 +19,17 @@ DEMO = "kyoto__fushimi__1.jpg"
 KOGL_OK = {"공공누리 제1유형 (출처표시)", "공공누리 제3유형 (출처표시·변경금지)"}
 
 
+SEARCH_LOGS = []
+
+
+@pytest.fixture(autouse=True)
+def keep_search_logs(monkeypatch):
+    """검색 기록이 실제 개발 DB(search_logs)에 쌓이지 않게, 부른 내용만 모아 둔다."""
+    async def keep(_raw_session, kind, **kw):
+        SEARCH_LOGS.append((kind, kw))
+    monkeypatch.setattr(main, "_log_search", keep)
+
+
 @pytest.fixture(scope="module")
 def client(tmp_path_factory):
     main.FEEDBACK = tmp_path_factory.mktemp("fb") / "feedback.jsonl"  # 실제 피드백 파일을 건드리지 않는다
@@ -681,3 +692,17 @@ def test_inquiry(client):
     assert client.post("/api/my/inquiry", json={"message": "x" * 2001}).status_code == 422
     assert client.post("/api/my/inquiry", json={"message": "  지도 확대가 잘 안 돼요  "}).status_code == 201
     assert client.delete("/api/auth/me").status_code == 200
+
+
+def test_search_is_logged(client):
+    """사진으로 찾기는 첫 요청만(더 보기는 같은 검색), 이름 검색은 부를 때마다 기록한다."""
+    qid = client.post("/api/analyze", data={"demo_photo_id": DEMO}).json()["query_id"]  # 앞 테스트가 캐시를 밀어내 새로 분석
+    SEARCH_LOGS.clear()
+    rec(client, qid)
+    rec(client, qid, offset=5, limit=5)
+    rec(client, qid, limit=1, example=True)  # 화면이 스스로 부르는 예시 카드
+    assert client.get("/api/search", params={"q": "강릉"}).status_code == 200
+    assert [k for k, _ in SEARCH_LOGS] == ["photo", "name"]
+    photo, name = SEARCH_LOGS[0][1], SEARCH_LOGS[1][1]
+    assert photo["candidates"] and photo["params"]["month"] == 10
+    assert name["query"] == "강릉" and name["total"] > 0
