@@ -22,6 +22,18 @@ with DAG(
 
 
 with DAG(
+    "search_log_retention_daily",
+    start_date=pendulum.datetime(2026, 10, 12, tz=KST),
+    schedule="10 4 * * *",  # 매일 04:10 KST. 90일 지난 검색 기록 삭제 (src/ops/cleanup_search_logs.py)
+    catchup=False,
+    max_active_runs=1,
+    default_args={"owner": "platform", "retries": 2, "retry_delay": timedelta(minutes=10)},
+    tags=["privacy"],
+) as retention_dag:
+    BashOperator(task_id="delete_old_search_logs", bash_command="cd $PROJECT_ROOT && python src/ops/cleanup_search_logs.py")
+
+
+with DAG(
     "regional_metrics_monthly",
     start_date=pendulum.datetime(2026, 11, 1, tz=KST),
     schedule="20 0 2 * *",  # 매월 2일 00:20 KST
