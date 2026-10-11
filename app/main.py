@@ -640,19 +640,24 @@ async def tour_image(cid: str, full: bool = False, db: AsyncSession = Depends(ge
     if not url:
         raise HTTPException(404)
     cached = TOUR_THUMB / f"{cid}{'_full' if full else ''}.jpg"
-    if cid in MISSING_PHOTOS:
+    if cached.name in MISSING_PHOTOS:
         raise HTTPException(404)
     if not cached.exists():
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": cp.UA})
-            cached.write_bytes(urllib.request.urlopen(req, timeout=15).read())
-        except urllib.error.HTTPError as e:
-            if e.code == 404:  # 목록에는 있지만 원본이 지워진 사진 — 다시 묻지 않는다
-                MISSING_PHOTOS.add(cid)
-                raise HTTPException(404)
-            raise HTTPException(502, "사진을 받지 못했습니다.")
-        except Exception:
-            raise HTTPException(502, "사진을 받지 못했습니다.")
+        # 썸네일만 지워지고 원본은 남은 곳이 있어(예: 삼척 감성공작소) 썸네일이 404 면 원본을 받는다
+        urls = [url] if full else [url, await catalog.primary_image(db, cid, True)]
+        for u in dict.fromkeys(urls):
+            try:
+                req = urllib.request.Request(u, headers={"User-Agent": cp.UA})
+                cached.write_bytes(urllib.request.urlopen(req, timeout=15).read())
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    raise HTTPException(502, "사진을 받지 못했습니다.")
+            except Exception:
+                raise HTTPException(502, "사진을 받지 못했습니다.")
+        else:  # 목록에는 있지만 사진이 모두 지워진 곳 — 다시 묻지 않는다
+            MISSING_PHOTOS.add(cached.name)
+            raise HTTPException(404)
     return FileResponse(cached, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 

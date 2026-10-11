@@ -33,6 +33,8 @@ def keep_search_logs(monkeypatch):
 @pytest.fixture(scope="module")
 def client(tmp_path_factory):
     main.FEEDBACK = tmp_path_factory.mktemp("fb") / "feedback.jsonl"  # 실제 피드백 파일을 건드리지 않는다
+    from app.settings import get_settings
+    get_settings().cookie_secure = False  # 터널용 .env 는 COOKIE_SECURE=true 지만 TestClient 는 http 라 그 쿠키를 보내지 않는다
     with TestClient(main.app) as c:
         yield c
 
@@ -201,6 +203,23 @@ def test_activities_rejects(client):
     assert client.get("/api/activities", params={"sigungu_key": "99_없는곳", "month": 10}).status_code == 404
     assert client.get("/api/activities", params={"sigungu_key": "51_양양군", "month": 13}).status_code == 422
     assert client.get("/images/tour/0000").status_code == 404
+
+
+def test_tour_thumb_falls_back_to_full(client, monkeypatch, tmp_path):
+    """썸네일이 404 여도 원본이 있으면 원본을 준다. 둘 다 404 면 404."""
+    import urllib.error
+    async def primary(db, cid, full=False):
+        return f"http://x/{cid}_{'full' if full else 'thumb'}.jpg"
+    def urlopen(req, timeout):
+        if req.full_url.endswith("thumb.jpg") or "gone" in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 404, "", None, None)
+        return io.BytesIO(b"FULL")
+    monkeypatch.setattr(main.catalog, "primary_image", primary)
+    monkeypatch.setattr(main.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(main, "TOUR_THUMB", tmp_path)
+    r = client.get("/images/tour/123")
+    assert r.status_code == 200 and r.content == b"FULL"
+    assert client.get("/images/tour/gone").status_code == 404
 
 
 def test_regions_table(client):
