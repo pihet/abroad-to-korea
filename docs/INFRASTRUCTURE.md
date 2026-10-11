@@ -31,6 +31,8 @@ PostgreSQL은 회원·저장 지역·피드백과 관광 콘텐츠의 원본이�
 | MinIO 콘솔 | `http://localhost:9001` | 객체·버킷 확인 |
 | Ollama | `http://localhost:11434` | API 컨테이너에서는 `ollama:11434` |
 
+**웹/API(8000)만 외부에 연다.** 나머지는 `127.0.0.1`에만 묶여 이 PC 안에서만 접속된다 (2026-10-11, Redis·Ollama는 비밀번호가 없어 밖에 열리면 바로 위험). 다른 PC에서 DB·Airflow를 봐야 하면 SSH 터널을 쓴다.
+
 호스트의 기존 PostgreSQL이 `5432`를 사용하므로 Docker PostgreSQL은 충돌을 피하기 위해 `5434`로 공개한다. DBeaver는 Host `127.0.0.1`, Port `5434`, Database `abroad_to_korea`, Username `app`, Password는 `.env`의 `APP_DB_PASSWORD`로 접속한다.
 
 ## 첫 실행
