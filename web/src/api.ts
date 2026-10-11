@@ -34,7 +34,7 @@ export interface AuthUser {
 
 export const authApi = {
   me: () => fetch('/api/auth/me').then(r => json<AuthUser>(r)),
-  signup: (body: { email: string; nickname: string; password: string }) =>
+  signup: (body: { email: string; nickname: string; password: string; agree_terms: boolean }) =>
     fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => json<{ ok: boolean; message: string }>(r)),
   login: (body: { email: string; password: string }) =>

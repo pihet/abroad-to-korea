@@ -35,3 +35,8 @@
 .acs-item.col .acs-chips + .acs-chips { margin-top: 8px }
 .acs-ask { width: 100%; border: 1px solid #d9d9d9; padding: 10px 12px; font: inherit; font-size: 13px; color: #151515; background: #fff; resize: vertical; outline: 0 }
 .acs-ask-open { display: block; margin-top: 18px }
+.account-agree { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; color: #555; margin: 2px 0 4px }
+.account-agree input { flex: none; width: 16px; height: 16px; margin: 2px 0 0 }
+.account-agree a, .account-legal a, .acs-legal a { color: inherit; text-decoration: underline }
+.account-legal { margin: 14px 0 0; font-size: 11.5px; line-height: 1.5; color: #8e8e8e; text-align: center }
+.acs-legal { margin: 18px 0 0; font-size: 12px; color: #8e8e8e; text-align: center }

@@ -10,6 +10,7 @@ export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: 
   const [nickname, setNickname] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [agree, setAgree] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -19,7 +20,7 @@ export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: 
       if (mode === 'login') {
         onUser(await authApi.login({ email, password })); onClose()
       } else if (mode === 'signup') {
-        const result = await authApi.signup({ email, nickname, password })
+        const result = await authApi.signup({ email, nickname, password, agree_terms: agree })
         setMessage(result.message); setMode('login')
       }
     } catch (error) { setMessage(error instanceof Error ? error.message : '요청에 실패했습니다.') }
@@ -63,6 +64,10 @@ export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: 
               </button>
             </span>
           </label>
+          {mode === 'signup' && <label className="account-agree">
+            <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} required />
+            <span>만 14세 이상이며 <a href="/terms.html" target="_blank" rel="noopener">이용약관</a>과 <a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>에 동의합니다</span>
+          </label>}
           <button className="account-submit" type="submit" disabled={busy}>{busy ? '처리 중…' : mode === 'signup' ? '이메일로 가입하기' : '로그인'}</button>
         </form>
 
@@ -88,6 +93,7 @@ export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: 
               </svg>
             </button>
           </div>
+          <p className="account-legal">간편 로그인으로 처음 가입하면 만 14세 이상이며 <a href="/terms.html" target="_blank" rel="noopener">이용약관</a>과 <a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>에 동의한 것으로 봅니다.</p>
         </>
       </>}
     </section>

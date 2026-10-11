@@ -173,5 +173,6 @@ export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
         <button type="button" className="acs-link" onClick={() => setLeaving(false)}>취소</button>
       </>}
     </div>
+    <p className="acs-legal"><a href="/terms.html" target="_blank" rel="noopener">이용약관</a> · <a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></p>
   </div>
 }

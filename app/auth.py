@@ -78,6 +78,7 @@ class SignupBody(BaseModel):
     email: EmailStr
     nickname: str = Field(min_length=2, max_length=40)
     password: str = Field(min_length=10, max_length=128)
+    agree_terms: bool = Field(False, validate_default=True)  # 빠져도 검사한다. 만 14세 이상 + 이용약관·개인정보처리방침 동의 (web/public/terms.html, privacy.html)
 
     @field_validator("nickname")
     @classmethod
@@ -85,6 +86,13 @@ class SignupBody(BaseModel):
         value = value.strip()
         if len(value) < 2:
             raise ValueError("닉네임은 공백을 제외하고 2자 이상이어야 합니다.")
+        return value
+
+    @field_validator("agree_terms")
+    @classmethod
+    def must_agree(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("만 14세 이상이며 이용약관과 개인정보처리방침에 동의해야 가입할 수 있습니다.")
         return value
 
 
@@ -318,9 +326,12 @@ async def delete_account(response: Response, principal: Annotated[Principal, Dep
         raise HTTPException(404, "계정을 찾을 수 없습니다.")
     hashes = list((await db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == user.id))).all())
     user.status, user.deleted_at = "deleted", now
+    # 끝난 메일 발송 기록도 지운다. 같은 주소의 다른 회원(구글 가입 등)이 기다리는 메일은 건드리지 않게 보낸·실패한 것만
+    await db.execute(delete(EmailOutbox).where(EmailOutbox.recipient == user.email,
+                                               (EmailOutbox.sent_at.is_not(None)) | (EmailOutbox.failed_at.is_not(None))))
     # 이메일·닉네임·로그인 수단·저장·설정·문의·검색 기록을 지운다 (탈퇴 뒤 개인정보를 남기지 않고, 같은 주소로 다시 가입할 수 있게)
     user.email, user.nickname = f"deleted-{user.id}@deleted.invalid", "탈퇴한 사용자"
-    for model in (AuthIdentity, SavedRegion, UserPreference, Inquiry, SearchLog):
+    for model in (AuthIdentity, SavedRegion, UserPreference, Inquiry, SearchLog, OneTimeToken):
         await db.execute(delete(model).where(model.user_id == user.id))
     await db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
     assets = (await db.scalars(select(MediaAsset).where(MediaAsset.owner_user_id == user.id,

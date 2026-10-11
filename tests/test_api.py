@@ -651,7 +651,7 @@ def test_oauth_same_email_is_separate_member(client, monkeypatch):
     import uuid as _uuid
     from app import auth
     email = f"oauth-sep-{_uuid.uuid4().hex[:8]}@example.com"
-    assert client.post("/api/auth/signup", json={"email": email, "nickname": "이메일회원", "password": "testpass1234"}).status_code == 201
+    assert client.post("/api/auth/signup", json={"email": email, "nickname": "이메일회원", "password": "testpass1234", "agree_terms": True}).status_code == 201
 
     class StateOnly:  # OAuth state 한 번만 흉내 내고, 그 뒤 세션 캐시 등은 실제 Redis 를 쓴다
         async def getdel(self, _key):
@@ -686,7 +686,7 @@ def test_inquiry(client):
     client.cookies.clear()
     assert client.post("/api/my/inquiry", json={"message": "로그인 없이 보내는 문의"}).status_code == 401
     email = f"inquiry-{_uuid.uuid4().hex[:8]}@example.com"
-    assert client.post("/api/auth/signup", json={"email": email, "nickname": "문의회원", "password": "testpass1234"}).status_code == 201
+    assert client.post("/api/auth/signup", json={"email": email, "nickname": "문의회원", "password": "testpass1234", "agree_terms": True}).status_code == 201
     assert client.post("/api/auth/login", json={"email": email, "password": "testpass1234"}).status_code == 200
     assert client.post("/api/my/inquiry", json={"message": "짧음"}).status_code == 422
     assert client.post("/api/my/inquiry", json={"message": "x" * 2001}).status_code == 422
@@ -716,3 +716,10 @@ def test_rate_limit_per_visitor(client, monkeypatch):
     codes = [client.get("/api/search", params={"q": "강릉"}, headers=a).status_code for _ in range(4)]
     assert codes == [200, 200, 200, 429]
     assert client.get("/api/search", params={"q": "강릉"}, headers=b).status_code == 200
+
+
+def test_signup_needs_terms_agreement(client):
+    """약관·개인정보처리방침 동의(만 14세 이상) 없이는 가입할 수 없다."""
+    body = {"email": "no-agree@example.com", "nickname": "동의안함", "password": "testpass1234"}
+    assert client.post("/api/auth/signup", json=body).status_code == 422
+    assert client.post("/api/auth/signup", json={**body, "agree_terms": False}).status_code == 422

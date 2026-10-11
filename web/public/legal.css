@@ -1,0 +1,18 @@
+/* 이용약관·개인정보처리방침 (정적 페이지). 다크 모드는 기기 설정을 따른다 */
+:root { --bg: #ffffff; --ink: #15181a; --sub: #5d6468; --line: #e4e7e9; --soft: #f4f5f6; --accent: #1a48bc; color-scheme: light }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #000000; --ink: #eceeef; --sub: #a5acb0; --line: #2b3033; --soft: #121212; --accent: #7fa0ff; color-scheme: dark }
+}
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.7 Pretendard, "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; word-break: keep-all; overflow-wrap: anywhere }
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px }
+a { color: var(--accent) }
+.back { display: inline-block; margin-bottom: 16px; font-weight: 700; text-decoration: none }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.03em }
+.date { color: var(--sub); margin: 0 0 24px; font-size: 13px }
+h2 { font-size: 17px; margin: 32px 0 8px; letter-spacing: -0.02em }
+p, li { color: var(--ink) }
+ul { padding-left: 20px }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0; display: block; overflow-x: auto }
+th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top }
+th { background: var(--soft); white-space: nowrap }

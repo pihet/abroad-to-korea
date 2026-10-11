@@ -1805,7 +1805,7 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 
 ### 15-43. 출시 준비 2: 검색 기록 90일 보관 (2026-10-11)
 
-- 새 Airflow DAG `search_log_retention_daily` (매일 04:10 KST) → `src/ops/cleanup_search_logs.py` 가 90일 지난 `search_logs` 를 지운다 (로그인·비로그인 모두). 기한은 개인정보처리방침에도 같은 값으로 적는다
+- 새 Airflow DAG `privacy_retention_daily` (매일 04:10 KST) → `src/ops/cleanup_retention.py` 가 90일 지난 `search_logs` 를 지운다 (로그인·비로그인 모두). 기한은 개인정보처리방침에도 같은 값으로 적는다
 - 확인: 91일 전·89일 전 시험 행을 넣고 스크립트를 Airflow 컨테이너에서 실행 → 91일 행만 삭제, 시험 행 정리. DAG 등록·활성 확인, 불러오기 오류 없음
 
 ### 15-44. 출시 준비 3: 홈 화면에 추가 (PWA) · 앱 아이콘 (2026-10-11)
@@ -1816,3 +1816,12 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 서비스 워커(오프라인 캐시)는 넣지 않았다. 지금 Chrome 은 없어도 설치를 허용하고, 넣으면 새로 빌드해도 예전 화면이 남는 문제가 생기기 쉽다
 - 확인: Chrome `Page.getInstallabilityErrors` 오류 0, manifest 오류 0, `application/manifest+json` 으로 제공
 - 홈 화면에 추가는 HTTPS 에서만 된다 (localhost 는 예외). 지금 Cloudflare 터널 주소는 HTTPS 라 휴대폰에서 바로 시험할 수 있다
+
+### 15-45. 출시 준비 4: 개인정보처리방침 · 이용약관 · 가입 동의 (2026-10-11)
+
+- 정적 페이지 `/privacy.html`·`/terms.html` (`web/public`, 공통 `legal.css`). 운영자·보호책임자 김정찬, wjdcks524@naver.com. **법률 검토를 받지 않은 문서다.** 실제 수집 항목은 코드에서 확인해 적었다 (사진은 보관을 고른 로그인 사용자만 저장, AI 질문은 서버 안 Ollama, 국외 이전은 Resend·Cloudflare)
+  - 코드를 바꿔 보관·삭제 항목이 달라지면 privacy.html 도 같이 고친다 (특히 `src/ops/cleanup_retention.py` 기한)
+- 이메일 가입: "만 14세 이상 + 약관·방침 동의" 체크 필수. 서버도 `agree_terms` 가 참이 아니면 422 (필드가 빠져도 검사하도록 `validate_default=True`. 처음엔 빠지면 검사를 건너뛰어 시험 계정 1개가 실제로 만들어졌고, 지웠다)
+- 구글·카카오: 버튼 아래 "처음 가입하면 동의한 것으로 봅니다" 안내. 계정 설정 맨 아래에 두 문서 링크
+- 방침과 맞추려고 고친 것: 탈퇴 때 **보내거나 실패한 메일 발송 기록(email_outbox, 이메일 주소 포함)과 일회용 토큰도 삭제**. 같은 주소의 다른 회원이 기다리는 메일은 남긴다. 메일 발송 기록은 30일 뒤 자동 삭제 (DAG 이름을 `privacy_retention_daily`, 스크립트를 `cleanup_retention.py` 로 바꿈)
+- 확인: 테스트 64개 통과 (동의 없으면 422). 8000번에서 가입 → 메일 기록(보낸 1·대기 1)과 토큰 1을 넣고 탈퇴 → 보낸 기록 0·대기 1 유지·토큰 0. 가입 화면 체크박스, 두 문서 밝은/어두운 화면·가로 넘침 없음
