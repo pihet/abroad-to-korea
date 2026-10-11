@@ -7,11 +7,9 @@
   border-left: 1px solid var(--ig-line); border-right: 1px solid var(--ig-line);
   padding-bottom: 64px; font-family: Pretendard, -apple-system, system-ui, sans-serif;
 }
-@media (prefers-color-scheme: dark) {
-  .ig { --ig-bg: #000000; --ig-ink: #f5f5f5; --ig-sub: #a8a8a8; --ig-line: #262626; --ig-soft: #121212 }
-}
+:root[data-theme="dark"] .ig { --ig-bg: #000000; --ig-ink: #f5f5f5; --ig-sub: #a8a8a8; --ig-line: #262626; --ig-soft: #121212 }
 body:has(.ig) { background: var(--ig-page, #fafafa) }
-@media (prefers-color-scheme: dark) { body:has(.ig) { --ig-page: #000 } }
+:root[data-theme="dark"] body:has(.ig) { --ig-page: #000 }
 
 /* :where 로 우선순위를 낮춰, 다시 쓰는 기존 부품(지도·음식점·비 예보)의 버튼 스타일이 이기게 한다 */
 .ig :where(button) { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0 }
@@ -240,7 +238,7 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .post-cap.tags { display: flex; flex-wrap: wrap; gap: 2px 6px; font-size: 13px; color: var(--ig-sub) }
 .post-cap.tags span { color: #00376b; font-weight: 600 }
 .post-cap.tags.diff span { color: #b4462a }
-@media (prefers-color-scheme: dark) { .post-cap.tags span { color: #e0f1ff } .post-cap.tags.diff span { color: #ffb4a0 } }
+:root[data-theme="dark"] .post-cap.tags span { color: #e0f1ff } :root[data-theme="dark"] .post-cap.tags.diff span { color: #ffb4a0 }
 .post-links { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 14px 0; font-size: 13px }
 .post-links a { color: var(--ig-sub) }
 .ig-more { display: block !important; width: calc(100% - 32px); margin: 14px 16px; height: 40px; border-radius: 10px; border: 1px solid var(--ig-line) !important;
@@ -248,7 +246,7 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 
 /* ---------- 지역 상세 (프로필형) ---------- */
 .igr { position: fixed; inset: 0; z-index: 50; overflow-y: auto; background: var(--ig-page, #fafafa) }
-@media (prefers-color-scheme: dark) { .igr { background: #000 } }
+:root[data-theme="dark"] .igr { background: #000 }
 .igr-col { max-width: 470px; min-height: 100%; margin: 0 auto; background: var(--ig-bg); border-left: 1px solid var(--ig-line); border-right: 1px solid var(--ig-line); padding-bottom: 32px }
 .igr-top { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; height: 52px; padding: 0 8px;
   background: var(--ig-bg); border-bottom: 1px solid var(--ig-line) }
@@ -265,7 +263,7 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .igr-bio p { margin: 0 }
 .igr-bio .sub { color: var(--ig-sub); font-size: 13px }
 .igr-tags { color: #00376b; font-weight: 600 }
-@media (prefers-color-scheme: dark) { .igr-tags { color: #e0f1ff } }
+:root[data-theme="dark"] .igr-tags { color: #e0f1ff }
 .igr-bio .tag { font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 1px 5px; background: #ee2a7b; color: #fff; vertical-align: 1px }
 .igr-bio .tag.ghost { background: transparent; color: var(--ig-sub); border: 1px solid var(--ig-line) }
 .igr-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 12px 16px }
@@ -334,7 +332,7 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 
 /* ---------- 지역 검색 ---------- */
 .igs { position: fixed; inset: 0; z-index: 45; overflow-y: auto; background: var(--ig-page, #fafafa) }
-@media (prefers-color-scheme: dark) { .igs { background: #000 } }
+:root[data-theme="dark"] .igs { background: #000 }
 .igs-col { max-width: 470px; min-height: 100%; margin: 0 auto; background: var(--ig-bg); border-left: 1px solid var(--ig-line); border-right: 1px solid var(--ig-line) }
 .igs-top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 8px 12px 8px 4px; background: var(--ig-bg); border-bottom: 1px solid var(--ig-line) }
 .igs-top > button { width: 40px; height: 40px; display: grid; place-items: center; flex: none }
@@ -424,4 +422,4 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 
 /* 내 사진의 장면 태그 (눌러지지 않는 표시) */
 .ig-mytags { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--ig-line); font-size: 13.5px; font-weight: 600; color: #00376b }
-@media (prefers-color-scheme: dark) { .ig-mytags { color: #e0f1ff } }
+:root[data-theme="dark"] .ig-mytags { color: #e0f1ff }

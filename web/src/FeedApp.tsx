@@ -9,6 +9,7 @@ import { originLabel, shortSido } from './regionLabel'
 import { useDragScroll } from './dragScroll'
 import { AccountModal } from './AccountModal'
 import { FeedAsk } from './FeedAsk'
+import { useTheme } from './theme'
 import './feed.css'
 
 // 메인 화면 (인스타그램형): 홈 피드 · 탐색 · 사진으로 찾기 · MY(프로필·내 취향·저장) + 지역 검색 · 지역 상세.
@@ -61,12 +62,15 @@ const Icon = {
   photo: <><rect x="3" y="5" width="18" height="15" rx="3" /><circle cx="12" cy="12.5" r="3.5" /><path d="M8 5l1.5-2h5L16 5" /></>,
   map: <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z" /><path d="M9 4v14M15 6v14" /></>,
   chat: <path d="M4 5h16v11H9l-5 4z" />,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+  moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
 }
 const Svg = ({ d, fill }: { d: React.ReactNode; fill?: boolean }) =>
   <svg viewBox="0 0 24 24" className={fill ? 'ic fill' : 'ic'} aria-hidden="true">{d}</svg>
 
 export default function FeedApp() {
   useDragScroll()
+  const { theme, toggle: toggleTheme } = useTheme()
   const [rows, setRows] = useState<RegionRow[] | null>(null)
   const [fest, setFest] = useState<{ start: string; end: string; total: number; items: Festival[] } | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -174,6 +178,7 @@ export default function FeedApp() {
       <header className="ig-top">
         <b className="ig-logo">pickkorea<i>.</i></b>
         <div className="ig-top-act">
+          <button type="button" onClick={toggleTheme} aria-label={theme === 'dark' ? '밝은 화면으로' : '어두운 화면으로'}><Svg d={theme === 'dark' ? Icon.sun : Icon.moon} /></button>
           <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>
           <button type="button" onClick={goSearch} aria-label="사진으로 찾기"><Svg d={Icon.photo} /></button>
         </div>

@@ -7,6 +7,11 @@
     <meta name="description" content="해외 여행지 사진과 분위기가 닮은 국내 여행지를 찾고, 고른 달의 혼잡도를 함께 보여 줍니다." />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
+    <script>
+      // 첫 화면이 깜빡이지 않게 그리기 전에 테마를 정한다. 선택은 src/theme.ts 가 저장한다
+      try { var t = localStorage.getItem('theme') } catch (e) {}
+      document.documentElement.dataset.theme = t === 'dark' || t === 'light' ? t : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    </script>
     <title>pickkorea · 사진으로 찾는 국내 여행지</title>
   </head>
   <body>

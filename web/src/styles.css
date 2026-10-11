@@ -11,15 +11,14 @@
   --gut: clamp(16px, 3.4vw, 36px);
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121514; --soft: #1b1f1d; --ink: #eef1ef; --sub: #a3aaa6; --line: #2a302d;
-    --accent: #5cc9b8; --accent-ink: #0b1513; --accent-soft: #18302b;
-    --same: #18302b; --same-ink: #7fd8c8; --diff: #36241b; --diff-ink: #f0a982;
-    --warn: #3a3015; --warn-ink: #f2d27a; --err: #f2867d; --shadow: 0 6px 20px rgba(0, 0, 0, .4);
-    --tint: #17201d; --card-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
-    color-scheme: dark;
-  }
+/* 어두운 화면: index.html 이 처음 그리기 전에 <html data-theme> 를 정한다 (저장한 선택 > 기기 설정) */
+:root[data-theme="dark"] {
+  --bg: #121514; --soft: #1b1f1d; --ink: #eef1ef; --sub: #a3aaa6; --line: #2a302d;
+  --accent: #5cc9b8; --accent-ink: #0b1513; --accent-soft: #18302b;
+  --same: #18302b; --same-ink: #7fd8c8; --diff: #36241b; --diff-ink: #f0a982;
+  --warn: #3a3015; --warn-ink: #f2d27a; --err: #f2867d; --shadow: 0 6px 20px rgba(0, 0, 0, .4);
+  --tint: #17201d; --card-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  color-scheme: dark;
 }
 * { box-sizing: border-box }
 html, body { margin: 0 }
@@ -238,9 +237,7 @@ button.upload strong { color: var(--same-ink) }
   --accent: #0a6e66; --accent-soft: #e6f1ef;
   --r: 10px; --r-lg: 14px;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --ink: #eceeef; --sub: #a5acb0; --line: #2b3033; --soft: #1b1f21; --tint: #1b1f21; --accent: #4fc2b3; --accent-soft: #163330 }
-}
+:root[data-theme="dark"] { --ink: #eceeef; --sub: #a5acb0; --line: #2b3033; --soft: #1b1f21; --tint: #1b1f21; --accent: #4fc2b3; --accent-soft: #163330 }
 body { letter-spacing: -0.01em }
 h1, h2, h3 { letter-spacing: -0.03em }
  .rankings h2{ font-family: var(--font); font-weight: 800 }
