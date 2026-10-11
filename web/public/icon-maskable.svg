@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-53.5 -32.5 240 240">
+  <!-- 안드로이드 maskable 아이콘: 가운데 80% 안에 로고가 들어가게 여백을 크게 둔다 -->
+  <rect x="-53.5" y="-32.5" width="240" height="240" fill="#ffffff"/>
+  <path fill="#1a48bc" d="M27 6H86A40 40 0 0 1 126 46V63A40 40 0 0 1 86 103H55V113A24 24 0 0 1 7 113V26A20 20 0 0 1 27 6Z"/>
+  <path fill="#ffffff" d="M40 28H91A10 10 0 0 1 101 38V75L75 53L62 67.5L49 56L30 75V38A10 10 0 0 1 40 28Z"/>
+  <circle cx="51" cy="45" r="8" fill="#5fe2ba"/>
+  <circle cx="31" cy="160" r="9" fill="#1a48bc"/>
+</svg>

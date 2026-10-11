@@ -1807,3 +1807,12 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 
 - 새 Airflow DAG `search_log_retention_daily` (매일 04:10 KST) → `src/ops/cleanup_search_logs.py` 가 90일 지난 `search_logs` 를 지운다 (로그인·비로그인 모두). 기한은 개인정보처리방침에도 같은 값으로 적는다
 - 확인: 91일 전·89일 전 시험 행을 넣고 스크립트를 Airflow 컨테이너에서 실행 → 91일 행만 삭제, 시험 행 정리. DAG 등록·활성 확인, 불러오기 오류 없음
+
+### 15-44. 출시 준비 3: 홈 화면에 추가 (PWA) · 앱 아이콘 (2026-10-11)
+
+- 사용자가 준 로고(사진 창이 들어간 파란 P)를 SVG 로 다시 그렸다 (원본이 약 120px 라 늘리면 흐려짐). `web/public/icon.svg`(일반), `icon-maskable.svg`(안드로이드가 원·둥근 사각으로 자를 때 로고가 잘리지 않게 여백 큼), `favicon.svg`(탭 아이콘, 배경 없음. Vite 기본 아이콘을 교체)
+  - PNG 는 Chrome 으로 SVG 를 그려 만들었다: `icon-192.png`·`icon-512.png`·`icon-maskable-512.png`·`apple-touch-icon.png`(180). 로고를 바꾸면 SVG 를 고치고 PNG 를 다시 만든다
+- `manifest.webmanifest`: 이름 pickkorea, 세로 앱 화면(standalone), 흰 바탕. `index.html` 에 manifest·apple-touch-icon·theme-color(밝음 흰색/어두움 검정)
+- 서비스 워커(오프라인 캐시)는 넣지 않았다. 지금 Chrome 은 없어도 설치를 허용하고, 넣으면 새로 빌드해도 예전 화면이 남는 문제가 생기기 쉽다
+- 확인: Chrome `Page.getInstallabilityErrors` 오류 0, manifest 오류 0, `application/manifest+json` 으로 제공
+- 홈 화면에 추가는 HTTPS 에서만 된다 (localhost 는 예외). 지금 Cloudflare 터널 주소는 HTTPS 라 휴대폰에서 바로 시험할 수 있다
