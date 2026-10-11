@@ -201,7 +201,7 @@ def main() -> None:
             place_id = conn.execute(
                 "INSERT INTO places (id,source_id,source_record_id,region_key,content_type,name,address,latitude,longitude,attributes,is_active,last_seen_at) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,true,now()) "
-                "ON CONFLICT (source_id,source_record_id) DO UPDATE SET region_key=EXCLUDED.region_key,content_type=EXCLUDED.content_type,name=EXCLUDED.name,address=EXCLUDED.address,latitude=EXCLUDED.latitude,longitude=EXCLUDED.longitude,attributes=EXCLUDED.attributes,is_active=true,last_seen_at=now(),updated_at=now() RETURNING id",
+                "ON CONFLICT (source_id,source_record_id) DO UPDATE SET region_key=EXCLUDED.region_key,content_type=EXCLUDED.content_type,name=EXCLUDED.name,address=EXCLUDED.address,latitude=EXCLUDED.latitude,longitude=EXCLUDED.longitude,attributes=places.attributes || EXCLUDED.attributes,is_active=true,last_seen_at=now(),updated_at=now() RETURNING id",
                 (uuid.uuid4(), source_id, str(row["contentid"]), region_key, ctype, row["title"], row.get("addr1"),
                  parse_float(row.get("mapy")), parse_float(row.get("mapx")),
                  Jsonb(place_attributes(ctype, row, names))),).fetchone()[0]

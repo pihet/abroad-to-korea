@@ -65,7 +65,7 @@ async def my_votes(user: User, db: DB):
 
 @router.delete("/votes/{attraction_id}")
 async def my_vote_delete(attraction_id: str, user: User, db: DB):
-    """관광지 하나에 누른 반응을 모두 지운다 (개인 맞춤에서 빠진다). 평가용 피드백 파일 기록은 남는다."""
+    """관광지 하나에 누른 반응을 모두 지운다. 개인 맞춤·사진별 순위 조정·만족도 지표(/api/feedback/stats)에서 모두 빠진다."""
     n = (await db.execute(delete(FeedbackRecord).where(FeedbackRecord.user_id == user.id,
                                                         FeedbackRecord.attraction_id == attraction_id))).rowcount
     await db.commit()

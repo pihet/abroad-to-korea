@@ -43,7 +43,7 @@ from .db import close_db, get_db, session_factory
 from .auth import SESSION_COOKIE, _principal_from_db, token_hash
 from .media import persist_upload, router as media_router
 from .personal import router as personal_router
-from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion, UserPreference
+from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion, User, UserPreference
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -204,9 +204,10 @@ async def _photo_votes(photo_key):
     factory = session_factory()
     if factory is None or not photo_key:
         return None
-    async with factory() as db:
+    async with factory() as db:  # 탈퇴한 사용자 표는 뺀다 (탈퇴는 users 행을 남기므로 CASCADE 로 지워지지 않는다)
         rows = (await db.execute(select(FeedbackRecord.user_id, FeedbackRecord.attraction_id, FeedbackRecord.value)
-                                 .where(FeedbackRecord.photo_key == photo_key, FeedbackRecord.user_id.is_not(None))
+                                 .join(User, User.id == FeedbackRecord.user_id)
+                                 .where(FeedbackRecord.photo_key == photo_key, User.deleted_at.is_(None))
                                  .order_by(FeedbackRecord.created_at))).all()
     last = {(u, a): v for u, a, v in rows}
     tally = {}
@@ -667,7 +668,7 @@ def _bullets(text):
         return text
     t = text.strip()
     if t.startswith("-"):
-        t = _re.sub(r"(?<=\S)\s*-\s+(?=\S)", "\n- ", t)
+        t = _re.sub(r"(?<=\S)\s*-\s+(?=[^\d\s])", "\n- ", t)  # '09:00 - 18:00' 처럼 숫자가 오면 범위라 두고
     t = _re.sub(r"(?<=\S)\s*(?=\[)", "\n", t)
     t = _re.sub(r"(?<=\S)\s*(?=※)", "\n", t)
     t = _re.sub(rf"(?<=\d)\s*(?=(?:{SEASON_WORDS}))", "\n", t)
@@ -702,12 +703,13 @@ async def place_detail(cid: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "장소를 찾을 수 없습니다.")
     attrs = dict(place.attributes or {})
     changed = False
-    if not attrs.get("overview"):
+    if "overview" not in attrs:  # 소개글이 빈 곳도 "" 로 남겨 다시 부르지 않는다
         data = _tour_get("detailCommon2", {"contentId": cid, "numOfRows": 1, "pageNo": 1},
                          "오늘 소개 조회 한도를 다 써서 불러올 수 없습니다. 내일 다시 시도해 주세요.", "소개를 불러오지 못했습니다.")
         items = ((data["response"]["body"].get("items") or {}).get("item")) or [{}]
         item = items[0] if isinstance(items, list) else items
-        attrs.update({key: item[key] for key in ("overview", "homepage", "tel") if item.get(key)})
+        attrs.update({key: item[key] for key in ("homepage", "tel") if item.get(key)})
+        attrs["overview"] = item.get("overview") or ""
         changed = True
     if "intro" not in attrs:
         intro = await run_in_threadpool(_intro, place, cid)
@@ -732,7 +734,7 @@ async def place_photos(cid: str, db: AsyncSession = Depends(get_db)):
     if place is None:
         raise HTTPException(404, "장소를 찾을 수 없습니다.")
     extra = [image for image in images if not image.is_primary]
-    if not extra:
+    if not extra and not (place.attributes or {}).get("photos_checked"):  # 0장인 곳은 표시해 두고 다시 부르지 않는다
         data = _tour_get("detailImage2", {"contentId": cid, "imageYN": "Y", "numOfRows": 30, "pageNo": 1},
                          "오늘 사진 조회 한도를 다 써서 추가 사진을 불러올 수 없습니다. 내일 다시 시도해 주세요.", "추가 사진을 불러오지 못했습니다.")
         items = ((data["response"]["body"].get("items") or {}).get("item")) or []
@@ -741,6 +743,7 @@ async def place_photos(cid: str, db: AsyncSession = Depends(get_db)):
             url, code = item.get("originimgurl") or item.get("smallimageurl"), item.get("cpyrhtDivCd")
             if url and code in LICENSES:
                 db.add(PlaceImage(place_id=place.id, source_url=url, license_code=code, is_primary=False, is_active=True))
+        place.attributes = {**(place.attributes or {}), "photos_checked": True}
         await db.commit()
         _, images = await catalog.images(db, cid)
         extra = [image for image in images if not image.is_primary]

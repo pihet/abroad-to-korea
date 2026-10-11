@@ -348,7 +348,9 @@ def test_food(client):
     assert all(w["places"] >= 2 for w in f["top"]) and (f["top"] == [] or f["n_menus"] >= 5)
     lists = {l["id"]: l for l in client.get("/api/rankings").json()["lists"]}
     before = {i["key"]: i["value"] for i in lists["rural-activities"]["items"]}
-    assert before.get("41_가평군") == 207  # 음식점은 '할 거리' 수에 넣지 않는다
+    g = {x["key"]: x["count"] for x in client.get("/api/activities", params={"sigungu_key": "41_가평군"}).json()["groups"]}
+    # 음식점·축제는 '할 거리' 수에 넣지 않는다 (매일 수집으로 곳 수가 바뀌어 고정값 대신 묶음 합과 비교)
+    assert before.get("41_가평군") == sum(n for k, n in g.items() if k not in ("food", "festival")) > 0
 
 
 def test_menu_words():
@@ -624,6 +626,7 @@ def test_place_info_text():
     assert main._lines("<b>상시</b> 개방") == "상시 개방"
     assert main._bullets("- 입실 13:00- 퇴실 12:00") == "- 입실 13:00\n- 퇴실 12:00"
     assert main._bullets("09:00-18:00") == "09:00-18:00"  # '- '로 시작하지 않으면 그대로
+    assert main._bullets("- 영업시간 09:00 - 18:00- 휴게 15:00 - 16:00") == "- 영업시간 09:00 - 18:00\n- 휴게 15:00 - 16:00"  # 범위 안 ' - ' 는 그대로
     # 시간이 바뀌는 지점은 줄을 나눈다
     assert main._bullets("[1월~4월/9월~12월]09:00~18:00[5월~8월]08:00~19:00") == "[1월~4월/9월~12월]09:00~18:00\n[5월~8월]08:00~19:00"
     assert main._bullets("평일 09:00~18:00 주말 10:00~17:00") == "평일 09:00~18:00\n주말 10:00~17:00"

@@ -1748,3 +1748,14 @@ The World Travel Index(theworldtravelindex.com) 도시 가이드 구성을 참�
 - 결과: 2026-10-11 02:00 사진 정리 성공, 02:43 `tour_data_daily`·`tour_catalog_daily` 모든 작업 성공. 이후 api 재시작
 - **팀원 PC `.env`에 `AIRFLOW_UID`, `AIRFLOW_JWT_SECRET` 두 줄이 필요** (README 환경변수 표)
 - 할 거리: 먹거리·축제·체험과 사진 없는 곳을 빼고 물·바다·산·숲·레저·캠핑만(강릉 615 → 81곳). 목록은 AI 여행 결과와 같은 카드(`.ask-cards`), 누르면 지역 상세 단계의 전체 화면 사진 팝업(사진·소개·주소·시간·전화·지도). 팝업은 소개가 길어도 사진이 눌리지 않게 칸 크기를 고정하고 팝업 안에서 스크롤(데스크톱 사진 837×558, 폰 388×259 확인)
+
+### 15-38. 코드 리뷰 수정: 홈 500 · 상세 캐시 · 시간대 (2026-10-11)
+
+- **홈 `/api/regions` 500**: 02:43 publish 뒤 사진·라이선스가 빠진 관광지(예: 125685)가 임베딩에는 남아 `region_photo`가 `KeyError`. 없는 관광지는 빈 값으로 두고 `self.ok`로 거른다 (`app/recommender.py`). 테스트 5개가 같은 원인으로 실패하던 것도 해결
+- publish 가 `places.attributes`를 통째로 바꿔 상세 화면이 받아 둔 소개·이용 시간(`overview`, `intro`)을 매일 지우던 것 → `places.attributes || EXCLUDED.attributes` (수집 값이 우선, 받아 둔 값은 유지)
+- 소개글이 빈 곳은 `overview: ""`, 추가 사진 0장인 곳은 `photos_checked: true`를 남겨 열 때마다 TourAPI 를 다시 부르지 않게
+- 이용 시간 줄 나누기: `- 영업시간 09:00 - 18:00`의 범위 ` - `를 새 줄로 쪼개던 것 → `- ` 뒤에 숫자가 오면 범위로 둔다
+- 사진별 반응(`_photo_votes`)에서 탈퇴한 사용자 표를 뺀다 (탈퇴는 users 행을 남겨 CASCADE 가 안 된다)
+- api 컨테이너 `TZ: Asia/Seoul`: `date.today()`가 UTC 라 자정~오전 9시(KST)에 '오늘 축제'가 어제 기준이던 것
+- `test_food`의 가평군 할 거리 수를 고정값(207) 대신 묶음 합과 비교 (매일 수집으로 바뀐다)
+- 보류: 인증 없는 이메일 가입으로 남의 주소를 선점하는 문제 (아래 이슈)

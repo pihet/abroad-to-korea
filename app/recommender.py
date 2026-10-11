@@ -359,7 +359,8 @@ class Engine:
         if not hasattr(self, "_rep"):
             self._rep = {}
             sims = self.I["kv"] @ self.I["reg_mean"].T
-            items = [self.I["items"][c] for c in self.cid]
+            # 임베딩은 있어도 DB 에서 사진·라이선스가 빠진 관광지는 items 에 없다 (self.ok 가 거짓이라 어차피 고르지 않는다)
+            items = [self.I["items"].get(c, {}) for c in self.cid]
             shown = self.ok & np.array([it.get("lclsSystm3") not in LOCAL_PARK_CODES for it in items])
             masks = {None: shown, **{k: shown & np.array([f(it) for it in items]) for k, f in self.PHOTO_KINDS.items()}}
             for kd, m in masks.items():
