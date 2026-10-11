@@ -3,7 +3,7 @@ import { authApi, ORIGINS, type AuthUser, type RegionRow } from './api'
 import { originLabel, shortSido } from './regionLabel'
 import './account.css'
 
-// 계정 설정 (로그인한 사람): 프로필 사진 · 닉네임 · 여행 설정(내 취향 반영, 기본 출발지) · 로그인 수단 · 비밀번호 변경 · 로그아웃 · 회원 탈퇴
+// 계정 설정 (로그인한 사람): 프로필 사진 · 닉네임 · 여행 설정(내 취향 반영, 기본 출발지) · 로그인 수단 · 비밀번호 변경 · 문의하기 · 로그아웃 · 회원 탈퇴
 
 type Identity = { provider: 'email' | 'google' | 'kakao'; email: string | null }
 type Prefs = { enabled: boolean; origin: string | null }  // origin: 도시 이름(서울) 또는 시군구 key(51_강릉시)
@@ -30,6 +30,8 @@ export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
   const [nick, setNick] = useState<string | null>(null)   // null 이면 보기, 문자열이면 고치는 중
   const [pw, setPw] = useState({ current: '', next: '' })
   const [pwOpen, setPwOpen] = useState(false)
+  const [ask, setAsk] = useState<string | null>(null)  // null 이면 닫힘, 문자열이면 문의 쓰는 중
+  const [askMsg, setAskMsg] = useState<{ ok: boolean; text: string } | null>(null)  // 맨 위 알림은 안 보이는 위치라 문의 칸 아래에 따로 띄운다
   const [leaving, setLeaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -73,6 +75,12 @@ export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
     const r = await call<{ message: string }>('/api/auth/password/change', 'POST', { current_password: pw.current, new_password: pw.next })
     setPw({ current: '', next: '' }); setPwOpen(false); return r.message
   }) }
+  const sendAsk = async (e: FormEvent) => {
+    e.preventDefault(); setBusy(true); setAskMsg(null)
+    try { await call('/api/my/inquiry', 'POST', { message: ask }); setAsk(null); setAskMsg({ ok: true, text: '문의를 보냈어요. 가입한 이메일로 답을 드릴게요.' }) }
+    catch (err) { setAskMsg({ ok: false, text: err instanceof Error ? err.message : '요청에 실패했습니다.' }) }
+    finally { setBusy(false) }
+  }
   const unlink = (p: Identity['provider']) => run(async () => {
     await call(`/api/auth/identities/${p}`, 'DELETE'); setIds(ids.filter(i => i.provider !== p)); return `${PROVIDER[p]} 연결을 해제했어요.`
   })
@@ -147,6 +155,16 @@ export function AccountSettings({ user, rows, onUser, onClose, onOrigin }: {
         </form>
       )}
     </>}
+
+    <h3>문의하기</h3>
+    {ask === null ? <button type="button" className="acs-link" onClick={() => { setAsk(''); setAskMsg(null) }}>문의하기</button> : (
+      <form className="account-form" onSubmit={sendAsk}>
+        <textarea className="acs-ask" value={ask} onChange={e => setAsk(e.target.value)} minLength={5} maxLength={2000} rows={5}
+          placeholder="불편한 점이나 바라는 점을 적어 주세요. 답은 가입한 이메일로 보내 드려요." required />
+        <button className="account-submit" type="submit" disabled={busy}>{busy ? '보내는 중…' : '보내기'}</button>
+      </form>
+    )}
+    {askMsg && <p className={askMsg.ok ? 'acs-ok' : 'account-message'} role="status">{askMsg.text}</p>}
 
     <button className="account-submit secondary" type="button" disabled={busy} onClick={logout}>로그아웃</button>
     <div className="acs-leave">

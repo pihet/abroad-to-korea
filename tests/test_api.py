@@ -667,3 +667,17 @@ def test_oauth_same_email_is_separate_member(client, monkeypatch):
     email_me = client.get("/api/auth/me").json()
     assert client.delete("/api/auth/me").status_code == 200
     assert google_me["id"] != email_me["id"] and google_me["nickname"] == "구글회원" and email_me["nickname"] == "이메일회원"
+
+
+def test_inquiry(client):
+    """문의하기: 로그인해야 보낼 수 있고, 5~2000자만 받는다."""
+    import uuid as _uuid
+    client.cookies.clear()
+    assert client.post("/api/my/inquiry", json={"message": "로그인 없이 보내는 문의"}).status_code == 401
+    email = f"inquiry-{_uuid.uuid4().hex[:8]}@example.com"
+    assert client.post("/api/auth/signup", json={"email": email, "nickname": "문의회원", "password": "testpass1234"}).status_code == 201
+    assert client.post("/api/auth/login", json={"email": email, "password": "testpass1234"}).status_code == 200
+    assert client.post("/api/my/inquiry", json={"message": "짧음"}).status_code == 422
+    assert client.post("/api/my/inquiry", json={"message": "x" * 2001}).status_code == 422
+    assert client.post("/api/my/inquiry", json={"message": "  지도 확대가 잘 안 돼요  "}).status_code == 201
+    assert client.delete("/api/auth/me").status_code == 200

@@ -3,6 +3,7 @@
 - 내가 누른 닮았어요·별로예요 목록과 취소 (votes)
 - 개인 맞춤 켜기·끄기, 기본 출발지 (settings)
 - 저장한 곳에서 곧 열리는 축제 (festivals)
+- 문의하기 (inquiry): inquiries 테이블에 저장만 한다
 - 프로필 사진 (avatar): 256px 정사각형 JPEG 로 줄여 MinIO 에 둔다. 원본은 저장하지 않는다
 취향 계산은 app/recommender.py taste(), 사용자 신호 읽기는 app/main.py _user_signals() 를 그대로 쓴다."""
 
@@ -16,14 +17,14 @@ from fastapi import APIRouter, Cookie, Depends, File, HTTPException, Query, Uplo
 from fastapi.responses import Response
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from . import media
 from .auth import SESSION_COOKIE, Principal, require_principal
 from .db import get_db
-from .models import FeedbackRecord, MediaAsset, SavedRegion, UserPreference
+from .models import FeedbackRecord, Inquiry, MediaAsset, SavedRegion, UserPreference
 from .settings import get_settings
 
 router = APIRouter(prefix="/api/my", tags=["my"])
@@ -93,6 +94,22 @@ async def my_settings(body: SettingsBody, user: User, db: DB):
     pref.origin = body.origin
     await db.commit()
     return {"ok": True, "personal": body.personal, "origin": body.origin}
+
+
+class InquiryBody(BaseModel):
+    message: str = Field(min_length=5, max_length=2000)
+
+
+@router.post("/inquiry", status_code=201)
+async def my_inquiry(body: InquiryBody, user: User, db: DB):
+    """문의 저장. 한 사람이 하루 20건을 넘기면 막는다 (도배 방지)."""
+    since = datetime.now(timezone.utc) - timedelta(days=1)
+    recent = await db.scalar(select(func.count()).select_from(Inquiry).where(Inquiry.user_id == user.id, Inquiry.created_at >= since))
+    if recent >= 20:
+        raise HTTPException(429, "오늘은 문의를 더 보낼 수 없어요. 내일 다시 보내 주세요.")
+    db.add(Inquiry(user_id=user.id, message=body.message.strip()))
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/festivals")

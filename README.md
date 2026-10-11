@@ -133,7 +133,7 @@ PostgreSQL 인스턴스 하나에 애플리케이션·Airflow·MLflow DB와 계�
 | 테이블 그룹 | 주요 테이블 |
 |---|---|
 | 회원·인증 | `users`, `auth_identities`, `auth_sessions`, `one_time_tokens`, `user_preferences`(취향 반영·기본 출발지·프로필 사진) |
-| 사용자 기능 | `saved_regions`, `feedback`(닮았어요·별로예요, 사진 키·보인 순위), `media_assets`(보관 사진·프로필 사진), `email_outbox` |
+| 사용자 기능 | `saved_regions`, `feedback`(닮았어요·별로예요, 사진 키·보인 순위), `media_assets`(보관 사진·프로필 사진), `email_outbox`, `inquiries`(문의하기) |
 | 수집 이력 | `data_sources`, `ingestion_runs`, `raw_objects` |
 | 관광 데이터 | `regions`, `places`, `place_images`, `festivals` |
 | 분석 데이터 | `visitor_metrics`, `climate_daily`, `image_embeddings` |

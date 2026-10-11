@@ -137,6 +137,15 @@ class FeedbackRecord(Base):
     rank: Mapped[int | None] = mapped_column(Integer)  # 누를 때 화면에 보인 순위 (만족도 지표용)
 
 
+class Inquiry(Base):
+    """계정 설정의 문의하기. 답장은 아직 화면이 없어 운영자가 DB에서 읽고 가입 이메일로 직접 보낸다."""
+    __tablename__ = "inquiries"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class DataSource(TimestampMixin, Base):
     __tablename__ = "data_sources"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
