@@ -51,6 +51,13 @@ async def redis_client() -> Redis | None:
     return Redis.from_url(url, decode_responses=True, socket_connect_timeout=0.5, socket_timeout=0.5) if url else None
 
 
+def client_ip(request: Request) -> str:
+    """요청한 사람의 IP. Cloudflare 터널로 들어오면 모두 터널 주소(도커 게이트웨이)로 보여 한 사람처럼 묶이므로,
+    Cloudflare 가 넣어 주는 CF-Connecting-IP 를 먼저 쓴다.
+    주의: 8000번에 직접 붙는 사람은 이 헤더를 꾸밀 수 있다. 운영에서는 8000번을 프록시만 닿게 막아야 한다."""
+    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "unknown")
+
+
 async def rate_limit(key: str, maximum: int, seconds: int) -> None:
     client = await redis_client()
     if client is None:
@@ -200,7 +207,7 @@ async def _create_session(db: AsyncSession, user: User, request: Request, respon
     now, raw = utcnow(), secrets.token_urlsafe(32)
     session = AuthSession(user_id=user.id, token_hash=token_hash(raw), idle_expires_at=now + IDLE_TTL,
                           absolute_expires_at=now + ABSOLUTE_TTL,
-                          ip_address=request.client.host if request.client else None,
+                          ip_address=client_ip(request),
                           user_agent=request.headers.get("user-agent", "")[:512] or None)
     user.last_login_at = now
     db.add(session)
@@ -234,7 +241,7 @@ async def _consume_token(db: AsyncSession, raw: str, purpose: str) -> tuple[OneT
 @router.post("/signup", status_code=201)
 async def signup(body: SignupBody, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     email = normalize_email(body.email)
-    await rate_limit(f"signup:{request.client.host if request.client else 'unknown'}", 10, 3600)
+    await rate_limit(f"signup:{client_ip(request)}", 10, 3600)
     exists = await db.scalar(select(AuthIdentity.id).where(AuthIdentity.provider == "email", AuthIdentity.provider_subject == email))
     if exists:
         raise HTTPException(409, "이미 이메일로 가입된 계정입니다.")
@@ -255,7 +262,7 @@ async def signup(body: SignupBody, request: Request, db: Annotated[AsyncSession,
 @router.post("/login")
 async def login(body: LoginBody, request: Request, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
     email = normalize_email(body.email)
-    await rate_limit(f"login:{request.client.host if request.client else 'unknown'}:{email}", 10, 900)
+    await rate_limit(f"login:{client_ip(request)}:{email}", 10, 900)
     row = (await db.execute(select(AuthIdentity, User).join(User).where(
         AuthIdentity.provider == "email", AuthIdentity.provider_subject == email, User.deleted_at.is_(None)))).first()
     if row is None:
@@ -373,7 +380,7 @@ async def change_password(body: ChangePasswordBody, principal: Annotated[Princip
 @router.post("/password/forgot")
 async def forgot_password(body: ForgotPasswordBody, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     email = normalize_email(body.email)
-    await rate_limit(f"forgot:{request.client.host if request.client else 'unknown'}:{email}", 5, 3600)
+    await rate_limit(f"forgot:{client_ip(request)}:{email}", 5, 3600)
     row = (await db.execute(select(AuthIdentity, User).join(User).where(
         AuthIdentity.provider == "email", AuthIdentity.provider_subject == email))).first()
     if row:

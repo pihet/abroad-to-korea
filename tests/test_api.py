@@ -706,3 +706,13 @@ def test_search_is_logged(client):
     photo, name = SEARCH_LOGS[0][1], SEARCH_LOGS[1][1]
     assert photo["candidates"] and photo["params"]["month"] == 10
     assert name["query"] == "강릉" and name["total"] > 0
+
+
+def test_rate_limit_per_visitor(client, monkeypatch):
+    """요청 횟수 제한은 방문자(IP)마다 따로 센다. 터널을 거치면 Cloudflare 가 넣는 CF-Connecting-IP 로 구분한다."""
+    import uuid as _uuid
+    monkeypatch.setitem(main.RATE_LIMITS, "search", 3)
+    a, b = {"CF-Connecting-IP": f"test-{_uuid.uuid4().hex}"}, {"CF-Connecting-IP": f"test-{_uuid.uuid4().hex}"}
+    codes = [client.get("/api/search", params={"q": "강릉"}, headers=a).status_code for _ in range(4)]
+    assert codes == [200, 200, 200, 429]
+    assert client.get("/api/search", params={"q": "강릉"}, headers=b).status_code == 200

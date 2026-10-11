@@ -18,7 +18,7 @@ from pathlib import Path
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
@@ -40,7 +40,7 @@ from .schemas import (ActivitiesResponse, AnalyzeResponse, Crop, Feedback, Natur
 from .llm import TripPlanner, set_places
 from .auth import me_router, router as auth_router
 from .db import close_db, get_db, session_factory
-from .auth import SESSION_COOKIE, _principal_from_db, token_hash
+from .auth import SESSION_COOKIE, _principal_from_db, client_ip, rate_limit, token_hash
 from .media import persist_upload, router as media_router
 from .personal import router as personal_router
 from .models import AuthSession, FeedbackRecord, PlaceImage, SavedRegion, SearchLog, User, UserPreference
@@ -110,10 +110,11 @@ def demo_photos():
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-async def analyze(image: Optional[UploadFile] = File(None), demo_photo_id: Optional[str] = Form(None),
+async def analyze(request: Request, image: Optional[UploadFile] = File(None), demo_photo_id: Optional[str] = Form(None),
                   crop: Optional[str] = Form(None), source_attraction_id: Optional[str] = Form(None),
                   retain_photo: bool = Form(False), store_photo: bool = Form(True),
                   raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    await _limit(request, "analyze")
     media_asset_id = None
     if image is not None:
         data = await image.read()
@@ -159,8 +160,9 @@ def _sigungu(ri):
 
 
 @app.post("/api/convert")
-async def convert(image: UploadFile = File(...)):
+async def convert(request: Request, image: UploadFile = File(...)):
     """브라우저가 못 띄우는 사진(HEIC)을 미리보기용 JPEG 로 바꾼다. 분석은 원본으로 한다."""
+    await _limit(request, "convert")
     data = await image.read()
     if len(data) > MAX_UPLOAD:
         raise HTTPException(413, "사진이 15MB보다 큽니다. 더 작은 사진을 골라 주세요.")
@@ -196,6 +198,16 @@ async def _user_signals(raw_session):
 def _taste_of(s):
     """_user_signals 결과로 만든 취향 (engine.taste). 개인 맞춤을 껐거나 신호가 부족하면 None."""
     return engine.taste(s["likes"], s["dislikes"], s["saved"]) if s and s["personal"] else None
+
+
+# IP 하나가 10분에 부를 수 있는 횟수. 사람이 정상적으로 쓰면 닿지 않을 만큼 넉넉하게 잡고, 기계적인 대량 호출만 막는다.
+# (사진으로 찾기 화면은 열 때 예시 카드로 analyze·recommend 를 4번씩 부르고, 이름 검색은 글자를 칠 때마다 부른다)
+RATE_WINDOW = 600
+RATE_LIMITS = {"analyze": 120, "convert": 60, "ai": 30, "recommend": 300, "search": 600}
+
+
+async def _limit(request: Request, name: str) -> None:
+    await rate_limit(f"{name}:{client_ip(request)}", RATE_LIMITS[name], RATE_WINDOW)
 
 
 async def _log_search(raw_session, kind, *, query=None, photo_key=None, params=None, candidates=(), total=None):
@@ -250,7 +262,8 @@ async def my_taste(raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKI
 
 
 @app.post("/api/recommend", response_model=RecommendResponse)
-async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+async def recommend(req: RecommendRequest, request: Request, raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
+    await _limit(request, "recommend")
     if req.query_id not in engine.cache:
         raise HTTPException(404, "분석 결과가 만료됐습니다. 사진을 다시 분석해 주세요.")
     if req.sido and req.sido not in {s["sido"] for s in regions.static.values()}:
@@ -291,9 +304,10 @@ async def recommend(req: RecommendRequest, raw_session: Optional[str] = Cookie(N
 
 
 @app.post("/api/travel/recommend", response_model=NaturalRecommendResponse)
-async def natural_recommend(req: NaturalRecommendRequest,
+async def natural_recommend(req: NaturalRecommendRequest, request: Request,
                             raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
     """자연어는 Ollama가 조건으로 바꾸고, 실제 후보는 기존 CLIP·PostgreSQL 데이터에서만 고른다."""
+    await _limit(request, "ai")
     parsed = await trip_planner.interpret(req.query)
     intent = parsed.intent
     qid, tags = await run_in_threadpool(engine.analyze_text, intent.visual_prompt_en)
@@ -456,11 +470,12 @@ async def rankings(month: Optional[int] = Query(None, ge=1, le=12), db: AsyncSes
 
 
 @app.get("/api/search")
-async def search_names(q: str = Query(..., min_length=1, max_length=40), limit: int = Query(20, ge=1, le=50),
+async def search_names(request: Request, q: str = Query(..., min_length=1, max_length=40), limit: int = Query(20, ge=1, le=50),
                        db: AsyncSession = Depends(get_db),
                        raw_session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
     """읍·면·동과 장소(관광지·레포츠·음식점·축제) 이름 검색. 이름 앞에서 맞는 것 → 안에서 맞는 것 → 초성으로 맞는 것 순.
     화면은 글자를 칠 때마다(0.2초 쉬면) 부르므로, 기록에는 '강', '강릉'처럼 입력 중간 값도 남는다."""
+    await _limit(request, "search")
     dongs = search.find(q, limit)["dongs"]
     places = await catalog.search_places(db, q, limit)
     await _log_search(raw_session, "name", query=q, total=len(dongs) + len(places))
