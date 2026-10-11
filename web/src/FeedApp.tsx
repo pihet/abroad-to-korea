@@ -112,11 +112,13 @@ export default function FeedApp() {
     if (!user) { setOrigin(null); return }
     fetch('/api/my/taste').then(r => r.ok ? r.json() : null).then((d: { origin: string | null } | null) => setOrigin(d?.origin ?? null)).catch(() => {})
   }, [user])
+  const onHome = tab === 'home'
   useEffect(() => {
     if (!user) { setSimilar([]); return }
+    if (!onHome) return  // 홈에 돌아올 때만 다시 받는다 (다른 탭에서 누른 닮았어요·하트를 반영)
     fetch('/api/my/similar?limit=10').then(r => r.ok ? r.json() : { regions: [] })
       .then((d: { regions: { key: string; reason: string }[] }) => setSimilar(d.regions)).catch(() => setSimilar([]))
-  }, [user, saved.length, tab])
+  }, [user, saved.length, onHome])
   useEffect(() => { try { localStorage.setItem('feed-saved', JSON.stringify(saved)) } catch { /* 저장소 없음 */ } }, [saved])
   useEffect(() => { setShown(PAGE); window.scrollTo(0, 0) }, [story, tab])
   useEffect(() => {

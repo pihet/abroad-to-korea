@@ -55,7 +55,8 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
   const [preview, setPreview] = useState('')
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null)
   const [res, setRes] = useState<RecommendResponse | null>(null)
-  const [list, setList] = useState<Candidate[]>([])
+  const [list, setList] = useState<Candidate[]>([])  // 30곳 순위를 한 번에 받아 둔다
+  const [shown, setShown] = useState(PAGE)  // 그중 화면에 보이는 수
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [examples, setExamples] = useState<Example[] | null>(null)
@@ -94,20 +95,15 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
   useEffect(() => {
     if (stage !== 'result' || !analysis) return
     setBusy(true); setErr(null)
-    api.recommend({ query_id: analysis.query_id, priority: 'visual', origin, limit: PAGE, offset: 0 })
-      .then(r => { setRes(r); setList(r.candidates) })
+    // 30곳을 한 번에 받는다. 나눠 받으면 그 사이 다른 사용자 반응·내 취향이 바뀌어 순위가 달라지고,
+    // 같은 곳이 두 번 나오거나 빠질 수 있다 (서버는 어차피 30곳을 모두 정렬한다)
+    api.recommend({ query_id: analysis.query_id, priority: 'visual', origin, limit: MAX, offset: 0 })
+      .then(r => { setRes(r); setList(r.candidates); setShown(PAGE) })
       .catch(e => setErr(e.message))
       .finally(() => setBusy(false))
   }, [stage, analysis, origin])
 
-  const more = async () => {
-    if (!analysis) return
-    setBusy(true)
-    try {
-      const r = await api.recommend({ query_id: analysis.query_id, priority: 'visual', origin, limit: PAGE, offset: list.length })
-      setList([...list, ...r.candidates])
-    } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
-  }
+  const more = () => setShown(shown + PAGE)
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -157,13 +153,13 @@ export function FeedSearch({ start, saved, onToggleSave, onOpen, loggedIn, avata
       {err && <p className="ig-err" role="alert">{err}</p>}
       {!res && <p className="ig-wait">닮은 곳을 찾는 중…</p>}
       <ul className="ig-feed">
-        {list.map(c => <ResultPost key={c.sigungu.key} c={c} avatar={avatars[c.sigungu.key]} origin={originName}
+        {list.slice(0, shown).map(c => <ResultPost key={c.sigungu.key} c={c} avatar={avatars[c.sigungu.key]} origin={originName}
           saved={saved.includes(c.sigungu.key)} voted={votes[c.sigungu.key]}
           onSave={() => onToggleSave(c.sigungu.key)} onOpen={() => onOpen(c.sigungu.key)}
           onVote={v => vote(c, v)} />)}
       </ul>
-      {res && list.length < Math.min(MAX, res.total_candidates) && (
-        <button type="button" className="ig-more" disabled={busy} onClick={more}>{busy ? '불러오는 중…' : '닮은 곳 더 보기'}</button>
+      {shown < list.length && (
+        <button type="button" className="ig-more" onClick={more}>닮은 곳 더 보기</button>
       )}
     </div>
   )
