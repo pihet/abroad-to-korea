@@ -534,7 +534,7 @@ async def oauth_callback(provider: Literal["google", "kakao"], code: str, state:
             raise HTTPException(403, "사용할 수 없는 계정입니다.")
     else:
         # 같은 이메일의 이메일 가입 계정이 있어도 붙이지 않고 새 회원으로 만든다 (로그인 수단마다 별개 회원).
-        # 이메일 가입은 인증 메일 없이 되므로(Resend 는 도메인 등록 전 가입자 본인에게만 보낸다) 남이 먼저 그 주소로
+        # 이메일 가입은 인증 메일 없이 되므로(Resend 는 도메인 등록 전 Resend 계정 주인에게만 보낸다) 남이 먼저 그 주소로
         # 가입했을 수 있다. 하나로 쓰고 싶으면 로그인한 뒤 계정 설정에서 직접 연결한다 (mode == "link")
         user = User(email=email, nickname=nickname, status="active", email_verified_at=utcnow())
         user.identities.append(AuthIdentity(provider=provider, provider_subject=subject, provider_email=email))
