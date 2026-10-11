@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,13 +44,6 @@ def token_hash(token: str) -> bytes:
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
-
-
-def ensure_oauth_auto_link_allowed(user: User) -> None:
-    if user.status != "active":
-        raise HTTPException(403, "사용할 수 없는 계정입니다.")
-    if user.email_verified_at is None:
-        raise HTTPException(409, "기존 이메일 계정으로 로그인한 뒤 소셜 로그인을 연결해 주세요.")
 
 
 async def redis_client() -> Redis | None:
@@ -318,7 +311,7 @@ async def delete_account(response: Response, principal: Annotated[Principal, Dep
         raise HTTPException(404, "계정을 찾을 수 없습니다.")
     hashes = list((await db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == user.id))).all())
     user.status, user.deleted_at = "deleted", now
-    # 이메일·닉네임·로그인 수단·저장·설정을 지운다. 이메일이 남으면 같은 주소로 다시 가입할 수 없다 (users.email 유일)
+    # 이메일·닉네임·로그인 수단·저장·설정을 지운다 (탈퇴 뒤 개인정보를 남기지 않고, 같은 주소로 다시 가입할 수 있게)
     user.email, user.nickname = f"deleted-{user.id}@deleted.invalid", "탈퇴한 사용자"
     for model in (AuthIdentity, SavedRegion, UserPreference):
         await db.execute(delete(model).where(model.user_id == user.id))
@@ -540,16 +533,14 @@ async def oauth_callback(provider: Literal["google", "kakao"], code: str, state:
         if user is None or user.status != "active" or user.deleted_at is not None:
             raise HTTPException(403, "사용할 수 없는 계정입니다.")
     else:
-        user = await db.scalar(select(User).where(func.lower(User.email) == email, User.deleted_at.is_(None)))
-        if user:
-            ensure_oauth_auto_link_allowed(user)
-            db.add(AuthIdentity(user_id=user.id, provider=provider, provider_subject=subject, provider_email=email))
-        else:
-            user = User(email=email, nickname=nickname, status="active", email_verified_at=utcnow())
-            user.identities.append(AuthIdentity(provider=provider, provider_subject=subject, provider_email=email))
-            db.add(user)
-            await db.flush()
-            db.add(UserPreference(user_id=user.id))
+        # 같은 이메일의 이메일 가입 계정이 있어도 붙이지 않고 새 회원으로 만든다 (로그인 수단마다 별개 회원).
+        # 이메일 가입은 인증 메일 없이 되므로(Resend 는 도메인 등록 전 가입자 본인에게만 보낸다) 남이 먼저 그 주소로
+        # 가입했을 수 있다. 하나로 쓰고 싶으면 로그인한 뒤 계정 설정에서 직접 연결한다 (mode == "link")
+        user = User(email=email, nickname=nickname, status="active", email_verified_at=utcnow())
+        user.identities.append(AuthIdentity(provider=provider, provider_subject=subject, provider_email=email))
+        db.add(user)
+        await db.flush()
+        db.add(UserPreference(user_id=user.id))
     response = RedirectResponse(f"{get_settings().public_base_url}/", status_code=303)
     await _create_session(db, user, request, response)
     return response

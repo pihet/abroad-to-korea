@@ -112,7 +112,7 @@ curl --fail http://localhost:5000/health
 
 세션·일회성 토큰은 원문 대신 해시를 PostgreSQL에 저장한다. Redis에는 5분 세션 캐시와 OAuth state가 들어가며, OAuth state는 Redis 장애 시 발급하지 않는다.
 
-Google·Kakao는 같은 이메일이라는 이유만으로 기존 계정에 자동 연결하지 않는다. 로그인한 사용자가 `/api/auth/oauth/{provider}/start?mode=link`를 호출해야 연결된다. 운영 전 `.env`의 각 Client ID·Secret과 공급자 콘솔의 callback URL을 설정한다.
+Google·Kakao는 같은 이메일이라는 이유만으로 기존 계정에 자동 연결하지 않고 별개 회원을 만든다 (2026-10-11 `users.email` 유일 인덱스 제거, 마이그레이션 `20261011_05`). 로그인한 사용자가 `/api/auth/oauth/{provider}/start?mode=link`를 호출해야 연결된다. 운영 전 `.env`의 각 Client ID·Secret과 공급자 콘솔의 callback URL을 설정한다.
 
 ## 데이터 계층
 

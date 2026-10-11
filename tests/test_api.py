@@ -633,3 +633,37 @@ def test_place_info_text():
     assert main._bullets("09:00~18:00 ※ 입장 마감 17:00") == "09:00~18:00\n※ 입장 마감 17:00"
     assert main._bullets("10:00~22:00 (연중무휴)") == "10:00~22:00 (연중무휴)"
     assert set(main.INTRO_FIELDS) == {"12", "14", "15", "28", "38", "39"}
+
+
+def test_oauth_same_email_is_separate_member(client, monkeypatch):
+    """같은 이메일이라도 이메일 가입과 구글 가입은 별개 회원 (이메일 가입은 인증 메일이 없어 남이 선점했을 수 있다)."""
+    import uuid as _uuid
+    from app import auth
+    email = f"oauth-sep-{_uuid.uuid4().hex[:8]}@example.com"
+    assert client.post("/api/auth/signup", json={"email": email, "nickname": "이메일회원", "password": "testpass1234"}).status_code == 201
+
+    class StateOnly:  # OAuth state 한 번만 흉내 내고, 그 뒤 세션 캐시 등은 실제 Redis 를 쓴다
+        async def getdel(self, _key):
+            return json.dumps({"provider": "google", "mode": "login"})
+
+        async def aclose(self):
+            pass
+    real, calls = auth.redis_client, []
+
+    async def fake_redis():
+        calls.append(1)
+        return StateOnly() if len(calls) == 1 else await real()
+
+    async def fake_profile(_provider, _code, _state):
+        return f"google-{email}", email, "구글회원"
+    monkeypatch.setattr(auth, "redis_client", fake_redis)
+    monkeypatch.setattr(auth, "_oauth_profile", fake_profile)
+    r = client.get("/api/auth/oauth/google/callback", params={"code": "c", "state": "s"}, follow_redirects=False)
+    assert r.status_code == 303, r.text
+    google_me = client.get("/api/auth/me").json()
+    assert client.delete("/api/auth/me").status_code == 200
+
+    assert client.post("/api/auth/login", json={"email": email, "password": "testpass1234"}).status_code == 200
+    email_me = client.get("/api/auth/me").json()
+    assert client.delete("/api/auth/me").status_code == 200
+    assert google_me["id"] != email_me["id"] and google_me["nickname"] == "구글회원" and email_me["nickname"] == "이메일회원"

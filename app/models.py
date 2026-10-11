@@ -28,9 +28,6 @@ class User(TimestampMixin, Base):
     identities: Mapped[list["AuthIdentity"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
-Index("uq_users_email_normalized", func.lower(User.email), unique=True)
-
-
 class AuthIdentity(TimestampMixin, Base):
     __tablename__ = "auth_identities"
     __table_args__ = (
