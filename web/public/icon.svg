@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-33.5 -12.5 200 200">
-  <!-- pickkorea 앱 아이콘 (홈 화면·iOS). 안드로이드 모양 자르기용은 icon-maskable.svg -->
+  <!-- pickorea 앱 아이콘 (홈 화면·iOS). 안드로이드 모양 자르기용은 icon-maskable.svg -->
   <rect x="-33.5" y="-12.5" width="200" height="200" fill="#ffffff"/>
   <path fill="#1a48bc" d="M27 6H86A40 40 0 0 1 126 46V63A40 40 0 0 1 86 103H55V113A24 24 0 0 1 7 113V26A20 20 0 0 1 27 6Z"/>
   <path fill="#ffffff" d="M40 28H91A10 10 0 0 1 101 38V75L75 53L62 67.5L49 56L30 75V38A10 10 0 0 1 40 28Z"/>

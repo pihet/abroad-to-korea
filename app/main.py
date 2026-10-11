@@ -92,7 +92,7 @@ async def lifespan(_app):
     await close_db()
 
 
-app = FastAPI(title="pickkorea API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="pickorea API", version="0.1.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(media_router)

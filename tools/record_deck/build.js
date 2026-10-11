@@ -8,7 +8,7 @@ const SKILL_THEME = process.env.APPLY_THEME_JS // pptx 스킬의 apply_theme.js 
 
 const R = {
   asOf: '2026-10-11',
-  name: 'pickkorea',
+  name: 'pickorea',
   tagline: '해외 여행지 사진으로 분위기가 닮은 국내 여행지를 찾는 웹서비스',
   period: '2026.10.01 ~ 2026.10.16',
   repo: 'github.com/pihet/abroad-to-korea',
@@ -35,7 +35,7 @@ const R = {
 }
 
 const THEME = {
-  name: 'pickkorea', headFontFace: 'Malgun Gothic', bodyFontFace: 'Malgun Gothic',
+  name: 'pickorea', headFontFace: 'Malgun Gothic', bodyFontFace: 'Malgun Gothic',
   colors: { dk1: '15181A', lt1: 'FFFFFF', dk2: '0A6E66', lt2: 'F4F5F6', accent1: '0A6E66', accent2: 'B5522B', accent3: '2F80D1',
             accent4: 'E0A21A', accent5: '8E4EC6', accent6: '5D6468', hlink: '0A6E66', folHlink: '5D6468' },
 }
