@@ -176,7 +176,7 @@ export default function FeedApp() {
   return (
     <div className="ig">
       <header className="ig-top">
-        <b className="ig-logo">pickorea<i>.</i></b>
+        <button type="button" className="ig-logo" onClick={() => { nav('home'); window.scrollTo(0, 0) }} aria-label="홈으로">pickorea<i>.</i></button>
         <div className="ig-top-act">
           <button type="button" onClick={toggleTheme} aria-label={theme === 'dark' ? '밝은 화면으로' : '어두운 화면으로'}><Svg d={theme === 'dark' ? Icon.sun : Icon.moon} /></button>
           <button type="button" onClick={() => setFinding(true)} aria-label="지역 검색"><Svg d={Icon.search} /></button>

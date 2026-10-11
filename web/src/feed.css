@@ -19,7 +19,7 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 /* 위 막대 */
 .ig-top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between;
   height: 56px; padding: 0 16px; background: var(--ig-bg); border-bottom: 1px solid var(--ig-line) }
-.ig-logo { font-size: 24px; font-weight: 900; letter-spacing: -0.04em }
+.ig-logo { font-size: 24px; font-weight: 900; letter-spacing: -0.04em; background: none; border: 0; padding: 0; color: inherit; font-family: inherit; cursor: pointer }
 .ig-logo i { color: #ee2a7b; font-style: normal }
 .ig-top-act { display: flex; align-items: center; gap: 16px }
 .account-trigger { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #0095f6 !important; font-size: 13px !important; font-weight: 700 }
