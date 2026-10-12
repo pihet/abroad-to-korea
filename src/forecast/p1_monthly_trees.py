@@ -22,15 +22,15 @@ import p1_spec as S  # noqa: E402
 TREE = dict(num_leaves=63, learning_rate=0.05, n_estimators=500, min_child_samples=100, verbose=-1, random_state=42)
 
 
-def features():
-    """p1_spec.monthly 와 같은 행·특징. 트리용 행렬(월 범주 열)과 기준선도 함께 돌려준다."""
+def features(last_year=S.VAL_YEAR):
+    """p1_spec.monthly 와 같은 행·특징 (목표 연도 last_year 까지). 트리용 행렬(월 범주 열)과 기준선도 함께 돌려준다."""
     A = S.load_daily().resample("MS").sum()
     a, months = A.values, A.index
     R = a.shape[1]
     Xs, ys, b0s, b1s, yrs = [], [], [], [], []
     for t in range(len(months)):
         o = t - 2
-        if o - 14 < 0 or months[t].year > S.VAL_YEAR:
+        if o - 14 < 0 or months[t].year > last_year:
             continue
         yr = months[t].year
         yoy = np.log((a[o] + a[o - 1] + a[o - 2] + 1) / (a[o - 12] + a[o - 13] + a[o - 14] + 1))
