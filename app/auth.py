@@ -258,7 +258,7 @@ async def _consume_token(db: AsyncSession, raw: str, purpose: str) -> tuple[OneT
 @router.post("/signup", status_code=201)
 async def signup(body: SignupBody, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     email = normalize_email(body.email)
-    await rate_limit(f"signup:{client_ip(request)}", 10, 3600)
+    await rate_limit(f"signup:{client_ip(request)}", 30, 3600)  # 같은 와이파이(공용 IP) 여러 명이 가입해도 막히지 않게 10 → 30
     exists = await db.scalar(select(AuthIdentity.id).where(AuthIdentity.provider == "email", AuthIdentity.provider_subject == email))
     if exists:
         raise HTTPException(409, "이미 이메일로 가입된 계정입니다.")
