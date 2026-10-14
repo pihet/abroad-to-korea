@@ -31,8 +31,9 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 /* 스토리 (분류) */
 .ig-stories { display: flex; gap: 14px; overflow-x: auto; padding: 14px 16px 12px; border-bottom: 1px solid var(--ig-line); scrollbar-width: none }
 .ig-stories::-webkit-scrollbar { display: none }
-.ig-stories button { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; width: 70px }
-.ig-stories .ring { width: 66px; height: 66px; border-radius: 50%; padding: 2.5px; background: var(--ig-line) }
+/* 분류 5개가 좁은 화면(390px)에서도 한 줄에 다 보이게 폭을 나눠 쓴다. 넓으면 70px 까지 */
+.ig-stories button { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1 0 0; min-width: 50px; max-width: 70px }
+.ig-stories .ring { width: 100%; max-width: 66px; aspect-ratio: 1; border-radius: 50%; padding: 2.5px; background: var(--ig-line) }
 .ig-stories button[aria-pressed="true"] .ring { background: var(--ig-ring) }
 .ig-stories .in { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 3px solid var(--ig-bg); background: var(--ig-soft) }
 /* 원형 썸네일은 공공누리 1유형 사진만 (FeedApp canCrop). 본문 사진은 자르지 않는다 */
