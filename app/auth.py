@@ -51,6 +51,15 @@ async def redis_client() -> Redis | None:
     return Redis.from_url(url, decode_responses=True, socket_connect_timeout=0.5, socket_timeout=0.5) if url else None
 
 
+async def close_redis(client: Redis) -> None:
+    """연결 닫기. 서버가 바쁘면 닫는 데 0.5초를 넘겨 TimeoutError 가 나는데, 할 일은 이미 끝났으니 무시한다
+    (그대로 두면 사진 분석 같은 요청이 500 으로 실패했다)."""
+    try:
+        await client.aclose()
+    except RedisError:
+        pass
+
+
 def client_ip(request: Request) -> str:
     """요청한 사람의 IP. Cloudflare 터널로 들어오면 모두 터널 주소(도커 게이트웨이)로 보여 한 사람처럼 묶이므로,
     Cloudflare 가 넣어 주는 CF-Connecting-IP 를 먼저 쓴다.
@@ -71,7 +80,7 @@ async def rate_limit(key: str, maximum: int, seconds: int) -> None:
     except RedisError:
         return
     finally:
-        await client.aclose()
+        await close_redis(client)
 
 
 class SignupBody(BaseModel):
@@ -179,7 +188,7 @@ async def optional_principal(
                 return Principal(uuid.UUID(data["id"]), data["email"], data["nickname"], "active",
                                  data["email_verified"], uuid.UUID(data["session_id"]), key)
         finally:
-            await client.aclose()
+            await close_redis(client)
     principal = await _principal_from_db(db, raw_token)
     if principal:
         await _cache_principal(principal)
@@ -203,7 +212,7 @@ async def _cache_principal(principal: Principal) -> None:
     except RedisError:
         return
     finally:
-        await client.aclose()
+        await close_redis(client)
 
 
 def _set_session_cookie(response: Response, raw_token: str) -> None:
@@ -306,7 +315,7 @@ async def logout(response: Response, principal: Annotated[Principal, Depends(req
             except RedisError:
                 pass
         finally:
-            await client.aclose()
+            await close_redis(client)
     response.delete_cookie(SESSION_COOKIE, path="/")
     return {"ok": True}
 
@@ -423,7 +432,7 @@ async def _invalidate_cached_sessions(hashes: list[bytes]) -> None:
     except RedisError:
         return
     finally:
-        await client.aclose()
+        await close_redis(client)
 
 
 OAUTH = {
@@ -475,7 +484,7 @@ async def oauth_start(provider: Literal["google", "kakao"], mode: Literal["login
         except RedisError as exc:
             raise HTTPException(503, "OAuth 상태 저장소에 연결할 수 없습니다.") from exc
     finally:
-        await client.aclose()
+        await close_redis(client)
     redirect_uri = f"{get_settings().public_base_url}/api/auth/oauth/{provider}/callback"
     params = {"client_id": client_id, "redirect_uri": redirect_uri, "response_type": "code", "scope": OAUTH[provider]["scope"],
               "state": state, "code_challenge": challenge, "code_challenge_method": "S256"}
@@ -522,7 +531,7 @@ async def oauth_callback(provider: Literal["google", "kakao"], code: str, state:
         except RedisError as exc:
             raise HTTPException(503, "OAuth 상태 저장소에 연결할 수 없습니다.") from exc
     finally:
-        await client.aclose()
+        await close_redis(client)
     if not raw:
         raise HTTPException(400, "OAuth 요청이 만료됐거나 이미 사용됐습니다.")
     state_data = json.loads(raw)
