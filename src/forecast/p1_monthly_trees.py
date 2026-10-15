@@ -70,12 +70,16 @@ def compare(X, Xt, y, b0, b1, yr, train_years, val_year):
 
 def main():
     data = features()
+    runs = []
     for label, train_years, val_year in [("검증 2025 (학습 2019~2024)", range(2019, 2025), 2025),
                                          ("검증 2024 (학습 2019~2023)", range(2019, 2024), 2024)]:
         n_tr, n_va, rows = compare(*data, list(train_years), val_year)
         print(f"\n{label}: 학습 {n_tr}행 / 검증 {n_va}행\n| 모델 | WAPE |\n|---|---|")
         for k, v in rows.items():
             print(f"| {k} | {v * 100:.2f}% |")
+            runs.append({"name": f"val{val_year}-{k}", "metrics": {"wape": v},
+                         "params": {"model": k, "val_year": val_year, "train_years": f"{min(train_years)}-{max(train_years)}"}})
+    S.log_runs("congestion-monthly-models", runs, {})
 
 
 if __name__ == "__main__":

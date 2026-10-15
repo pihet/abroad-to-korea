@@ -21,6 +21,9 @@ def main():
     print(f"시군구 {regions}곳 · 학습 2019~2025 {n_tr}행 / 테스트 2026-01~08 {n_te}행\n| 모델 | WAPE |\n|---|---|")
     for k, v in rows.items():
         print(f"| {k} | {v * 100:.2f}% |")
+    S.log_runs("congestion-test-2026", [{"name": f"test2026-{k}", "metrics": {"wape": v},
+                                          "params": {"model": k, "train_years": "2019-2025", "test": "2026-01~08"}}
+                                         for k, v in rows.items()], {})
 
     # 월별로 보면 어디서 틀리는지 보인다 (B1 과 서비스 Ridge 만)
     tr, te = np.isin(yr, list(range(2019, 2026))), yr == 2026
