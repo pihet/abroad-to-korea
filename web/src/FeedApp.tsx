@@ -104,6 +104,24 @@ export default function FeedApp() {
   useEffect(() => {
     authApi.me().then(setUser).catch(() => {})
   }, [])
+  // 하트 · 닮았어요 · 별로예요를 누르면 짧게 튀는 애니메이션. 누른 순간에만 (처음 그려질 때 이미 눌린 하트는 움직이지 않게)
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const btn = (e.target as Element).closest?.('.post-act button, .igr-heart') as HTMLElement | null
+      if (!btn) return
+      requestAnimationFrame(() => {  // 상태가 바뀐 뒤(aria-pressed) 어떤 동작인지 정한다
+        const on = btn.getAttribute('aria-pressed') === 'true'
+        const kind = btn.classList.contains('txt') ? (btn.textContent?.includes('별로') ? 'no' : 'yes') : 'heart'
+        btn.classList.remove('bump', 'bump-heart', 'bump-yes', 'bump-no', 'bump-off')
+        void btn.offsetWidth  // 연달아 눌러도 다시 시작
+        btn.classList.add('bump', on ? `bump-${kind}` : 'bump-off')
+      })
+    }
+    const onEnd = (e: AnimationEvent) => (e.target as Element).classList?.remove('bump', 'bump-heart', 'bump-yes', 'bump-no', 'bump-off')
+    document.addEventListener('click', onClick)
+    document.addEventListener('animationend', onEnd)
+    return () => { document.removeEventListener('click', onClick); document.removeEventListener('animationend', onEnd) }
+  }, [])
   useEffect(() => {
     if (!user) return
     authApi.savedRegions().then(async ({ regions: remote }) => {

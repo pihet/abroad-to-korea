@@ -426,3 +426,18 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 /* 내 사진의 장면 태그 (눌러지지 않는 표시) */
 .ig-mytags { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--ig-line); font-size: 13.5px; font-weight: 600; color: #00376b }
 :root[data-theme="dark"] .ig-mytags { color: #e0f1ff }
+
+/* 하트 · 닮았어요 · 별로예요 누름 애니메이션 (FeedApp 이 누른 순간 bump-* 클래스를 붙인다) */
+.post-act button, .igr-heart { position: relative }
+.bump-heart svg { animation: ig-heart .45s cubic-bezier(.2, .9, .3, 1.4) }
+.bump-heart::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
+  border: 2px solid var(--ig-like, #ff3040); pointer-events: none; animation: ig-ring .5s ease-out forwards }
+.bump-yes { animation: ig-pop .35s cubic-bezier(.2, .9, .3, 1.4) }
+.bump-no { animation: ig-shake .4s ease-in-out }
+.bump-off { animation: ig-off .25s ease-out }
+@keyframes ig-heart { 0% { transform: scale(1) } 30% { transform: scale(1.35) } 60% { transform: scale(.9) } 100% { transform: scale(1) } }
+@keyframes ig-ring { 0% { transform: scale(.4); opacity: .9 } 100% { transform: scale(1.6); opacity: 0 } }
+@keyframes ig-pop { 0% { transform: scale(1) } 40% { transform: scale(1.15) } 100% { transform: scale(1) } }
+@keyframes ig-shake { 0%, 100% { transform: translateX(0) } 20% { transform: translateX(-4px) } 40% { transform: translateX(4px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(2px) } }
+@keyframes ig-off { 0% { transform: scale(1) } 50% { transform: scale(.9) } 100% { transform: scale(1) } }
+@media (prefers-reduced-motion: reduce) { .bump, .bump svg, .bump::after { animation: none !important } }
