@@ -13,12 +13,18 @@ export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: 
   const [agree, setAgree] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [blocked, setBlocked] = useState(false)  // 로그인은 됐지만 이 화면에서 쿠키가 막힘
 
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setMessage(null)
     try {
       if (mode === 'login') {
-        onUser(await authApi.login({ email, password })); onClose()
+        await authApi.login({ email, password })
+        // 다른 사이트 안에 띄운 화면(발표 덱 iframe 등)에서는 브라우저가 로그인 쿠키를 버린다.
+        // 그때 로그인된 것처럼 보이면 반응·저장이 익명으로 쌓이므로, 세션이 실제로 남았는지 확인한다
+        const me = await authApi.me().catch(() => null)
+        if (!me) { setBlocked(true); return }
+        onUser(me); onClose()
       } else if (mode === 'signup') {
         const result = await authApi.signup({ email, nickname, password, agree_terms: agree })
         setMessage(result.message); setMode('login')
@@ -72,6 +78,7 @@ export function AccountModal({ user, rows, onUser, onClose, onOrigin }: { user: 
         </form>
 
         {message && <p className="account-message" role="status">{message}</p>}
+        {blocked && <p className="account-message" role="alert">이 화면에서는 브라우저가 로그인을 막고 있어요. <a href={window.location.origin} target="_blank" rel="noopener">새 창에서 pickorea 열기</a> 후 로그인해 주세요.</p>}
         <footer className="account-foot">
           {mode === 'signup' ? <>이미 계정이 있으신가요? <button type="button" onClick={() => changeMode('login')}>로그인</button></>
             : <button type="button" onClick={() => changeMode('signup')}>회원가입</button>}
