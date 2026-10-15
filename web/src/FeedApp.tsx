@@ -171,7 +171,13 @@ export default function FeedApp() {
   const cover = (s: Story) => covers[s.id]
   // 사진으로 찾기 결과의 동그라미 프로필: 시군구 대표 사진
   const avatars = useMemo(() => Object.fromEntries((rows ?? []).map(r => [r.key, r.photo?.image_url])), [rows])
-  const goSearch = () => nav('search')
+  // 사진으로 찾기 화면에서 다시 누르면 (탐색 사진 결과 등) 새로 고르는 첫 화면으로
+  const [searchKey, setSearchKey] = useState(0)
+  const goSearch = () => {
+    if (tab !== 'search') return nav('search')
+    setStart(null); setSearchKey(k => k + 1); window.scrollTo(0, 0)
+    history.replaceState({ tab: 'search' }, '', window.location.pathname)
+  }
 
   return (
     <div className="ig">
@@ -262,7 +268,7 @@ export default function FeedApp() {
       {rows && tab === 'my' && <FeedMy user={user} rows={rows} saved={saved} accountOpen={accountOpen} onAccount={() => setAccountOpen(true)} onOpen={setOpen} />}
 
       <div hidden={tab !== 'search'}>
-        <FeedSearch start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} origin={origin} originName={originLabel(origin, rows)} />
+        <FeedSearch key={searchKey} start={start} saved={saved} onToggleSave={toggle} onOpen={setOpen} loggedIn={user !== null} avatars={avatars} origin={origin} originName={originLabel(origin, rows)} />
       </div>
 
       <nav className="ig-tabs" aria-label="메뉴">
