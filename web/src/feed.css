@@ -431,7 +431,7 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 .post-act button, .igr-heart { position: relative }
 .bump-heart svg { animation: ig-heart .45s cubic-bezier(.2, .9, .3, 1.4) }
 .bump-heart::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
-  border: 2px solid var(--ig-like, #ff3040); pointer-events: none; animation: ig-ring .5s ease-out forwards }
+  border: 2px solid var(--ig-like, #ff3040); pointer-events: none; opacity: 0; animation: ig-ring .5s ease-out }
 .bump-yes { animation: ig-pop .35s cubic-bezier(.2, .9, .3, 1.4) }
 .bump-no { animation: ig-shake .4s ease-in-out }
 .bump-off { animation: ig-off .25s ease-out }
@@ -440,4 +440,3 @@ body:has(.ig) { background: var(--ig-page, #fafafa) }
 @keyframes ig-pop { 0% { transform: scale(1) } 40% { transform: scale(1.15) } 100% { transform: scale(1) } }
 @keyframes ig-shake { 0%, 100% { transform: translateX(0) } 20% { transform: translateX(-4px) } 40% { transform: translateX(4px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(2px) } }
 @keyframes ig-off { 0% { transform: scale(1) } 50% { transform: scale(.9) } 100% { transform: scale(1) } }
-@media (prefers-reduced-motion: reduce) { .bump, .bump svg, .bump::after { animation: none !important } }

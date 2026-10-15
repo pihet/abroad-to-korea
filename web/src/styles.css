@@ -134,7 +134,6 @@ tbody th { color: var(--sub); font-weight: 500; white-space: nowrap }
   
   
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 
 /* 지역 활동 지도 */
 :root { --g-water: #1f78b4; --g-mountain: #2e8b47; --g-leisure: #d9661f; --g-camping: #8a6d1f; --g-experience: #8e44ad; --g-festival: #c2185b; --g-food: #d6336c }

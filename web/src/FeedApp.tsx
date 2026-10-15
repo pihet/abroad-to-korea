@@ -104,7 +104,7 @@ export default function FeedApp() {
   useEffect(() => {
     authApi.me().then(setUser).catch(() => {})
   }, [])
-  // 하트 · 닮았어요 · 별로예요를 누르면 짧게 튀는 애니메이션. 누른 순간에만 (처음 그려질 때 이미 눌린 하트는 움직이지 않게)
+  // 하트 · 닮았어요 · 별로예요를 누르면 짧게 튀는 애니메이션 (기기의 동작 줄이기 설정과 상관없이). 누른 순간에만
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const btn = (e.target as Element).closest?.('.post-act button, .igr-heart') as HTMLElement | null
@@ -115,6 +115,7 @@ export default function FeedApp() {
         btn.classList.remove('bump', 'bump-heart', 'bump-yes', 'bump-no', 'bump-off')
         void btn.offsetWidth  // 연달아 눌러도 다시 시작
         btn.classList.add('bump', on ? `bump-${kind}` : 'bump-off')
+        setTimeout(() => btn.classList.remove('bump', 'bump-heart', 'bump-yes', 'bump-no', 'bump-off'), 700)  // animationend 가 안 와도 정리
       })
     }
     const onEnd = (e: AnimationEvent) => (e.target as Element).classList?.remove('bump', 'bump-heart', 'bump-yes', 'bump-no', 'bump-off')
