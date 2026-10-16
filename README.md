@@ -1,306 +1,225 @@
-# pickorea · 사진으로 찾는 국내 여행지
+# pickorea
 
-> 최종 갱신: **2026-10-13 (Asia/Seoul)** · 저장소 이름 `abroad-to-korea`, 서비스 이름 `pickorea` (2026-10-11 '닮은꼴' → pickkorea, 10-12 pickorea 로 바꿈)
+> 해외에서 본 장면과 닮은 국내 여행지를 사진과 문장으로 찾는 AI 여행 추천 서비스
 
-가 보고 싶은 해외 여행지 사진을 올리면 분위기가 닮은 국내 시군구와 관광지를 찾아 주는 웹서비스다. 찾은 곳의 혼잡도·날씨·예상 경비·동네별 먹거리와 할 거리·공식 여행코스까지 이어서 보여 준다. 사진 없이 문장으로 묻는 AI 여행 추천도 있다.
+![pickorea 소개](docs/images/readme-hero.jpg)
 
-교육 과정 팀 프로젝트(2026-10-01 ~ 10-16)이며, 이 문서는 **2026-10-11 현재 코드와 로컬 Docker 환경**을 기준으로 썼다. 날짜별 진행 기록과 평가 근거는 [`docs/HANDOFF.md`](docs/HANDOFF.md), 운영 방법은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 있다.
+해외 여행 사진을 올리면 CLIP이 분위기가 비슷한 국내 관광지 사진을 찾고, 관광지별 유사도를 시군구 단위로 모아 추천한다. 문장으로 검색할 때는 로컬 LLM이 한국어 요청을 영어 시각 묘사로 바꾸고, 지역·거리·시기 같은 조건은 규칙으로 검증해 적용한다.
 
-## 화면 구성
+추천에서 끝나지 않고 혼잡도, 날씨, 예상 경비, 음식점, 활동, 축제, 공식 여행코스까지 한 흐름에서 제공한다.
 
-아래 탭 5개. 가운데가 대표 기능인 사진으로 찾기다.
+## 핵심 기능
 
-| 탭 | 하는 일 |
+| 기능 | 설명 |
 |---|---|
-| 홈 | 230개 시군구 사진 피드, 분류(바다·산숲·시골·도시) 이야기, 이번 주 축제, 로그인 사용자의 "저장한 곳과 닮은 곳" 줄 |
-| 탐색 | 해외 풍경 사진 213장. 누르면 바로 닮은 국내 여행지를 찾는다 |
-| 사진으로 찾기 | 내 사진 올리기(JPG·PNG·WEBP·HEIC) → 관심 영역 자르기 → 닮은 시군구 최대 30곳. 게시물마다 닮았어요·별로예요·저장 |
-| AI 여행 | "수원에서 가까운 조용한 바다"처럼 문장으로 묻기. 결과는 세로 카드(혼잡도·장면 칩, 저장) |
-| MY | 프로필, 내 취향 반영 상태, 저장한 곳(가로 카드·전체 보기), 저장한 곳의 한 달 안 축제, 내가 누른 반응 목록(취소 가능) |
+| 사진으로 찾기 | 해외 사진 업로드·관심 영역 자르기·닮은 국내 시군구 최대 30곳 추천 |
+| AI 여행 | “수원에서 가까운 조용한 바다”처럼 자연어로 검색 |
+| 지역 상세 | 12개월 혼잡도, 날씨, 경비, 읍면동 먹거리, 관광지·축제·코스 |
+| 개인화 | 저장·닮았어요·별로예요를 이용해 후보 30곳 안에서 순서 조정 |
+| 계정 | 이메일·Google·Kakao 로그인, 프로필, 기본 출발지, 탈퇴 |
+| 데이터 운영 | Airflow 수집, PostgreSQL 게시, MinIO 원본 보관, MLflow 실험 추적 |
 
-시군구를 누르면 지역 상세: 12개월 방문자·혼잡도, 16일 비 예보와 과거 기록, 읍·면·동 지도와 동네별 먹거리, 관광지·레포츠·축제, 공식 여행코스와 구간별 이동 시간(자동차·단거리 도보), 1인 당일·1박 예상 경비. 사진 출처·라이선스는 상세 맨 아래에 모아 둔다.
+![사진 기반 추천 흐름](docs/images/readme-search.jpg)
 
-계정 설정(MY → 계정 설정): 프로필 사진, 닉네임 변경, 내 취향 반영 켜기·끄기, 기본 출발지(5개 도시 또는 시군구 검색), 로그인 수단 보기·해제, 비밀번호 변경(이메일 가입자), 로그아웃, 회원 탈퇴.
+## 추천 방식
 
-## 추천은 이렇게 동작한다
+### 사진 검색
 
-### 1단계: 사진 닮음으로 후보 30곳
-
-1. 사진을 CLIP ViT-B/32 512차원 벡터로 바꾼다 (모델은 학습하지 않고 그대로 쓴다).
-2. 국내 관광지마다 가장 닮은 사진 1장을 남긴다.
-3. 상위 100개 관광지 유사도를 시군구별로 합산해 후보 30곳을 만든다.
-
-### 2단계: 후보 30곳 안에서만 순서 조정
-
-후보를 새로 넣거나 빼지 않고 순서만 바꾼다. 어느 단계든 사진 닮음이 주 신호다.
-
-| 순서 | 조정 | 언제 | 세기 |
-|---|---|---|---|
-| ① 조건 | 출발지 거리·혼잡도·여행 월 날씨 | 사용자가 조건을 고르면 | 사진 비중 50% 이상 유지 |
-| ② 같은 사진을 본 사람들의 반응 | 같은 사진에 쌓인 닮았어요·별로예요 | 로그인 사용자 표가 있으면 (한 사람은 관광지마다 1표) | 0.25 × (닮았어요−별로예요)/(전체+2), 한 후보 최대 약 7계단 |
-| ③ 내 취향 | 내가 누른 닮았어요·별로예요·저장한 곳의 사진 평균 방향 | 로그인 + 신호 3개 이상 + 계정 설정에서 켜 둠 | 20%, 한 후보 최대 약 7계단 |
-
-②·③은 **강화학습이나 모델 재학습이 아니다.** 쌓인 반응으로 순서만 계산해 바꾼다. 반응은 `feedback` 테이블에 사진 키(`photo_key`)·보인 순위와 함께 쌓이며, 나중에 학습 데이터로 쓸 수 있다.
-
-### AI 여행 (자연어)
-
-Ollama의 Qwen 2.5 3B는 문장을 영어 풍경 설명으로 옮기는 일만 한다. 출발지·달·지역·조건(바다·산숲·한적·도시·시골·날씨)·정렬은 **원문에서 확인되는 것만 규칙으로 뽑아 LLM 값을 덮어쓴다.** 실제 장소와 사진은 PostgreSQL에 게시된 TourAPI 데이터에서만 고른다. Ollama가 꺼져 있으면 규칙만으로 동작한다.
-
-- 알아듣는 출발지: 5개 도시와 시군구 이름("수원에서", "청주에서 멀지 않은", "서울 근교")
-- 광주·전남은 데이터 이름 '전남광주통합특별시'로 바꾼다
-- '산책·섬세' 같은 단어 일부 오인식, '바다 말고' 같은 부정, 계절(봄 4·여름 7·가을 10·겨울 1)을 처리한다
-
-```bash
-curl -X POST http://localhost:8000/api/travel/recommend \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"수원에서 가까운 조용한 바다", "limit":5}'
+```mermaid
+flowchart LR
+  A[사용자 사진] --> B[CLIP 이미지 인코더]
+  B --> C[512차원 L2 정규화 벡터]
+  D[국내 관광지 사진] --> E[사전 계산한 CLIP 벡터]
+  C --> F[코사인 유사도]
+  E --> F
+  F --> G[관광지마다 최고 사진 1장]
+  G --> H[상위 100개 유사도를 시군구별 합산]
+  H --> I[후보 30곳]
+  I --> J[조건·반응·개인 취향 재정렬]
 ```
 
-## 평가 결과
+사용 모델은 `openai/clip-vit-base-patch32`다. 별도 파인튜닝 없이 이미지와 텍스트가 공유하는 512차원 공간을 사용한다.
 
-실제로 실행한 결과만 적는다. 표본이 작아 절대 정확도로 해석하지 않는다.
+1. 국내 관광지 사진은 미리 벡터화해 `emb_kr.npz`에 저장한다.
+2. 사용자 사진은 요청 시 같은 이미지 인코더로 벡터화한다.
+3. 정규화 벡터의 내적으로 코사인 유사도를 계산한다.
+4. 관광지마다 가장 닮은 사진 한 장을 남긴다.
+5. 상위 100개 관광지 점수를 시군구별로 합산해 후보 30곳을 만든다.
+6. 사진 유사도를 주 신호로 유지하면서 조건·반응·취향으로 후보 순서만 조정한다.
 
-| 무엇을 | 결과 | 주의 |
+### 문장 검색
+
+```mermaid
+flowchart LR
+  A[한국어 여행 요청] --> B[Ollama Qwen 2.5 3B]
+  B --> C[영어 시각 묘사]
+  C --> D[CLIP 텍스트 인코더]
+  D --> E[512차원 벡터]
+  A --> F[규칙 파서]
+  F --> G[출발지·거리·월·지역·장면 조건]
+  E --> H[국내 사진 벡터와 비교]
+  G --> I[필터·재정렬]
+  H --> I
+  I --> J[최종 추천]
+```
+
+LLM은 장소를 직접 고르지 않는다. 영어 풍경 묘사를 만드는 역할만 맡는다. 출발지·월·거리·지역·바다·산·도시 같은 조건은 원문에서 확인되는 값만 규칙으로 추출해 적용한다. Ollama가 꺼지면 규칙 기반 경로로 동작한다.
+
+## 검증 결과
+
+| 평가 | 결과 | 해석 범위 |
 |---|---|---|
-| 사진 추천 (개발셋 해외지 23곳) | Hit@5 57%, Hit@10 74% | 개발셋으로 방법을 골랐다 |
-| 사진 추천 (새 해외지 15곳 홀드아웃) | Hit@10 40% (무작위 0.65곳 → 6곳) | 정답이 기사 속 1~2곳뿐이라 낮게 잰다. 15곳이라 오차 범위가 크다 |
-| 사람 평가 (1위 후보 30건) | 그럴듯함 80%, 엉뚱함 7% | 평가자 1명 |
-| 사람 평가 (상위 5곳 150건) | 그럴듯함 69%, 엉뚱함 16% | 평가자 1명 |
-| AI 여행 질문 해석 (60문장, 2026-10-11) | 고치기 전 dev 52%·holdout 35% → 고친 뒤 둘 다 100% | holdout도 같은 사람이 써서 독립 평가가 아니다. LLM 출력만은 dev 5% |
-| 혼잡도 예측 (시군구 월별 외지인 방문자, 2025 검증) | WAPE 5.6% (전년 같은 달 7.7%, 작년×최근 증감 6.1%) | 같은 조건 트리 모델 HistGB 6.4%·LightGBM 6.5%보다 좋음. 단 2024 검증에선 Ridge 6.8%로 기준선(4.0%)보다 나빴다 (HANDOFF 15-48) |
-| **혼잡도 최종 테스트 (2026-01~08, 한 번만 평가)** | **WAPE 4.1%** (작년 같은 달 5.1%, 작년×증감 5.5%, LightGBM 4.4%) | 2026-10-13 실행. 결과를 보고 모델을 바꾸지 않았다 (HANDOFF 15-49) |
-| 만족도 지표 (`GET /api/feedback/stats`) | 순위 구간별 닮았어요 비율 | 2026-10-11 현재 반응 4개라 아직 의미 없음. 구간당 30표 이상 필요 |
+| 사진 추천 개발셋 23곳 | Hit@5 57%, Hit@10 74% | 이 데이터로 집계 방식을 선택했으므로 낙관적일 수 있음 |
+| 당시 홀드아웃 15곳 | Hit@10 40%, MRR 0.199 | 표본이 작고 정답 라벨이 1~2곳으로 불완전함 |
+| 사람 평가 1위 30건 | 그럴듯함 80%, 엉뚱함 7% | 평가자 1명 |
+| 사람 평가 상위 5곳 150건 | 그럴듯함 69%, 엉뚱함 16% | 2위 이하와 도시 사진에서 오류 증가 |
+| 혼잡도 2026 최종 테스트 | Ridge WAPE 4.11% | 2026-01~08, 결과 확인 뒤 모델을 바꾸지 않음 |
+| AI 질문 해석 60문장 | 규칙 결합 후 dev·holdout 100% | 같은 작성자의 문장이므로 독립 평가로 해석하지 않음 |
 
-사진 추천 모델은 CLIP ViT-B/32를 학습 없이 쓴다. 비교한 것: 기후·지형·장소 정형 특징(해외 11곳 Hit@10 최고 4곳 vs CLIP 8곳), CLIP 크기 3종(B/32 23곳 · B/16 21곳 · L/14 19곳, 개발셋 38곳), 시군구 집계 4종(vote100 채택). 다른 계열 이미지 모델(DINOv2·SigLIP 등)과는 비교하지 않았다. 개선안 5가지는 모두 미리 정한 기준을 넘지 못해 채택하지 않았다 (HANDOFF 11장).
+`Hit@K`는 정답 시군구가 상위 K개 안에 한 번이라도 있는지, `MRR`은 정답이 처음 나온 순위의 역수를 평균한 값이다. 혼잡도 `WAPE`는 전체 실제 방문자 수 대비 절대 오차 비율이다.
 
-예상 경비는 예측 모델이 아니라 국민여행조사 2023~2025 원자료의 1인 가중 중앙값과 25~75분위다. 연휴 보정 혼잡도 모델은 실험만 했고 서비스에는 월 단위 모델을 쓴다. MLflow 실험은 `clip-model-comparison`, `congestion-baseline`, `congestion-holiday-experiments`로 나뉜다.
+평가 근거와 실패 사례는 [`docs/HANDOFF.md`](docs/HANDOFF.md)에 기록되어 있다.
 
-## 아키텍처
+## 시스템 아키텍처
+
+![시스템 아키텍처](docs/images/readme-architecture.jpg)
 
 ```mermaid
 flowchart TB
-  USER["브라우저<br/>React · TypeScript · Leaflet"]
-  EXT["외부 API<br/>TourAPI · DataLab · Open-Meteo<br/>Kakao · Google · Resend"]
-  FILES[("호스트 data/<br/>CLIP 인덱스 · 경계 · 예측 결과 · 수집 원본")]
+  USER[브라우저<br/>React · TypeScript · Leaflet]
+  EXT[외부 API<br/>TourAPI · DataLab · Open-Meteo<br/>Kakao · Google · Resend]
+  FILES[(호스트 data<br/>CLIP 인덱스 · 경계 · 예측 결과)]
 
-  subgraph COMPOSE["Docker Compose"]
-    API["FastAPI :8000<br/>추천 · 지역 · 회원 · MY · 사진 API + 웹 화면"]
-    PG[("PostgreSQL 16 + pgvector<br/>app · airflow · mlflow DB")]
-    REDIS[("Redis<br/>분석 결과 캐시 · 세션 · OAuth state · rate limit")]
-    MINIO[("MinIO<br/>보관 동의 사진 · 프로필 사진 · 원본 보관 · MLflow artifact")]
-    MAIL["email-worker"]
-    MIG["Alembic migrate"]
-    AF["Airflow 3<br/>API server · DAG processor · scheduler"]
-    MLFLOW["MLflow :5000"]
-    OLLAMA["Ollama :11434<br/>Qwen 2.5 3B"]
+  subgraph COMPOSE[Docker Compose]
+    API[FastAPI :8000<br/>화면 · 추천 · 회원 · 지역 API]
+    PG[(PostgreSQL 16 + pgvector<br/>서비스 · Airflow · MLflow DB)]
+    REDIS[(Redis<br/>세션 · OAuth state · rate limit · 검색 캐시)]
+    MINIO[(MinIO<br/>동의한 사진 · 수집 원본 · MLflow artifact)]
+    OLLAMA[Ollama<br/>Qwen 2.5 3B]
+    AF[Airflow 3<br/>수집 · 게시 · 정리]
+    MLFLOW[MLflow]
+    MAIL[email-worker]
   end
 
-  USER <-- "HTTP · JSON · 이미지" --> API
-  API --> FILES
+  USER <--> API
   API --> PG
   API --> REDIS
   API --> MINIO
-  API --> EXT
-  API -- "문장 → 영어 풍경 설명" --> OLLAMA
-  MIG --> PG
-  MAIL --> PG
-  MAIL --> EXT
-  AF -- "수집 · 게시 · 정리" --> FILES
+  API --> FILES
+  API <--> OLLAMA
+  API <--> EXT
   AF --> PG
   AF --> MINIO
   AF --> EXT
   MLFLOW --> PG
   MLFLOW --> MINIO
+  MAIL --> PG
+  MAIL --> EXT
 ```
 
-PostgreSQL이 회원 데이터와 관광 콘텐츠의 서비스 원본이다. Airflow가 `data/raw/`에 받은 원본을 검증해 PostgreSQL에 멱등 게시하고 MinIO에 체크섬 단위로 보관한다. CLIP 임베딩·행정동 경계·예측 결과처럼 다시 만들 수 있는 모델·지도 자산만 파일로 둔다.
+PostgreSQL은 회원과 관광 콘텐츠의 서비스 원본이다. Redis는 삭제 가능한 캐시·세션과 OAuth state·요청 제한을 담당한다. MinIO는 보관에 동의한 사진, 수집 원본, MLflow artifact를 저장한다. Airflow는 한국 시각 기준으로 수집과 정리 작업을 실행한다.
 
 ## 기술 스택
 
 | 구분 | 기술 |
 |---|---|
-| Frontend | React 19, TypeScript 6, Vite 8, Leaflet, oxlint |
-| API | FastAPI 0.118, Pydantic, SQLAlchemy 2 async, Uvicorn |
-| ML·분석 | CLIP ViT-B/32 (Transformers 5, PyTorch 2 CPU), Ollama 0.12 + Qwen 2.5 3B, scikit-learn, LightGBM |
-| Data | pandas, NumPy, TourAPI KorService2, DataLabService, Open-Meteo |
-| Storage | PostgreSQL 16 + pgvector, Redis 7.4, MinIO |
-| Workflow·MLOps | Airflow 3.1 LocalExecutor, Alembic, MLflow 3.15 |
-| Auth·Mail | Argon2, Google OAuth, Kakao OAuth, Resend |
-| Runtime | Docker Compose, Python 3.12, Node 24 |
+| Frontend | React 19, TypeScript 6, Vite 8, Leaflet |
+| Backend | FastAPI, Pydantic, SQLAlchemy 2, Uvicorn |
+| AI/ML | CLIP ViT-B/32, PyTorch, Transformers, Ollama Qwen 2.5 3B |
+| Analysis | pandas, NumPy, scikit-learn, LightGBM |
+| Data | PostgreSQL 16, pgvector, Redis 7.4, MinIO |
+| Pipeline | Airflow 3.1, Alembic, MLflow 3.15 |
+| Runtime | Docker Compose, Python 3.12, Node.js 24 |
 
-Python 패키지는 루트 [`requirements.txt`](requirements.txt) 하나에 버전을 고정해 둔다. Airflow·MLflow 컨테이너에만 필요한 패키지는 각 Dockerfile에 고정한다.
+## 저장소 구조
 
-## 데이터베이스
-
-PostgreSQL 인스턴스 하나에 애플리케이션·Airflow·MLflow DB와 계정을 나눠 둔다. migration head는 **`20261011_04`**(반응에 사진 키·순위 추가)다.
-
-| 테이블 그룹 | 주요 테이블 |
-|---|---|
-| 회원·인증 | `users`, `auth_identities`, `auth_sessions`, `one_time_tokens`, `user_preferences`(취향 반영·기본 출발지·프로필 사진) |
-| 사용자 기능 | `saved_regions`, `feedback`(닮았어요·별로예요, 사진 키·보인 순위), `media_assets`(보관 사진·프로필 사진), `email_outbox`, `inquiries`(문의하기), `search_logs`(사진으로 찾기·AI 여행·이름 검색 기록) |
-| 수집 이력 | `data_sources`, `ingestion_runs`, `raw_objects` |
-| 관광 데이터 | `regions`, `places`, `place_images`, `festivals` |
-| 분석 데이터 | `visitor_metrics`, `climate_daily`, `image_embeddings` |
-
-2026-10-11 로컬 DB 기준 활성 데이터: 시군구 230곳, 장소 31,707곳(음식점 13,402 · 관광지 12,603 · 레포츠 3,751 · 공식 코스 1,068 · 축제 883), 이미지 메타데이터 109,399건.
-
-계정 규칙: 이메일 가입·Google·Kakao는 **같은 이메일이어도 별개 회원**이다 (이메일 가입은 인증 메일이 없어 남이 먼저 그 주소로 가입했을 수 있다. Resend 는 도메인 등록 전에는 Resend 계정 주인 주소로만 보낸다). 하나로 쓰려면 로그인한 뒤 계정 설정에서 직접 연결한다. 같은 공급자 안에서는 이메일 가입은 이메일, 소셜은 공급자 계정 ID 가 유일하다. 회원 탈퇴 시 이메일·닉네임을 지우고 로그인 수단·저장한 곳·설정·문의·검색 기록·메일 발송 기록을 삭제해 같은 이메일로 다시 가입할 수 있다. 반응 기록은 모델 평가용으로 남는다. 가입하려면 만 14세 이상과 이용약관(`/terms.html`)·개인정보처리방침(`/privacy.html`) 동의가 필요하다. 검색 기록은 90일, 메일 발송 기록은 30일 보관한다.
-
-## Airflow 일정
-
-Airflow timezone은 **한국 시각(Asia/Seoul)** 이다. TourAPI 하루 한도가 자정(KST)에 다시 차므로 수집은 자정 직후에 시작한다 (2026-10-11). DAG의 cron과 `start_date`도 한국 시각으로 적는다.
-
-| DAG | 주기 (한국 시각) | 작업 |
-|---|---|---|
-| `tour_data_daily` | 매일 00:05 | 추가 사진·대표메뉴·향후 365일 축제 수집, 게시, 사진 캐시 |
-| `tour_catalog_daily` | 매일 00:35 | 관광지·레포츠·음식점 목록 수집과 게시 |
-| `user_media_cleanup_hourly` | 매시간 | 기한이 지난 사용자 사진(바꾼 프로필 사진 포함) 삭제 |
-| `regional_metrics_monthly` | 매월 2일 00:20 | 방문자 수와 행정동 인구 수집 |
-
-TourAPI 작업은 pool slot 1개로 한 번에 하나씩 돌리고, 일일 작업은 최대 3회 재시도한다.
+```text
+app/                 FastAPI와 추천·회원·지역 기능
+web/                 React 웹 화면
+src/collect/         외부 데이터 수집
+src/model/           CLIP 임베딩·추천 실험·평가
+src/forecast/        혼잡도 예측
+src/cost/            예상 경비 표 생성
+src/ingest/          PostgreSQL·MinIO 게시
+src/mlops/           MLflow 기록
+src/ops/             보관 기한 정리
+infra/airflow/dags/  배치 일정
+infra/migrations/    Alembic 마이그레이션
+tests/               API·인프라·LLM·MLflow 테스트
+docs/                설계·운영·실험 근거
+data/                로컬 데이터, 본체는 Git 제외
+```
 
 ## 실행
 
-### 준비
+### 준비 사항
 
-- Docker Desktop (WSL 2 연동)
-- 저장소 루트의 `.env` (항목은 아래 표, 값은 팀 내부 채널로 전달)
-- 팀 공유 드라이브의 `data/` 파일
+- Docker Desktop 또는 Docker Engine + Compose v2
+- Git
+- 여유 디스크 20GB 이상, 메모리 16GB 이상 권장
+- 별도로 전달받거나 수집·생성한 `data/`
+- 저장소 루트의 `.env`
 
-`.env`와 데이터 본체는 Git에 올리지 않는다.
-
-| 목적 | 키 |
-|---|---|
-| DB·캐시 | `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `AIRFLOW_DB_PASSWORD`, `MLFLOW_DB_PASSWORD`, `DATABASE_URL`, `REDIS_URL` |
-| Airflow | `AIRFLOW_UID` (호스트 사용자 uid, `id -u`. 없으면 수집이 `data/`에 못 써서 실패), `AIRFLOW_JWT_SECRET` (아무 긴 무작위 문자열. scheduler·API server 가 같은 값을 써야 작업이 돈다: `python -c "import secrets;print(secrets.token_urlsafe(48))"`) |
-| 객체·실험 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MLFLOW_TRACKING_URI` |
-| 인증·메일 | `PUBLIC_BASE_URL`, `COOKIE_SECURE`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` |
-| 데이터 API | `TOUR_API_KEY`(추가 키 `_2`~`_5`), `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `KAKAO_REST_API_KEY` |
-
-### 전체 스택
+로컬 폴더 이름은 자유롭게 정할 수 있다.
 
 ```bash
-docker compose up --build -d          # migrate 가 먼저 돌아 DB 스키마를 맞춘다
-docker compose exec ollama ollama pull qwen2.5:3b   # 처음 한 번 (AI 여행)
-docker compose ps -a
-curl http://localhost:8000/api/health
+git clone https://github.com/pihet/abroad-to-korea.git <원하는-폴더명>
+cd <원하는-폴더명>
 ```
 
-`data/raw/tourapi/`를 처음 게시하는 환경에서는 API를 시작하기 전에 한 번 백필한다.
+`.env` 필수 항목과 데이터 준비는 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md), [`data/README.md`](data/README.md)를 따른다.
 
 ```bash
-docker compose exec airflow-api-server bash -lc \
-  'cd /workspace && python src/ingest/publish_tour.py --logical-date "$(date +%F)" --dag-id manual_backfill'
-docker compose restart api
+docker compose config --quiet
+docker compose up -d ollama
+docker compose exec ollama ollama pull qwen2.5:3b
+docker compose up --build -d
+curl --fail http://localhost:8000/api/health
 ```
 
-**코드나 화면을 고친 뒤**에는 API 이미지를 다시 빌드해야 8000번에 반영된다.
+접속 주소:
+
+- Web/API: `http://localhost:8000`
+- OpenAPI: `http://localhost:8000/docs`
+- Airflow: `http://localhost:8080`
+- MLflow: `http://localhost:5000`
+- MinIO Console: `http://localhost:9001`
+
+## 개발과 검증
 
 ```bash
-docker compose up -d --build --no-deps api
-```
-
-| 접속 대상 | 주소 | 비고 |
-|---|---|---|
-| Web/API | `http://localhost:8000` | API 문서 `/docs` |
-| Airflow | `http://localhost:8080` | DAG 확인·운영 |
-| MLflow | `http://localhost:5000` | experiment·run·artifact |
-| PostgreSQL | `127.0.0.1:5434` | DB `abroad_to_korea`, 사용자 `app`, 비밀번호 `.env`의 `APP_DB_PASSWORD` |
-| Redis | `localhost:6379` | 개발 환경에서만 공개 |
-| MinIO | `http://localhost:9000`, `http://localhost:9001` | S3 API, Console |
-| Ollama | `http://localhost:11434` | AI 여행 |
-
-정상 상태: API·Airflow 3개·email-worker·MinIO가 `Up`, PostgreSQL·Redis·MLflow·Ollama가 `healthy`, `migrate`·`airflow-init`·`mlflow-db-init`가 `Exited (0)`.
-
-### 로컬 개발
-
-```bash
-python3.12 -m venv .venv && source .venv/bin/activate
+# Python
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-cd web && npm ci && npm run build && cd ..
-uvicorn app.main:app --port 8000      # CLIP 모델을 읽느라 시작에 수십 초
+.venv/bin/python -m pytest tests -q
+
+# Web
+cd web
+npm ci
+npm run build
+npm run lint
 ```
 
-화면 개발은 API를 띄운 상태에서 `cd web && npm run dev`.
+추천 통합 테스트는 Git에 없는 로컬 데이터와 PostgreSQL 백필이 필요하다. 운영 및 문제 해결 명령은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)에 정리되어 있다.
 
-## 테스트와 평가 도구
+## 데이터와 개인정보
 
-```bash
-.venv/bin/python -m pytest tests -q      # 65개 (2026-10-12 전부 통과), 약 70초
-cd web && npm run build && npm run lint  # 타입 검사·빌드, oxlint (경고만 있고 오류 없음)
-```
+- 사용자 사진은 보관 동의가 있을 때만 MinIO에 저장한다.
+- 검색 기록은 90일, 메일 발송 기록은 30일 보관한다.
+- 비밀번호는 Argon2id로 해시한다.
+- 세션·일회성 토큰은 원문 대신 해시를 DB에 저장한다.
+- 실제 `.env`, 원본 데이터, 사용자 업로드는 Git에 커밋하지 않는다.
+- 관광·해외 사진은 각 항목의 공공누리·CC 라이선스와 출처를 화면에 표시한다.
 
-pytest는 API 계약, 추천 결과 회귀, 개인 맞춤·사진별 반응 재정렬의 이동 한도, AI 여행 해석 60문장, 계정 입력 검사, DB 제약, 메일 템플릿, MLflow 기록을 확인한다. 추천 테스트에는 Git에서 빠진 로컬 `data/`와 실행 중인 PostgreSQL이 필요하다.
+## 문서
 
-| 도구 | 하는 일 |
+| 문서 | 내용 |
 |---|---|
-| `tools/eval_intent.py` | AI 여행 질문 해석 평가 (`tests/data/intent_cases.json`). `--llm`은 Ollama까지 거치는 서비스 경로, `--llm --raw`는 규칙 보정 없는 LLM 출력 |
-| `GET /api/feedback/stats` | 순위 구간·사진 종류별 닮았어요 비율 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 요청·데이터 흐름과 구성 요소 |
+| [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) | 설치·운영·DB·Airflow·백업 |
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | 실험 과정, 수치, 결정 근거 |
+| [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) | 화면과 API 계약 |
+| [`docs/PERSONALIZATION_AND_DB_PLAN.md`](docs/PERSONALIZATION_AND_DB_PLAN.md) | 개인화와 데이터베이스 설계 |
 
-## 운영 명령
-
-```bash
-# 스키마 상태와 ORM 드리프트
-docker compose run --rm migrate alembic -c infra/alembic.ini current
-docker compose run --rm migrate alembic -c infra/alembic.ini check
-
-# Airflow
-docker compose exec airflow-api-server airflow dags list
-docker compose exec airflow-api-server airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
-
-# 로그
-docker compose logs --tail=200 api
-docker compose logs --tail=200 airflow-scheduler
-```
-
-`docker compose down -v`는 PostgreSQL·Redis·MinIO 볼륨을 지우므로 데이터가 필요하면 쓰지 않는다.
-
-## 폴더 구조
-
-```text
-app/                 FastAPI: 추천(recommender)·AI 여행(llm)·MY·개인 맞춤(personal)·회원(auth)·지역·사진 API
-web/                 React 화면
-src/collect/         공공데이터 수집
-src/model/           CLIP 실험·평가
-src/forecast/        혼잡도 모델
-src/cost/            예상 경비 표 생성
-src/ingest/          MinIO 보관·PostgreSQL 게시·사진 캐시
-src/mlops/           MLflow 공통 기록
-src/ops/             기한 지난 사진 정리
-infra/airflow/dags/  Airflow DAG
-infra/migrations/    Alembic migration
-infra/postgres/      DB·계정 초기화
-infra/docker/        Airflow·MLflow·MinIO 이미지
-tests/               pytest, 평가 문장(tests/data/)
-tools/               평가·발표 자료 스크립트
-docs/                설계·진행·운영 문서
-data/                로컬 데이터 (본체는 Git 제외)
-```
-
-주요 폴더마다 세부 README가 있다.
-
-## 데이터 출처
-
-| 데이터 | 출처 | 용도 |
-|---|---|---|
-| 관광지·레포츠·음식점·축제·코스 | 한국관광공사 TourAPI KorService2 | 추천 후보와 지역 상세 |
-| 지역별 방문자 수 | 한국관광공사 DataLabService | 혼잡도 실측·예측 |
-| 공휴일 | 한국천문연구원 특일정보 | 연휴 예측 실험 |
-| 주민등록 인구 | 행정안전부 | 도시·시골 구분 |
-| 행정동 경계 | vuski/admdongkor (원자료 통계청 SGIS) | 동네 지도 |
-| 해안선 | Natural Earth | 바다 거리 조건 |
-| 과거 날씨·예보 | Open-Meteo | 계절 조건과 비 정보 |
-| 이동 시간·장소 검색 | 카카오모빌리티 길찾기, 카카오 로컬 | 코스 구간 시간 (결과는 서버 메모리에만) |
-| 음식점 보조 사진 | 네이버 이미지 검색 | 대표 사진 없는 음식점 썸네일 (파일 저장 안 함) |
-| 해외 데모 사진 | Wikimedia Commons | 탐색 탭·평가 |
-| 여행 경비 | 국민여행조사 2023~2025 | 당일·1박 예상 경비 |
-
-관광 사진은 공공누리 1·3유형만 쓰고, 3유형은 자르거나 위에 무엇을 겹치지 않는다(사진은 칸 안에 통째로 넣는다). 파일별 출처·라이선스와 재생성 방법은 [`data/README.md`](data/README.md)에 있다.
-
-## 남은 작업 (2026-10-11 기준)
-
-- 팀원이 직접 쓴 질문 20~30개로 AI 여행 해석 다시 평가 (지금 60문장은 같은 사람이 씀)
-- 팀원이 탐색 사진으로 반응 100개 이상 눌러 만족도 지표 채우기 (발표용)
-- 여러 평가자와 더 큰 홀드아웃으로 사진 추천 품질 검증
-- 연휴 혼잡도(과거 연휴 배율)를 예상 경비 아래에 표시 — 보류
-- 운영 환경의 HTTPS, 비밀 관리, 백업·복구, Airflow 실패 알림
+이 프로젝트는 2026년 10월 교육 과정 팀 프로젝트로 제작됐다. 데이터와 모델 지표는 README에 적힌 평가 범위 안에서 해석해야 한다.
