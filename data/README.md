@@ -14,7 +14,112 @@
 1. `raw/`에 넣은 파일은 이름도 내용도 바꾸지 않는다. 가공은 반드시 사본으로 한다.
 2. `interim/`, `processed/`는 코드로 다시 만들 수 있어야 한다. 사라져도 문제없어야 한다.
 3. 데이터를 새로 추가하면 아래 표에 출처를 기록한다.
-4. 실제 파일은 팀 공유 드라이브로 주고받는다. (링크: 주제 확정 후 조장이 공유)
+4. 실제 파일을 전달할 때는 `data/` 구조, 생성일과 SHA-256 체크섬을 함께 제공한다. API 키와 사용자 업로드는 포함하지 않는다.
+
+## 데이터를 받는 방법
+
+대용량 원본·사진·임베딩은 Git에 포함하지 않는다. 실행 목적에 따라 다음 방법 중 하나를 선택한다.
+
+### 최종 결과를 그대로 실행하는 경우
+
+프로젝트 관리자에게 최종 `data/` 압축 파일과 SHA-256 체크섬을 전달받아 저장소 루트에 푼다. 현재 공개 다운로드 주소는 없으므로 Git clone만으로 추천 기능까지 실행되지는 않는다. 압축 파일 이름과 저장 위치는 받는 사람이 자유롭게 정할 수 있다.
+
+```bash
+# 저장소 루트에서 실행하는 예시. 실제 압축 형식에 맞는 명령을 사용한다.
+tar -xf <데이터-압축파일>.tar.gz
+find data -maxdepth 2 -type d | sort
+```
+
+압축을 푼 뒤 `data/raw`, `data/external`, `data/interim`이 바로 보여야 한다. `data/data/raw`처럼 `data`가 두 번 생겼다면 안쪽 내용을 저장소의 `data/`로 옮긴다.
+
+```bash
+test -f data/interim/clip/emb_kr.npz
+test -d data/interim/clip/kr
+test -d data/raw/tourapi
+test -d data/raw/datalab/locgoRegnVisitrDDList
+```
+
+### 공식 출처에서 직접 재생성하는 경우
+
+먼저 [공공데이터포털](https://www.data.go.kr/)에서 아래 API를 활용 신청한다.
+
+- [한국관광공사 국문 관광정보 서비스 TourAPI](https://www.data.go.kr/data/15101578/openapi.do): 관광지·사진·음식점·축제·여행코스
+- 한국관광공사 관광빅데이터 지역별 방문자 수: 포털에서 `locgoRegnVisitrDDList`로 검색
+- [한국천문연구원 특일 정보](https://www.data.go.kr/data/15012690/openapi.do): 공휴일
+- 행정안전부 행정동별 주민등록 인구: 포털에서 `admmPpltnHhStus`로 검색
+
+발급된 일반 인증키를 저장소 루트 `.env`에 넣는다. 포털에 표시된 키를 다시 URL 인코딩하지 않는다.
+
+```dotenv
+TOUR_API_KEY=<발급받은-일반-인증키>
+```
+
+TourAPI 목록 외에 법정동 코드와 관광 분류 코드 원문도 필요하다. 아래 명령은 실행한 날짜로 파일명을 자동 생성한다. `.env` 값을 셸 변수로 직접 불러오기 어려우면 첫 줄의 값만 발급받은 키로 바꾼다.
+
+```bash
+export TOUR_API_KEY='<발급받은-일반-인증키>'
+STAMP=$(date +%Y%m%d)
+mkdir -p data/raw/tourapi
+
+curl --fail --get "https://apis.data.go.kr/B551011/KorService2/ldongCode2?serviceKey=${TOUR_API_KEY}" \
+  --data-urlencode 'MobileOS=ETC' --data-urlencode 'MobileApp=pickorea' \
+  --data-urlencode '_type=json' --data-urlencode 'numOfRows=1000' --data-urlencode 'pageNo=1' \
+  -o "data/raw/tourapi/ldongCode2_list_${STAMP}.json"
+
+curl --fail --get "https://apis.data.go.kr/B551011/KorService2/lclsSystmCode2?serviceKey=${TOUR_API_KEY}" \
+  --data-urlencode 'MobileOS=ETC' --data-urlencode 'MobileApp=pickorea' \
+  --data-urlencode '_type=json' --data-urlencode 'numOfRows=1000' --data-urlencode 'pageNo=1' \
+  -o "data/raw/tourapi/lclsSystmCode2_${STAMP}.json"
+```
+
+Python 환경을 준비하고 기본 목록과 방문자 원본을 받는다. 수집기가 실행 날짜와 content id를 이용해 이름을 자동으로 만들므로 다른 사용자의 파일명을 따라 만들 필요가 없다.
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python src/collect/tour_attractions.py 12  # 관광지
+python src/collect/tour_attractions.py 28  # 레포츠
+python src/collect/tour_attractions.py 39  # 음식점
+python src/collect/tour_attractions.py 25  # 여행코스
+python src/collect/datalab_visitors.py 201801 202608
+python src/collect/population.py <수집할-YYYYMM>
+```
+
+상세 정보와 사진은 일일 한도까지 받은 뒤 같은 명령을 다시 실행하면 이어진다.
+
+```bash
+python src/collect/tour_images.py
+python src/collect/tour_images.py --food
+python src/collect/tour_food_intro.py
+python src/collect/tour_courses.py
+python src/collect/tour_course_stops.py
+```
+
+Open-Meteo 날씨와 Wikimedia Commons 사진에는 별도 키가 필요하지 않다. CLIP 모델 파일과 사진을 처음 내려받을 때 인터넷 연결이 필요하다.
+
+```bash
+python src/collect/region_context.py climate 1 2 3 4 5 6 7 8 9 10 11 12
+python src/model/clip_proto.py kr_images ov_images embed
+python src/model/scene_catalog.py download embed recommend
+```
+
+예상 경비까지 재생성하려면 [국민여행조사 원자료](https://know.tour.go.kr/stat/nRawDataDownloadDis19Re.do)에서 2023~2025 국내여행 SAV 파일을 내려받는다. 폴더 이름은 자유롭게 정한 뒤 명령 인수로 전달한다.
+
+```bash
+pip install pyreadstat
+python src/cost/build_cost_table.py <국민여행조사-원자료-폴더>
+```
+
+행정동 경계는 [vuski/admdongkor 릴리스](https://github.com/vuski/admdongkor/releases)에서 GeoJSON을 받고 버전과 출처를 기록한다. 평가 정답과 수동 검수 상태는 API로 재생성할 수 없으므로 저장소의 `data/external/` 표를 사용하거나 새 평가셋을 별도로 작성한다.
+
+### 재수집 시 확인할 점
+
+- 수집기가 만든 날짜 폴더와 원본 파일명은 바꾸지 않는다. 개인이 정하는 이름은 저장소 폴더와 전달용 압축 파일 이름이다.
+- 일부 실험 스크립트에는 발표 당시 데이터 날짜가 상수로 남아 있다. 새 데이터로 실행할 때 `RAW_TOUR`, `RAW_LIST`, `FOOD_LIST`, `LDONG`이 새 경로를 가리키는지 확인한다.
+- `LIMITED_NUMBER_OF_SERVICE_REQUESTS`가 나오면 기존 파일을 지우지 말고 다음 날 같은 명령으로 이어받는다.
+- 사진은 `cpyrhtDivCd`를 확인한다. 이 프로젝트는 공공누리 1·3유형만 사용하고, 3유형 이미지는 자르거나 편집하지 않는다.
 
 ## 데이터 출처 기록
 
@@ -59,4 +164,4 @@
 | 해외 POI | OpenStreetMap (Overpass API) | ODbL | 공용 서버 504·429 빈번. 캐시 필수 |
 | 지역별 방문자수 | 한국관광공사 빅데이터 지역별 방문자수_GW (DataLabService) | 공공누리 | TourAPI와 같은 키. ~~확장 기능용~~ 혼잡도 예측(P1) 학습 데이터. `numOfRows=50000`, 월 단위 요청 시 2018-01~2026-08 전체 104회 (Aside에서 확인, 저장소에는 아직 없음) |
 
-> `.csv`는 `.gitignore` 대상이다. `external/`의 직접 작성한 표 3개도 Git에 올리지 않고 팀 공유 드라이브로 공유한다. 재생성할 수 없으니 잃어버리지 않게 주의한다.
+> 수동 작성 평가표는 자동으로 재생성할 수 없다. 저장소에 포함하지 않는 표를 전달할 때는 데이터 묶음과 함께 체크섬을 기록한다.

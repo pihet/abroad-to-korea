@@ -167,7 +167,7 @@ git clone https://github.com/pihet/abroad-to-korea.git <원하는-폴더명>
 cd <원하는-폴더명>
 ```
 
-`.env` 필수 항목과 데이터 준비는 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md), [`data/README.md`](data/README.md)를 따른다.
+`.env` 필수 항목은 [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)를 따른다. 데이터는 최종 묶음을 전달받거나 공식 API에서 직접 재생성할 수 있으며, 신청 링크·수집 명령·일일 한도 대응은 [`data/README.md`](data/README.md)에 정리되어 있다.
 
 ```bash
 docker compose config --quiet
